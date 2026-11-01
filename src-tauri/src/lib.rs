@@ -2,6 +2,7 @@
 // readable source of truth that a test pins that file to.
 #[cfg(test)]
 mod content_security_policy;
+pub mod navigation_policy;
 
 use tauri::{App, WebviewUrl, WebviewWindowBuilder};
 
