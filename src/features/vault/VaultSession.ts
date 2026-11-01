@@ -9,7 +9,7 @@ import type { AutosaveSession } from "../autosave/AutosaveSession";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
 import type { StatusChoice } from "../sidebar/statusChoice";
-import { firstArticleIn, type ArticleOrder } from "./articleArrangement";
+import { firstArticleIn } from "./articleArrangement";
 import { isSameArticle } from "./articleLocation";
 import {
   reportedFailure,
@@ -171,11 +171,11 @@ export class VaultSession {
 
   /**
    * Goes to a workspace or All Notes rather than looking at it: the newest
-   * article (the list's first row in `order`) opens without taking the
+   * article (the list's first row) opens without taking the
    * keyboard. An empty scope, or a newest article that cannot be read,
    * leaves the editor empty.
    */
-  async goTo(scope: Scope, order: ArticleOrder): Promise<void> {
+  async goTo(scope: Scope): Promise<void> {
     if ((await this.#articleHolder.closeArticle()) !== "switched") {
       return;
     }
@@ -183,7 +183,7 @@ export class VaultSession {
     if (!(await this.#openScope(scope, selection))) {
       return;
     }
-    const newest = firstArticleIn(this.#snapshot.articles, order);
+    const newest = firstArticleIn(this.#snapshot.articles);
     if (newest !== null) {
       const { workspace, fileName } = newest;
       if (await this.#openArticle({ workspace, fileName }, selection)) {

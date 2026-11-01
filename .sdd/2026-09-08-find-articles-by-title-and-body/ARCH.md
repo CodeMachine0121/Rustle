@@ -11,8 +11,8 @@
 - **In one sentence:** three keyboard-opened finders — titles (`Cmd+T`), body lines (`Shift+Cmd+F`) and workspaces (`Cmd+P`) — share one overlay and one set of keys, search only the scope the sidebar shows, and land the writer on the article (and, for a body hit, on the line).
 - **Guiding principle:** *one owner per rule, and the finders own none of the vault's rules.*
   - The **match rule** ("one contiguous piece, any case, surrounding blanks mean nothing typed") has one owner per language: `SearchText` in the domain for body lines, `FindingText` in the webview for titles and workspace names. Both are tested with the same cases.
-  - The **order** stays in `arrangeArticles`. The finders and "go to the newest article" read the *same* `ArticleOrder` the article column draws with, which is lifted from the column's private state to `App` so there is only one.
-  - The **scope** stays in `VaultSession`; the finders read the snapshot and call `VaultSession` to move. Going somewhere (`goTo(scope, order)`) is a new verb next to looking (`selectWorkspace` / `selectAllNotes`), which stay untouched.
+  - The **order** stays in `arrangeArticles`. The finders and "go to the newest article" read the *same* order the article column draws with: `arrangeArticles` has one fixed order (created newest first) since sorting was retired on main, so there is nothing to lift or pass around.
+  - The **scope** stays in `VaultSession`; the finders read the snapshot and call `VaultSession` to move. Going somewhere (`goTo(scope)`) is a new verb next to looking (`selectWorkspace` / `selectAllNotes`), which stay untouched.
   - **Keys** have one owner: `FindingKeys` decides which finder a key event means (Cmd only, never Ctrl) and the listener swallows it in the window's capture phase, so it can never reach the editor whatever the editor's keymap grows into.
   - The **overlay behaviour** (typing, IME, ↑/↓ clamp, Enter, Esc, outside click, scroll into view, selection reset) is written once in `FinderPalette`; each finder only supplies rows, a status sentence and what choosing a row does.
 
@@ -27,13 +27,12 @@
 | `src-tauri` | **Add** | channel `searchBodies` → command `search_bodies(text, articles: [{ workspace, fileName }])`; names parsed into `WorkspaceName` / `ArticleFileName` (outside-vault rejected as everywhere) |
 | `src/ipc/` | **Add / Modify** | `bodySearch.ts` (`BodySearchResult`, `BodyMatch`), `channels.searchBodies` |
 | `src/features/finding/` | **Add** | `FindingText`, `FindingKeys` (+ `FINDING_SHORTCUTS` for the keymap list), `useFindingKeys`, `FinderPalette`, `TitleFinder`, `BodyFinder` (+ `BodySearch`), `WorkspaceFinder`, `Finders` (which one is open) |
-| `src/features/vault/VaultSession.ts` | **Modify** | `goTo(scope, order)` (switch scope, open the first article of the list without taking the keyboard, an empty or unreadable one leaves the editor empty); `openFoundArticle(article, cursorLine?)` (open with the keyboard, put the cursor on the line; the already open article only moves its cursor) |
-| `src/features/vault/articleArrangement.ts` | **Modify** | `orderArticles(articles, order)` (every article in the list's order, no filter — what the finders list) and `firstArticleIn(articles, order)` ("newest" is the list's first row) |
-| `src/features/vault/ArticleColumn.tsx` | **Modify** | the order becomes a controlled prop (`order`, `onOrderChange`) so `App` owns the one order |
+| `src/features/vault/VaultSession.ts` | **Modify** | `goTo(scope)` (switch scope, open the first article of the list without taking the keyboard, an empty or unreadable one leaves the editor empty); `openFoundArticle(article, cursorLine?)` (open with the keyboard, put the cursor on the line; the already open article only moves its cursor) |
+| `src/features/vault/articleArrangement.ts` | **Modify** | `orderArticles(articles)` (every article in the list's order, no filter — what the finders list) and `firstArticleIn(articles)` ("newest" is the list's first row) |
 | `src/features/autosave/AutosaveSession.ts`, `AutosavedEditor.tsx` | **Modify** | `OpenedArticle.cursorLine`, `placeCursor(line)`, `cursorPlacement` published next to `document` |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | `cursorPlacement?: { line, sequence }`: puts the cursor at the start of that body line (clamped to the last line), scrolls it into view, focuses |
 | `src/features/interfaceLanguage/messages.ts` | **Modify** | finder labels, empty / too many / failure sentences, the 「尋找 / Finding」 group and its three rows, both catalogs |
-| `src/app/App.tsx`, `app.css` | **Modify** | owns `articleOrder`; renders `Finders`; overlay styles |
+| `src/app/App.tsx`, `app.css` | **Modify** | renders `Finders`; overlay styles |
 | Article filter field, sidebar clicks | **Not touched** | the PRD keeps looking (filter, clicking the sidebar) exactly as it is |
 | Keymap overview in settings | **Not touched (absent)** | the keymap overview is not on `main` yet; this slice exports `FINDING_SHORTCUTS` and its catalog sentences so that list can add the 「尋找」 group in one line (see §8) |
 | `ArticleRepository` / infrastructure | **Not touched** | reading many articles is many `read` calls on the existing repository; vault confinement comes for free |
@@ -64,11 +63,10 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `VaultSession` | owns scope, selection, lists | `goTo(scope, order)` reuse `#openScope`, then open `firstArticleIn(articles, order)` without focus; on read failure clear the selection and the body failure so the editor stays empty; `openFoundArticle` opens with `focusEditor` and `cursorLine`, or asks the holder to `placeCursor` when it is already open |
+| `VaultSession` | owns scope, selection, lists | `goTo(scope)` reuse `#openScope`, then open `firstArticleIn(articles)` without focus; on read failure clear the selection and the body failure so the editor stays empty; `openFoundArticle` opens with `focusEditor` and `cursorLine`, or asks the holder to `placeCursor` when it is already open |
 | `ArticleHolder` | `openArticle` / `closeArticle` | adds `placeCursor(line)` |
 | `AutosaveSession` | owns the open article and the editor document | `cursorPlacement: { line, sequence } \| null`, set by `openArticle({ cursorLine })` and `placeCursor(line)` |
 | `MarkdownEditor` | one `EditorView` | applies a new `cursorPlacement` once the document it belongs to is shown (also after a deferred show during composition) |
-| `ArticleColumn` | owns filter text and order | order becomes a prop; filter text stays private |
 | `arrangeArticles` module | sorts and filters rows | adds `orderArticles` and `firstArticleIn` |
 
 ---
@@ -98,7 +96,7 @@ flowchart TD
 - **Where it lands:** a new finder = one `FinderKind`, one `FINDING_SHORTCUTS` entry and one component that hands rows to `FinderPalette`. The palette never learns what a row means.
 - **Keymap overview:** render `FINDING_SHORTCUTS` under `messages.findingShortcutGroup`; labels are the fixed strings `Cmd+T`, `Shift+Cmd+F`, `Cmd+P` (not in the catalog, the PRD keeps key names out of it).
 - **Replacing in results / regex:** belongs to `SearchText` (domain) — callers only see `matching_lines`.
-- **Do not hardcode:** the order (always `arrangeArticles` with the app's `ArticleOrder`), the limit (`BODY_MATCH_LIMIT`, read by the webview from `isTruncated`, never re-counted).
+- **Do not hardcode:** the order (always `arrangeArticles`), the limit (`BODY_MATCH_LIMIT`, read by the webview from `isTruncated`, never re-counted).
 - **Known debt:** the body search reads files sequentially per request; fine for the 500-article target. An index is the next step if it becomes slow.
 
 ---
@@ -109,7 +107,7 @@ flowchart TD
 | :--- | :--- |
 | US-01 打字之後只留下標題對上的文章 / 別的 workspace 的文章不會出現 | `TitleFinder` (scope = `snapshot.articles`) + `FindingText` |
 | US-01 選著「所有文章」時整個 vault / 選著某個 workspace 時不標 | `TitleFinder` (`showsAllNotes`) |
-| US-01 還沒打字時列出全部，順序與文章清單相同，第一列選著 | `TitleFinder` + `arrangeArticles` with the app order + `FinderPalette` |
+| US-01 還沒打字時列出全部，順序與文章清單相同，第一列選著 | `TitleFinder` + `arrangeArticles` + `FinderPalette` |
 | US-01 一篇都對不上 / 範圍是空的 workspace | `TitleFinder` sentences |
 | US-01 沒有範圍時清單不開 | `Finders` |
 | US-01 選一列就開那篇文章 | `VaultSession.openFoundArticle` |
@@ -122,7 +120,7 @@ flowchart TD
 | US-03 沒有範圍時清單不開 | `Finders` |
 | US-04 all | `SearchText` (body only via `ArticleDocument::into_body`) |
 | US-05 列出 / 過濾 / 對不上 / 沒有 workspace | `WorkspaceFinder` |
-| US-05 選一個就換過去並停在最新那一篇 / 第一列那一篇 / 空 / 讀不出來 / 所有文章 | `VaultSession.goTo(scope, order)` + `firstArticleIn` |
+| US-05 選一個就換過去並停在最新那一篇 / 第一列那一篇 / 空 / 讀不出來 / 所有文章 | `VaultSession.goTo(scope)` + `firstArticleIn` |
 | US-05 點側邊欄仍然只是看 | `selectWorkspace` unchanged |
 | US-05 換完之後範圍跟著換 | scope lives in `VaultSession`; finders read the snapshot |
 | US-06 上下 / 頭尾 / 打字回第一列 / 離開 / 沒有列按確認 / 組字 | `FinderPalette` |
@@ -138,7 +136,7 @@ flowchart TD
 Decisions taken without the user (also listed in the PR):
 
 1. **Scope ignores the sidebar status/tag filter and the article filter text.** The PRD defines the scope as "the workspace or 所有文章 the sidebar has selected"; the filters are ways of *looking* and stay out.
-2. **Order:** the article column's order (default 最新建立) is lifted to `App`, so "same order as the list" and "the list's first row" stay true even after the writer changes the order.
+2. **Order:** the article list has one fixed order (最新建立 first) since sorting was retired on main, so "same order as the list" and "the list's first row" both read `arrangeArticles` and need no shared state. A placed cursor also brings the editor back from preview only (`WritingLayout.revealEditorWhenNeeded`), as opening a found article does.
 3. **Keyboard after choosing:** a title or body row hands the keyboard to the editor (the writer named that article, and the line cursor is useless without focus). The workspace finder never does (PRD). Esc / outside click / the same key again put focus back where it was.
 4. **Body search request:** the webview sends the scope's article locations in list order; the backend never lists the scope itself, so the order has one owner and a search can stop after 201 hits.
 5. **A body hit in the already open article** only moves the cursor (no reload; unsaved text is kept). Line numbers come from the saved file, so with unsaved edits the cursor can land on a shifted line — accepted, as the PRD defines the search over saved content; a line past the end lands on the last line.

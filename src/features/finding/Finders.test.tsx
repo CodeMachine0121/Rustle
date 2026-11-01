@@ -7,7 +7,6 @@ import type { ChannelResult } from "../../ipc/channelResult";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
-import type { ArticleOrder } from "../vault/articleArrangement";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "../vault/VaultSession";
 import { BODY_SEARCH_DELAY_MILLISECONDS } from "./BodySearch";
 import { Finders } from "./Finders";
@@ -64,10 +63,9 @@ type Rendered = {
 function renderFinders(
   snapshot: VaultSnapshot,
   {
-    order = "createdNewestFirst" as ArticleOrder,
     bodyResult = { matches: [], isTruncated: false } as BodySearchResult,
     language = "zh" as const,
-  }: { order?: ArticleOrder; bodyResult?: BodySearchResult; language?: "zh" | "en" } = {},
+  }: { bodyResult?: BodySearchResult; language?: "zh" | "en" } = {},
 ): Rendered {
   const composition = new CompositionState();
   const onOpenFoundArticle = vi.fn();
@@ -80,7 +78,6 @@ function renderFinders(
         <div role="textbox" aria-label="寫作區" tabIndex={0} onKeyDown={editorKeys} />
         <Finders
           snapshot={snapshot}
-          order={order}
           searchBodies={searchBodies}
           onOpenFoundArticle={onOpenFoundArticle}
           onGoTo={onGoTo}
@@ -182,13 +179,6 @@ describe("Finders", () => {
 
       expect(rowTexts()).toEqual(["今天很累", "昨天下雨", "Input Method 筆記", "組字紀錄"]);
       expect(selectedRowText()).toBe("今天很累");
-    });
-
-    it("follows the order the article list is in", () => {
-      renderFinders(DIARY, { order: "title" });
-      openTitleFinder();
-
-      expect(rowTexts()[0]).toBe("Input Method 筆記");
     });
 
     it("takes blanks as nothing typed", () => {

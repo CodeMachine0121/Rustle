@@ -1,6 +1,5 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
@@ -10,10 +9,16 @@ import { useCompositionState } from "../../shared/composition/CompositionContext
 import type { CursorPlacement } from "../autosave/AutosaveSession";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
+import { cursorLineHighlight } from "./cursorLineHighlight";
 import { EditorScrollPane } from "./EditorScrollPane";
+import { EmphasisShortcuts } from "./EmphasisShortcuts";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TableRowContinuation } from "./TableRowContinuation";
 import { TabIndentation } from "./TabIndentation";
+import { xcodeTheme } from "./xcodeTheme";
+
+// Mod-I is italic now; selecting the enclosing syntax node is retired.
+const editorDefaultKeymap = defaultKeymap.filter((binding) => binding.key !== "Mod-i");
 
 type BodyChangeListener = (body: string) => void;
 
@@ -172,10 +177,12 @@ function editorExtensions(composition: CompositionState, tabIndentation: Extensi
   return [
     tabIndentation,
     new TableRowContinuation(composition).extension(),
+    new EmphasisShortcuts(composition).extension(),
     history(),
-    keymap.of([...defaultKeymap, ...historyKeymap]),
+    keymap.of([...editorDefaultKeymap, ...historyKeymap]),
     markdown(),
-    syntaxHighlighting(defaultHighlightStyle),
+    xcodeTheme(),
+    cursorLineHighlight(),
     EditorView.lineWrapping,
     EditorView.domEventHandlers({
       compositionstart: () => {

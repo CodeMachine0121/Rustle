@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 
 import type { ArticleLocation } from "../../ipc/articleSummary";
-import type { ArticleOrder } from "../vault/articleArrangement";
 import type { Scope, VaultSnapshot } from "../vault/VaultSession";
 import type { SearchBodies } from "./BodySearch";
 import { BodyFinder } from "./BodyFinder";
@@ -12,7 +11,6 @@ import { WorkspaceFinder } from "./WorkspaceFinder";
 
 type FindersProps = {
   snapshot: VaultSnapshot;
-  order: ArticleOrder;
   searchBodies: SearchBodies;
   onOpenFoundArticle: (article: ArticleLocation, cursorLine?: number) => void;
   onGoTo: (scope: Scope) => void;
@@ -26,7 +24,7 @@ type OpenFinder = { kind: FinderKind; opening: number };
  * without one the title and body finders stay closed. Dismissing gives the
  * keyboard back to where it was.
  */
-export function Finders({ snapshot, order, searchBodies, onOpenFoundArticle, onGoTo }: FindersProps) {
+export function Finders({ snapshot, searchBodies, onOpenFoundArticle, onGoTo }: FindersProps) {
   const [open, setOpen] = useState<OpenFinder | null>(null);
   const focusBeforeOpening = useRef<HTMLElement | null>(null);
   const hasScope = snapshot.selectedWorkspace !== null || snapshot.showsAllNotes;
@@ -65,7 +63,6 @@ export function Finders({ snapshot, order, searchBodies, onOpenFoundArticle, onG
         <TitleFinder
           key={open.opening}
           snapshot={snapshot}
-          order={order}
           onChoose={(article) => {
             close();
             onOpenFoundArticle(article);
@@ -78,7 +75,6 @@ export function Finders({ snapshot, order, searchBodies, onOpenFoundArticle, onG
         <BodyFinder
           key={open.opening}
           snapshot={snapshot}
-          order={order}
           searchBodies={searchBodies}
           onChoose={(article, line) => {
             close();

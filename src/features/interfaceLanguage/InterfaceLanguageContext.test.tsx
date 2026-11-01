@@ -43,14 +43,11 @@ function columns() {
       <WorkspaceColumn
         snapshot={TRAVEL}
         onSelect={vi.fn()}
-        onCreate={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
       />
       <ArticleColumn
         snapshot={TRAVEL}
-        order="createdNewestFirst"
-        onOrderChange={vi.fn()}
         onSelect={vi.fn()}
         onCreateArticle={vi.fn()}
         onEditMetadata={vi.fn()}

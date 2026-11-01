@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
-import { NewWorkspaceField } from "./NewWorkspaceField";
 import { RenameWorkspaceField } from "./RenameWorkspaceField";
 import type { VaultSnapshot } from "./VaultSession";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
@@ -9,7 +8,6 @@ import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 type WorkspaceColumnProps = {
   snapshot: VaultSnapshot;
   onSelect: (workspace: string) => void;
-  onCreate: (typedName: string) => Promise<boolean>;
   onRename: (workspace: string, typedName: string) => Promise<boolean>;
   onDelete: (workspace: string) => void;
 };
@@ -17,7 +15,6 @@ type WorkspaceColumnProps = {
 export function WorkspaceColumn({
   snapshot,
   onSelect,
-  onCreate,
   onRename,
   onDelete,
 }: WorkspaceColumnProps) {
@@ -26,11 +23,6 @@ export function WorkspaceColumn({
   const messages = useMessages();
   return (
     <>
-      <NewWorkspaceField
-        rejection={snapshot.creationRejection}
-        failure={snapshot.creationFailure}
-        onCreate={onCreate}
-      />
       {workspaceListFailure !== null && (
         <p className="column-message" role="alert">
           {messages.vaultUnreadable(workspaceListFailure)}

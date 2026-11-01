@@ -2,24 +2,23 @@ import { useMemo, useState } from "react";
 
 import type { ArticleLocation } from "../../ipc/articleSummary";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
-import { orderArticles, type ArticleOrder } from "../vault/articleArrangement";
+import { orderArticles } from "../vault/articleArrangement";
 import type { VaultSnapshot } from "../vault/VaultSession";
 import { FinderPalette } from "./FinderPalette";
 import { FindingText } from "./FindingText";
 
 type TitleFinderProps = {
   snapshot: VaultSnapshot;
-  order: ArticleOrder;
   onChoose: (article: ArticleLocation) => void;
   onDismiss: () => void;
 };
 
 /** The scope's articles in the list's order, narrowed by their titles only. */
-export function TitleFinder({ snapshot, order, onChoose, onDismiss }: TitleFinderProps) {
+export function TitleFinder({ snapshot, onChoose, onDismiss }: TitleFinderProps) {
   const messages = useMessages();
   const [text, setText] = useState("");
   const { articles, showsAllNotes } = snapshot;
-  const ordered = useMemo(() => orderArticles(articles, order), [articles, order]);
+  const ordered = useMemo(() => orderArticles(articles), [articles]);
   const matched = useMemo(() => {
     const findingText = new FindingText(text);
     return ordered.filter(({ title }) => findingText.matches(title));

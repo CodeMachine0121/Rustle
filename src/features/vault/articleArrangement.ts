@@ -2,16 +2,6 @@ import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
 import { isSameArticle } from "./articleLocation";
 
-export type ArticleOrder = "createdNewestFirst" | "title" | "updatedNewestFirst";
-
-export const DEFAULT_ARTICLE_ORDER: ArticleOrder = "createdNewestFirst";
-
-export const ARTICLE_ORDERS: readonly ArticleOrder[] = ["createdNewestFirst", "title", "updatedNewestFirst"];
-
-export function articleOrderNamed(name: string): ArticleOrder {
-  return ARTICLE_ORDERS.find((order) => order === name) ?? DEFAULT_ARTICLE_ORDER;
-}
-
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/;
 
 /** A case-insensitive piece of text looked for in an article's title and tags. */
@@ -32,7 +22,6 @@ class ArticleFilter {
 export type ArticleArrangement = {
   filterText: string;
   sidebarFilter: SidebarFilter;
-  order: ArticleOrder;
   /** Shown even when the filters leave it out: the article open in the editor. */
   openArticle: ArticleLocation | null;
 };
@@ -44,13 +33,14 @@ export type ArrangedArticle = {
 };
 
 /**
- * The rows the article column draws, in order: the sidebar filter and the
- * text filter both narrow the list, the open article always stays. The
- * given list is left as it was.
+ * The rows the article column draws, newest created first: the sidebar
+ * filter and the text filter both narrow the list, the open article always
+ * stays. Articles without a creation time come last; ties go by title, then
+ * workspace, then file name. The given list is left as it was.
  */
 export function arrangeArticles(
   articles: readonly ArticleSummary[],
-  { filterText, sidebarFilter, order, openArticle }: ArticleArrangement,
+  { filterText, sidebarFilter, openArticle }: ArticleArrangement,
 ): ArrangedArticle[] {
   const filter = new ArticleFilter(filterText);
   const shown = articles
@@ -59,8 +49,7 @@ export function arrangeArticles(
       isOutsideFilter: !sidebarFilter.matches(article) || !filter.matches(article),
     }))
     .filter(({ article, isOutsideFilter }) => !isOutsideFilter || isSameArticle(openArticle, article));
-  const instantToOrderBy = ORDER_INSTANTS[order];
-  const keyed = shown.map((row) => ({ row, instant: instantToOrderBy(row.article) }));
+  const keyed = shown.map((row) => ({ row, instant: instantOf(row.article.createdAt) }));
   keyed.sort(
     (first, second) =>
       compareNewestFirst(first.instant, second.instant) ||
@@ -72,26 +61,18 @@ export function arrangeArticles(
 }
 
 /** Every article in the list's order, with no filter. */
-export function orderArticles(articles: readonly ArticleSummary[], order: ArticleOrder): ArticleSummary[] {
+export function orderArticles(articles: readonly ArticleSummary[]): ArticleSummary[] {
   return arrangeArticles(articles, {
     filterText: "",
     sidebarFilter: SidebarFilter.NONE,
-    order,
     openArticle: null,
   }).map(({ article }) => article);
 }
 
 /** The article the list shows first with no filter: what "the newest one" means everywhere. */
-export function firstArticleIn(articles: readonly ArticleSummary[], order: ArticleOrder): ArticleSummary | null {
-  return orderArticles(articles, order)[0] ?? null;
+export function firstArticleIn(articles: readonly ArticleSummary[]): ArticleSummary | null {
+  return orderArticles(articles)[0] ?? null;
 }
-
-/** The time each order puts newest first. Ordering by title has none, so the title decides. */
-const ORDER_INSTANTS: Record<ArticleOrder, (article: ArticleSummary) => number | null> = {
-  createdNewestFirst: (article) => instantOf(article.createdAt),
-  updatedNewestFirst: (article) => instantOf(article.updatedAt),
-  title: () => null,
-};
 
 function instantOf(text: string): number | null {
   if (!ISO_DATE_TIME.test(text)) {

@@ -20,7 +20,6 @@ function renderColumn(
   snapshot: VaultSnapshot,
   {
     onSelect = vi.fn(),
-    onCreate = vi.fn(() => Promise.resolve(true)),
     onRename = vi.fn((workspace: string, typedName: string) => {
       void workspace;
       void typedName;
@@ -35,7 +34,6 @@ function renderColumn(
       <WorkspaceColumn
         snapshot={snapshot}
         onSelect={onSelect}
-        onCreate={onCreate}
         onRename={onRename}
         onDelete={onDelete}
       />
@@ -43,7 +41,6 @@ function renderColumn(
   );
   return {
     onSelect,
-    onCreate,
     onRename,
     onDelete,
     state,
@@ -53,13 +50,11 @@ function renderColumn(
           <WorkspaceColumn
             snapshot={next}
             onSelect={onSelect}
-            onCreate={onCreate}
-            onRename={onRename}
+                onRename={onRename}
             onDelete={onDelete}
           />
         </CompositionProvider>,
       ),
-    field: screen.getByRole("textbox", { name: "新 workspace 名稱" }),
   };
 }
 
@@ -115,92 +110,10 @@ describe("WorkspaceColumn", () => {
     expect(screen.queryByText("建立你的第一個 workspace")).not.toBeInTheDocument();
   });
 
-  it.each([
-    ["alreadyUsed", "這個名稱已經有人用了，請換一個。"],
-    ["containsPathSeparator", "名稱不能包含 / 或 \\，一個 workspace 就是一層資料夾。"],
-    ["reserved", "這是保留名稱（images，或以 . 開頭的名稱），請換一個。"],
-    ["empty", "請先輸入 workspace 名稱。"],
-  ] as const)("explains a %s rejection", (reason, explanation) => {
-    renderColumn({ ...TWO_WORKSPACES, creationRejection: reason });
+  it("has no name field of its own for a new workspace", () => {
+    renderColumn(TWO_WORKSPACES);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(explanation);
-  });
-
-  it("shows why a workspace could not be created", () => {
-    renderColumn({ ...EMPTY, creationFailure: "disk full" });
-
-    expect(screen.getByRole("alert")).toHaveTextContent("disk full");
-  });
-
-  it("asks to create the typed name when Enter is pressed and then empties the field", async () => {
-    const { onCreate, field } = renderColumn(EMPTY);
-
-    fireEvent.change(field, { target: { value: "Notes" } });
-    fireEvent.keyDown(field, { key: "Enter" });
-
-    expect(onCreate).toHaveBeenCalledWith("Notes");
-    await waitFor(() => expect(field).toHaveValue(""));
-  });
-
-  it("keeps the typed name when it was not accepted", async () => {
-    const onCreate = vi.fn(() => Promise.resolve(false));
-    const { field } = renderColumn(EMPTY, { onCreate });
-
-    fireEvent.change(field, { target: { value: "Blog" } });
-    fireEvent.keyDown(field, { key: "Enter" });
-
-    await waitFor(() => expect(onCreate).toHaveBeenCalled());
-    expect(field).toHaveValue("Blog");
-  });
-
-  it("does not submit on the Enter that picks a candidate during composition", () => {
-    const { onCreate, field, state } = renderColumn(EMPTY);
-
-    fireEvent.compositionStart(field);
-    fireEvent.change(field, { target: { value: "筆記" } });
-    fireEvent.keyDown(field, { key: "Enter" });
-
-    expect(state.isComposing).toBe(true);
-    expect(onCreate).not.toHaveBeenCalled();
-  });
-
-  it("does not submit on an Enter the input method reports with its own key code", () => {
-    const { onCreate, field } = renderColumn(EMPTY);
-
-    fireEvent.change(field, { target: { value: "筆記" } });
-    fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
-
-    expect(onCreate).not.toHaveBeenCalled();
-  });
-
-  it("submits on the Enter after the composition ended", () => {
-    const { onCreate, field, state } = renderColumn(EMPTY);
-
-    fireEvent.compositionStart(field);
-    fireEvent.change(field, { target: { value: "筆記" } });
-    fireEvent.compositionEnd(field);
-    fireEvent.keyDown(field, { key: "Enter" });
-
-    expect(state.isComposing).toBe(false);
-    expect(onCreate).toHaveBeenCalledWith("筆記");
-  });
-
-  it("ignores keys other than Enter", () => {
-    const { onCreate, field } = renderColumn(EMPTY);
-
-    fireEvent.change(field, { target: { value: "Notes" } });
-    fireEvent.keyDown(field, { key: "a" });
-
-    expect(onCreate).not.toHaveBeenCalled();
-  });
-
-  it("ends a composition whose end never arrived when the field loses focus", () => {
-    const { field, state } = renderColumn(EMPTY);
-
-    fireEvent.compositionStart(field);
-    fireEvent.blur(field);
-
-    expect(state.isComposing).toBe(false);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("offers to rename and to delete every workspace", () => {

@@ -5,7 +5,7 @@ import type { BodyMatch } from "../../ipc/bodySearch";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { Messages } from "../interfaceLanguage/messages";
-import { orderArticles, type ArticleOrder } from "../vault/articleArrangement";
+import { orderArticles } from "../vault/articleArrangement";
 import type { VaultSnapshot } from "../vault/VaultSession";
 import { BodySearch, type BodySearchState, type SearchBodies } from "./BodySearch";
 import { FinderPalette } from "./FinderPalette";
@@ -13,20 +13,19 @@ import { FindingText } from "./FindingText";
 
 type BodyFinderProps = {
   snapshot: VaultSnapshot;
-  order: ArticleOrder;
   searchBodies: SearchBodies;
   onChoose: (article: ArticleLocation, line: number) => void;
   onDismiss: () => void;
 };
 
 /** One row per saved body line holding the typed text, articles in the list's order. */
-export function BodyFinder({ snapshot, order, searchBodies, onChoose, onDismiss }: BodyFinderProps) {
+export function BodyFinder({ snapshot, searchBodies, onChoose, onDismiss }: BodyFinderProps) {
   const messages = useMessages();
   const composition = useCompositionState();
   const [bodySearch] = useState(() => new BodySearch(composition, searchBodies));
   const state = useSyncExternalStore(bodySearch.subscribe, () => bodySearch.state);
   const { articles, showsAllNotes } = snapshot;
-  const ordered = useMemo(() => orderArticles(articles, order), [articles, order]);
+  const ordered = useMemo(() => orderArticles(articles), [articles]);
   const titles = useMemo(
     () => new Map(articles.map((article) => [`${article.workspace}/${article.fileName}`, article.title])),
     [articles],

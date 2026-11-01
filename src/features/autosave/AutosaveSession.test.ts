@@ -331,7 +331,11 @@ describe("AutosaveSession", () => {
     it("shows the warning, keeps the changes unsaved and keeps the loaded modification time", async () => {
       await warned();
 
-      expect(session.status).toMatchObject({ modifiedElsewhere: true, hasUnsavedChanges: true });
+      expect(session.status).toMatchObject({
+        modifiedElsewhere: true,
+        hasUnsavedChanges: true,
+        indicator: "saving",
+      });
       await session.overwrite();
       expect(saveBody.mock.lastCall?.[0].lastKnownModifiedAt).toBe(LOADED_AT);
     });
@@ -416,7 +420,7 @@ describe("AutosaveSession", () => {
 
       await session.reload();
 
-      expect(session.status).toMatchObject({ modifiedElsewhere: true, failureMessage: "gone" });
+      expect(session.status).toMatchObject({ modifiedElsewhere: true, failureMessage: "gone", indicator: "failed" });
     });
 
     it("refuses to switch article while the warning is unanswered and writes nothing", async () => {
@@ -662,7 +666,10 @@ describe("AutosaveSession", () => {
 
       expect(session.status).toEqual({
         kind: "article",
+        workspace: "Blog",
+        fileName: "zen.md",
         title: "寫作的禪",
+        indicator: "saved",
         hasUnsavedChanges: false,
         modifiedElsewhere: false,
         failureMessage: null,
@@ -675,11 +682,11 @@ describe("AutosaveSession", () => {
       session.subscribe(notified);
 
       session.changeBody("新的正文");
-      expect(session.status).toMatchObject({ hasUnsavedChanges: true });
+      expect(session.status).toMatchObject({ hasUnsavedChanges: true, indicator: "saving" });
       expect(notified).toHaveBeenCalled();
 
       await advance(1000);
-      expect(session.status).toMatchObject({ hasUnsavedChanges: false });
+      expect(session.status).toMatchObject({ hasUnsavedChanges: false, indicator: "saved" });
     });
 
     it("stays unsaved when typing continued while the save was in flight", async () => {
@@ -702,7 +709,7 @@ describe("AutosaveSession", () => {
 
       await typeAndAutosave("第二版");
 
-      expect(session.status).toMatchObject({ failureMessage: null, hasUnsavedChanges: false });
+      expect(session.status).toMatchObject({ failureMessage: null, hasUnsavedChanges: false, indicator: "saved" });
     });
 
     it("stops notifying an unsubscribed listener", async () => {

@@ -22,11 +22,20 @@ export type OpenedArticle = {
   cursorLine?: number;
 };
 
+/**
+ * What the save indicator says: the typed text has not landed yet (also
+ * while an outside change waits for an answer), it has, or it cannot be written.
+ */
+export type SaveIndicator = "saving" | "saved" | "failed";
+
 export type AutosaveStatus =
   | { kind: "noArticle" }
   | {
       kind: "article";
+      workspace: string;
+      fileName: string;
       title: string;
+      indicator: SaveIndicator;
       hasUnsavedChanges: boolean;
       modifiedElsewhere: boolean;
       failureMessage: string | null;
@@ -348,6 +357,13 @@ export class AutosaveSession {
     });
   }
 
+  #indicator(): SaveIndicator {
+    if (this.#failureMessage !== null) {
+      return "failed";
+    }
+    return this.#hasUnsavedChanges() ? "saving" : "saved";
+  }
+
   #hasUnsavedChanges(): boolean {
     return this.#article !== null && this.#revision !== this.#savedRevision;
   }
@@ -358,7 +374,10 @@ export class AutosaveSession {
         ? { kind: "noArticle" }
         : {
             kind: "article",
+            workspace: this.#article.workspace,
+            fileName: this.#article.fileName,
             title: this.#article.title,
+            indicator: this.#indicator(),
             hasUnsavedChanges: this.#hasUnsavedChanges(),
             modifiedElsewhere: this.#modifiedElsewhere,
             failureMessage: this.#failureMessage,

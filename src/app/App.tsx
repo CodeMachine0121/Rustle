@@ -18,13 +18,16 @@ import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { Sidebar } from "../features/sidebar/Sidebar";
-import { DEFAULT_ARTICLE_ORDER, type ArticleOrder } from "../features/vault/articleArrangement";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
+import { NewWorkspaceEntry } from "../features/vault/NewWorkspaceEntry";
 import { OperationFailureNotice } from "../features/vault/OperationFailureNotice";
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
+import { useWritingLayout } from "../features/writingLayout/useWritingLayout";
+import { ViewModeButtons, ZenButton } from "../features/writingLayout/WritingControls";
+import { WritingLayout } from "../features/writingLayout/WritingLayout";
 import type { ArticleSummary } from "../ipc/articleSummary";
 import { channels } from "../ipc/channels";
 import type { WorkspaceContents } from "../ipc/workspaceContents";
@@ -45,14 +48,17 @@ function VaultView() {
     () => new AutosaveSession(composition, channels, { releaseFocus: blurFocusedElement }),
   );
   const [settings] = useState(() => new SettingsSession(channels));
-  const [session] = useState(() => new VaultSession(channels, autosave, settings));
+  const [layout] = useState(() => new WritingLayout(settings));
+  const [session] = useState(
+    () => new VaultSession(channels, layout.revealEditorWhenNeeded(autosave), settings),
+  );
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
   const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
+  const writing = useWritingLayout(layout, settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
-  const [articleOrder, setArticleOrder] = useState<ArticleOrder>(DEFAULT_ARTICLE_ORDER);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -90,11 +96,17 @@ function VaultView() {
             onSelectAllNotes={() => void session.selectAllNotes()}
             onToggleStatus={(choice) => session.toggleStatusFilter(choice)}
             onToggleTag={(tag) => session.toggleTagFilter(tag)}
+            workspacesAction={
+              <NewWorkspaceEntry
+                rejection={snapshot.creationRejection}
+                failure={snapshot.creationFailure}
+                onCreate={(typedName) => session.createWorkspace(typedName)}
+              />
+            }
             workspaces={
               <WorkspaceColumn
                 snapshot={snapshot}
                 onSelect={(workspace) => void session.selectWorkspace(workspace)}
-                onCreate={(typedName) => session.createWorkspace(typedName)}
                 onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
                 onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
               />
@@ -104,8 +116,6 @@ function VaultView() {
         articles={
           <ArticleColumn
             snapshot={snapshot}
-            order={articleOrder}
-            onOrderChange={setArticleOrder}
             onSelect={(article) => void session.selectArticle(article)}
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
             onEditMetadata={setArticleBeingEdited}
@@ -123,13 +133,15 @@ function VaultView() {
         sidebarFooter={
           <SettingsEntry language={interfaceLanguage.language} onChoose={interfaceLanguage.choose} />
         }
+        writing={writing}
+        controls={{
+          zenButton: <ZenButton layout={layout} isZen={writing.isZen} />,
+          viewModeButtons: <ViewModeButtons layout={layout} viewMode={writing.viewMode} />,
+        }}
         preview={{
-          isOpen: previewPanel.isOpen,
           content: (
             <PreviewPanel previewedBody={previewedBody} scrollSynchronizer={scrollSynchronizer} />
           ),
-          onOpen: previewPanel.open,
-          onClose: previewPanel.close,
           width: previewPanel.width,
           onResize: previewPanel.resize,
           onResizeEnd: previewPanel.commitWidth,
@@ -175,10 +187,9 @@ function VaultView() {
       )}
       <Finders
         snapshot={snapshot}
-        order={articleOrder}
         searchBodies={channels.searchBodies}
         onOpenFoundArticle={(article, cursorLine) => void session.openFoundArticle(article, cursorLine)}
-        onGoTo={(scope) => void session.goTo(scope, articleOrder)}
+        onGoTo={(scope) => void session.goTo(scope)}
       />
       <OperationFailureNotice
         failure={snapshot.operationFailure}

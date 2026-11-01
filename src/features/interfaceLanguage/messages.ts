@@ -1,8 +1,8 @@
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
-import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
+import type { AutosaveSwitchOutcome, SaveIndicator } from "../autosave/AutosaveSession";
 import type { StatusChoice } from "../sidebar/statusChoice";
-import type { ArticleOrder } from "../vault/articleArrangement";
 import type { Operation } from "../vault/operationFailure";
+import type { ViewMode } from "../writingLayout/WritingLayout";
 import type { InterfaceLanguage } from "./interfaceLanguage";
 
 type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
@@ -28,9 +28,13 @@ export const CHINESE_MESSAGES = {
   editorRegion: "編輯區",
   previewTitle: "預覽",
   previewRegion: "預覽區",
-  openPreview: "開啟預覽",
-  openPreviewHandle: "◀ 預覽",
-  closePreview: "關閉預覽",
+  zenMode: "Zen Mode",
+  viewModesGroup: "檢視模式",
+  viewModes: {
+    editorOnly: "只有編輯",
+    sideBySide: "編輯與預覽並排",
+    previewOnly: "只有預覽",
+  } satisfies Record<ViewMode, string> as Record<ViewMode, string>,
   previewContent: "預覽內容",
   adjustPreviewWidth: "調整預覽寬度",
 
@@ -45,8 +49,8 @@ export const CHINESE_MESSAGES = {
   renameWorkspace: (workspace: string) => `重新命名 ${workspace}`,
   delete: "刪除",
   deleteWorkspace: (workspace: string) => `刪除 ${workspace}`,
+  newWorkspace: "新增 workspace",
   newWorkspaceName: "新 workspace 名稱",
-  newWorkspacePlaceholder: "＋ 新 workspace",
   newNameFor: (workspace: string) => `${workspace} 的新名稱`,
   workspaceNameRejections: {
     empty: "請先輸入 workspace 名稱。",
@@ -63,14 +67,8 @@ export const CHINESE_MESSAGES = {
   deleteWorkspaceConfirm: "刪除 workspace",
 
   filterArticles: "篩選文章",
-  filterPlaceholder: "🔍 篩選…",
-  sortOrder: "排序",
-  articleOrders: {
-    createdNewestFirst: "建立時間（新到舊）",
-    title: "標題",
-    updatedNewestFirst: "更新時間（新到舊）",
-  } satisfies Record<ArticleOrder, string> as Record<ArticleOrder, string>,
-  newArticle: "＋ 新文章",
+  filterPlaceholder: "filter",
+  newArticle: "新文章",
   chooseWorkspaceFirst: "先選一個 workspace",
   workspaceUnreadable: (reason: string) => `讀不到這個 workspace：${reason}`,
   createFirstArticle: "建立第一篇文章",
@@ -78,7 +76,6 @@ export const CHINESE_MESSAGES = {
   noArticlesInVault: "vault 裡還沒有文章",
   incompleteMetadata: "metadata 不完整",
   openOutsideFilter: "開著・不符合篩選",
-  editMetadata: "編輯 metadata",
   editMetadataFor: (title: string) => `編輯 ${title} 的 metadata`,
   deleteArticle: (title: string) => `刪除 ${title}`,
 
@@ -91,13 +88,17 @@ export const CHINESE_MESSAGES = {
   noArticleOpen: "還沒有選取文章",
   articleUnreadable: (reason: string) => `讀不到這篇文章：${reason}`,
 
-  titleBar: "標題列",
+  saveStatusLine: "儲存狀態列",
+  articlePath: (workspace: string, fileName: string) => `${workspace} 裡的 ${fileName}`,
+  saveIndicators: {
+    saving: "還沒存進檔案",
+    saved: "已存進檔案",
+    failed: "存不進檔案",
+  } satisfies Record<SaveIndicator, string> as Record<SaveIndicator, string>,
   saveFailed: (reason: string) => `儲存失敗：${reason}`,
   changedOutsideRustle: "這個檔案在 Rustle 之外被改動過",
   overwrite: "覆寫",
   reload: "重新載入",
-  unsavedChanges: "未儲存的變更",
-  saved: "已儲存",
   savingImage: "圖片儲存中…",
   imageNotSaved: (reason: string) => (reason === "" ? "圖片存不進去。" : `圖片存不進去：${reason}`),
 
@@ -130,7 +131,7 @@ export const CHINESE_MESSAGES = {
   noWorkspaceSelected: "請先在左邊選一個 workspace，新文章才知道要建立在哪裡。",
   modifiedElsewhere: "這篇文章剛剛被別的程式改過，什麼都沒有寫入。請再試一次。",
   leavingRefusals: {
-    blockedByUnansweredWarning: "請先回答標題列的外部改動提示，再試一次。",
+    blockedByUnansweredWarning: "請先回答寫作區下方的外部改動提示，再試一次。",
     blockedByFailedSave: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
   } satisfies Record<LeavingRefusal, string> as Record<LeavingRefusal, string>,
   dismiss: "關閉提示",
@@ -172,9 +173,13 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   editorRegion: "Editor",
   previewTitle: "PREVIEW",
   previewRegion: "Preview",
-  openPreview: "Open preview",
-  openPreviewHandle: "◀ Preview",
-  closePreview: "Close preview",
+  zenMode: "Zen Mode",
+  viewModesGroup: "View mode",
+  viewModes: {
+    editorOnly: "Editor only",
+    sideBySide: "Editor and preview side by side",
+    previewOnly: "Preview only",
+  },
   previewContent: "Preview content",
   adjustPreviewWidth: "Adjust preview width",
 
@@ -189,8 +194,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   renameWorkspace: (workspace) => `Rename "${workspace}"`,
   delete: "Delete",
   deleteWorkspace: (workspace) => `Delete "${workspace}"`,
+  newWorkspace: "New workspace",
   newWorkspaceName: "New workspace name",
-  newWorkspacePlaceholder: "＋ New workspace",
   newNameFor: (workspace) => `New name for "${workspace}"`,
   workspaceNameRejections: {
     empty: "Enter a workspace name first.",
@@ -207,14 +212,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   deleteWorkspaceConfirm: "Delete workspace",
 
   filterArticles: "Filter articles",
-  filterPlaceholder: "🔍 filter…",
-  sortOrder: "Sort order",
-  articleOrders: {
-    createdNewestFirst: "Created (newest first)",
-    title: "Title",
-    updatedNewestFirst: "Updated (newest first)",
-  },
-  newArticle: "＋ New article",
+  filterPlaceholder: "filter",
+  newArticle: "New article",
   chooseWorkspaceFirst: "Choose a workspace first",
   workspaceUnreadable: (reason) => `Cannot read this workspace: ${reason}`,
   createFirstArticle: "Create the first article",
@@ -222,7 +221,6 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noArticlesInVault: "No articles in the vault yet",
   incompleteMetadata: "incomplete metadata",
   openOutsideFilter: "open · outside the filter",
-  editMetadata: "Edit metadata",
   editMetadataFor: (title) => `Edit metadata for "${title}"`,
   deleteArticle: (title) => `Delete "${title}"`,
 
@@ -235,13 +233,17 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noArticleOpen: "No article open",
   articleUnreadable: (reason) => `Cannot read this article: ${reason}`,
 
-  titleBar: "Title bar",
+  saveStatusLine: "Save status",
+  articlePath: (workspace, fileName) => `${fileName} in ${workspace}`,
+  saveIndicators: {
+    saving: "Not in the file yet",
+    saved: "In the file",
+    failed: "Cannot be written to the file",
+  },
   saveFailed: (reason) => `Save failed: ${reason}`,
   changedOutsideRustle: "This file was changed outside Rustle",
   overwrite: "Overwrite",
   reload: "Reload",
-  unsavedChanges: "Unsaved changes",
-  saved: "Saved",
   savingImage: "Saving image…",
   imageNotSaved: (reason) => (reason === "" ? "Could not save the image." : `Could not save the image: ${reason}`),
 
@@ -275,7 +277,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noWorkspaceSelected: "Choose a workspace on the left first, so the new article knows where to go.",
   modifiedElsewhere: "Another program just changed this article, so nothing was written. Try again.",
   leavingRefusals: {
-    blockedByUnansweredWarning: "Answer the external-change notice in the title bar first, then try again.",
+    blockedByUnansweredWarning: "Answer the external-change notice below the editor first, then try again.",
     blockedByFailedSave: "The last save failed. Press again to discard the unsaved changes and continue.",
   },
   dismiss: "Dismiss",

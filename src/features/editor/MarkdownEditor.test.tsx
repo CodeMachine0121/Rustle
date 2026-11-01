@@ -1,4 +1,5 @@
 import { undo } from "@codemirror/commands";
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -540,5 +541,68 @@ describe("MarkdownEditor", () => {
 
       expect(cursorLine(content)).toBe(7);
     });
+  });
+});
+
+describe("MarkdownEditor marks and emphasis", () => {
+  const isMac = /Mac/.test(navigator.platform);
+
+  function editorOn(body: string, selection: EditorSelection) {
+    const { content } = renderEditor(new CompositionState(), body);
+    const editor = EditorView.findFromDOM(content);
+    if (editor === null) {
+      throw new Error("the editor did not render");
+    }
+    editor.dispatch({ selection });
+    return { content, editor };
+  }
+
+  function pressShortcut(content: HTMLElement, key: string) {
+    fireEvent.keyDown(content, { key, metaKey: isMac, ctrlKey: !isMac });
+  }
+
+  it("makes the selected words bold with the bold shortcut", () => {
+    const { content, editor } = editorOn("這是重點的地方", EditorSelection.single(2, 4));
+
+    pressShortcut(content, "b");
+
+    expect(editor.state.doc.toString()).toBe("這是**重點**的地方");
+  });
+
+  it("makes the word in a link italic instead of selecting the link", () => {
+    const { content, editor } = editorOn("看[連結](https://example.com)這裡", EditorSelection.single(3));
+
+    pressShortcut(content, "i");
+
+    expect(editor.state.doc.toString()).toBe("看[*連結*](https://example.com)這裡");
+    expect(editor.state.selection.main.empty).toBe(true);
+  });
+
+  it("draws the cursor-line background only while nothing is selected", () => {
+    const { content, editor } = editorOn("第一行\n第二行", EditorSelection.single(5));
+
+    expect(content.querySelectorAll(".cm-cursorLine")).toHaveLength(1);
+
+    editor.dispatch({ selection: EditorSelection.single(4, 6) });
+
+    expect(content.querySelectorAll(".cm-cursorLine")).toHaveLength(0);
+  });
+
+  it("still indents with Tab", () => {
+    const { content, editor } = editorOn("正文", EditorSelection.single(0));
+
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(editor.state.doc.toString()).toBe("  正文");
+  });
+
+  it("selects nothing with the italic shortcut while composing", () => {
+    const { content, editor } = editorOn("看[連結](https://example.com)這裡", EditorSelection.single(3));
+    fireEvent.compositionStart(content);
+
+    pressShortcut(content, "i");
+
+    expect(editor.state.doc.toString()).toBe("看[連結](https://example.com)這裡");
+    expect(editor.state.selection.main.empty).toBe(true);
   });
 });
