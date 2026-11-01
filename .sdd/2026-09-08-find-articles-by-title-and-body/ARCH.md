@@ -28,7 +28,7 @@
 | `src/ipc/` | **Add / Modify** | `bodySearch.ts` (`BodySearchResult`, `BodyMatch`), `channels.searchBodies` |
 | `src/features/finding/` | **Add** | `FindingText`, `FindingKeys` (+ `FINDING_SHORTCUTS` for the keymap list), `useFindingKeys`, `FinderPalette`, `TitleFinder`, `BodyFinder` (+ `BodySearch`), `WorkspaceFinder`, `Finders` (which one is open) |
 | `src/features/vault/VaultSession.ts` | **Modify** | `goToWorkspace(workspace, order)`, `goToAllNotes(order)` (switch scope, open the first article of the list without taking the keyboard, an empty or unreadable one leaves the editor empty); `openFoundArticle(article, cursorLine?)` (open with the keyboard, put the cursor on the line; the already open article only moves its cursor) |
-| `src/features/vault/articleArrangement.ts` | **Modify** | `firstArticleIn(articles, order)` — "newest" is the list's first row, decided by the same sort |
+| `src/features/vault/articleArrangement.ts` | **Modify** | `orderArticles(articles, order)` (every article in the list's order, no filter — what the finders list) and `firstArticleIn(articles, order)` ("newest" is the list's first row) |
 | `src/features/vault/ArticleColumn.tsx` | **Modify** | the order becomes a controlled prop (`order`, `onOrderChange`) so `App` owns the one order |
 | `src/features/autosave/AutosaveSession.ts`, `AutosavedEditor.tsx` | **Modify** | `OpenedArticle.cursorLine`, `placeCursor(line)`, `cursorPlacement` published next to `document` |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | `cursorPlacement?: { line, sequence }`: puts the cursor at the start of that body line (clamped to the last line), scrolls it into view, focuses |
@@ -46,7 +46,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `SearchText` (domain) | Value type | the body match rule: trimmed, case-insensitive, contiguous; yields each matching body line once with its 1-based number | — | US-03 one row per hit, several hits; US-04 all |
 | `BodyLine` (domain) | Value | a line number and the line's text | — | US-03 row shows line + text |
-| `ArticleLocation` (domain) | Value | which article: `WorkspaceName` + `ArticleFileName` | — | US-03 scope / order |
+| `ArticleLocation` (application, next to the use case) | Value | which article to search: `WorkspaceName` + `ArticleFileName` (only the search takes a list of them, so it stays with its use case) | — | US-03 scope / order |
 | `SearchArticleBodies` (application) | Use case | search the given articles' saved bodies in the given order, cap at 200, report truncation, skip unreadable ones | `ArticleRepository`, `ArticleDocument`, `SearchText` | US-03 limit, exactly 200, unsaved text not found, scope, order; PRD §4 one unreadable article |
 | `FindingText` (webview) | Value class | the title / workspace match rule, same as `SearchText` | — | US-02 all; US-05 filter by name |
 | `FindingKeys` (webview) | Value module | which finder a key event opens: `Cmd+T`, `Shift+Cmd+F`, `Cmd+P`; never with Ctrl or Alt; `FINDING_SHORTCUTS` names them for the keymap list | — | US-06 Ctrl stays with the machine; US-07 |
@@ -69,7 +69,7 @@
 | `AutosaveSession` | owns the open article and the editor document | `cursorPlacement: { line, sequence } \| null`, set by `openArticle({ cursorLine })` and `placeCursor(line)` |
 | `MarkdownEditor` | one `EditorView` | applies a new `cursorPlacement` once the document it belongs to is shown (also after a deferred show during composition) |
 | `ArticleColumn` | owns filter text and order | order becomes a prop; filter text stays private |
-| `arrangeArticles` module | sorts and filters rows | adds `firstArticleIn` |
+| `arrangeArticles` module | sorts and filters rows | adds `orderArticles` and `firstArticleIn` |
 
 ---
 
@@ -146,3 +146,4 @@ Decisions taken without the user (also listed in the PR):
 7. **Keymap overview and Vim mode are not on `main`.** US-07 rows cannot be drawn yet; the slice ships `FINDING_SHORTCUTS` and the catalog sentences. The Vim scenario is satisfied by construction (capture-phase listener before any editor handler, plain input field) and tested against the plain editor.
 8. **Ctrl:** only `metaKey && !ctrlKey && !altKey` count.
 9. **Whole search failure** ("這次找不動") is shown when the `searchBodies` channel fails; the title finder never fails (its data is already on screen), so it does not show that sentence.
+10. **Enter on an empty list** reaches the finder with an index past the rows; each finder ignores an index it has no row for, so the palette needs no second guard.
