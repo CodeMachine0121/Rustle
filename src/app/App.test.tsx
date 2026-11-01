@@ -227,7 +227,26 @@ describe("App", () => {
 
     expect(focusable.every((count) => count > 0)).toBe(true);
     expect(order).toEqual([...order].sort((left, right) => left - right));
-    expect(document.querySelector("input")).toHaveAccessibleName("新 workspace 名稱");
+    expect(document.querySelector("button")).toHaveAccessibleName("所有文章");
+  });
+
+  it("creates a workspace from the dialog behind the plus icon and closes it", async () => {
+    answerFromAVault({ workspace: null, article: null });
+    const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+    vi.mocked(invoke).mockImplementation((command, args) =>
+      command === "create_workspace"
+        ? Promise.resolve({ outcome: "created", workspace: { name: "Notes", articleCount: 0 } })
+        : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
+    );
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "新增 workspace" }));
+    const field = within(screen.getByRole("dialog")).getByRole("textbox", { name: "新 workspace 名稱" });
+    fireEvent.change(field, { target: { value: "Notes" } });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "建立" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(invoke).toHaveBeenCalledWith("create_workspace", { name: "Notes" });
   });
 
   it("says in one line that the vault could not be read and stays usable", async () => {
@@ -247,7 +266,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("讀不到 vault");
-    expect(screen.getByRole("textbox", { name: "新 workspace 名稱" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "新增 workspace" })).toBeEnabled();
   });
 
   it("saves what is typed into the open article and says so in its save status line", async () => {
@@ -955,7 +974,7 @@ describe("App", () => {
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]);
-      expect(screen.getByRole("textbox", { name: "New workspace name" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "New workspace" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: 'Delete "Zen of Writing"' })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
       expect(invoke).toHaveBeenCalledWith("write_settings", {

@@ -19,6 +19,7 @@ import { SettingsSession } from "../features/settings/SettingsSession";
 import { Sidebar } from "../features/sidebar/Sidebar";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
+import { NewWorkspaceEntry } from "../features/vault/NewWorkspaceEntry";
 import { OperationFailureNotice } from "../features/vault/OperationFailureNotice";
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
@@ -87,11 +88,17 @@ function VaultView() {
             onSelectAllNotes={() => void session.selectAllNotes()}
             onToggleStatus={(choice) => session.toggleStatusFilter(choice)}
             onToggleTag={(tag) => session.toggleTagFilter(tag)}
+            workspacesAction={
+              <NewWorkspaceEntry
+                rejection={snapshot.creationRejection}
+                failure={snapshot.creationFailure}
+                onCreate={(typedName) => session.createWorkspace(typedName)}
+              />
+            }
             workspaces={
               <WorkspaceColumn
                 snapshot={snapshot}
                 onSelect={(workspace) => void session.selectWorkspace(workspace)}
-                onCreate={(typedName) => session.createWorkspace(typedName)}
                 onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
                 onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
               />

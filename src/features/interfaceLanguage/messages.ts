@@ -46,7 +46,6 @@ export const CHINESE_MESSAGES = {
   deleteWorkspace: (workspace: string) => `刪除 ${workspace}`,
   newWorkspace: "新增 workspace",
   newWorkspaceName: "新 workspace 名稱",
-  newWorkspacePlaceholder: "＋ 新 workspace",
   newNameFor: (workspace: string) => `${workspace} 的新名稱`,
   workspaceNameRejections: {
     empty: "請先輸入 workspace 名稱。",
@@ -175,7 +174,6 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   deleteWorkspace: (workspace) => `Delete "${workspace}"`,
   newWorkspace: "New workspace",
   newWorkspaceName: "New workspace name",
-  newWorkspacePlaceholder: "＋ New workspace",
   newNameFor: (workspace) => `New name for "${workspace}"`,
   workspaceNameRejections: {
     empty: "Enter a workspace name first.",
