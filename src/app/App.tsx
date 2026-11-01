@@ -178,11 +178,7 @@ function VaultView() {
         order={articleOrder}
         searchBodies={channels.searchBodies}
         onOpenFoundArticle={(article, cursorLine) => void session.openFoundArticle(article, cursorLine)}
-        onGoTo={(destination) =>
-          void (destination.kind === "allNotes"
-            ? session.goToAllNotes(articleOrder)
-            : session.goToWorkspace(destination.workspace, articleOrder))
-        }
+        onGoTo={(scope) => void session.goTo(scope, articleOrder)}
       />
       <OperationFailureNotice
         failure={snapshot.operationFailure}

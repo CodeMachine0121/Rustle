@@ -2,20 +2,20 @@ import { useRef, useState } from "react";
 
 import type { ArticleLocation } from "../../ipc/articleSummary";
 import type { ArticleOrder } from "../vault/articleArrangement";
-import type { VaultSnapshot } from "../vault/VaultSession";
+import type { Scope, VaultSnapshot } from "../vault/VaultSession";
 import type { SearchBodies } from "./BodySearch";
 import { BodyFinder } from "./BodyFinder";
 import type { FinderKind } from "./FindingKeys";
 import { TitleFinder } from "./TitleFinder";
 import { useFindingKeys } from "./useFindingKeys";
-import { WorkspaceFinder, type WorkspaceDestination } from "./WorkspaceFinder";
+import { WorkspaceFinder } from "./WorkspaceFinder";
 
 type FindersProps = {
   snapshot: VaultSnapshot;
   order: ArticleOrder;
   searchBodies: SearchBodies;
   onOpenFoundArticle: (article: ArticleLocation, cursorLine?: number) => void;
-  onGoTo: (destination: WorkspaceDestination) => void;
+  onGoTo: (scope: Scope) => void;
 };
 
 type OpenFinder = { kind: FinderKind; opening: number };

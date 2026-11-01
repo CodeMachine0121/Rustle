@@ -12,7 +12,7 @@
 - **Guiding principle:** *one owner per rule, and the finders own none of the vault's rules.*
   - The **match rule** ("one contiguous piece, any case, surrounding blanks mean nothing typed") has one owner per language: `SearchText` in the domain for body lines, `FindingText` in the webview for titles and workspace names. Both are tested with the same cases.
   - The **order** stays in `arrangeArticles`. The finders and "go to the newest article" read the *same* `ArticleOrder` the article column draws with, which is lifted from the column's private state to `App` so there is only one.
-  - The **scope** stays in `VaultSession`; the finders read the snapshot and call `VaultSession` to move. Going somewhere (`goToWorkspace` / `goToAllNotes`) is a new verb next to looking (`selectWorkspace` / `selectAllNotes`), which stay untouched.
+  - The **scope** stays in `VaultSession`; the finders read the snapshot and call `VaultSession` to move. Going somewhere (`goTo(scope, order)`) is a new verb next to looking (`selectWorkspace` / `selectAllNotes`), which stay untouched.
   - **Keys** have one owner: `FindingKeys` decides which finder a key event means (Cmd only, never Ctrl) and the listener swallows it in the window's capture phase, so it can never reach the editor whatever the editor's keymap grows into.
   - The **overlay behaviour** (typing, IME, ↑/↓ clamp, Enter, Esc, outside click, scroll into view, selection reset) is written once in `FinderPalette`; each finder only supplies rows, a status sentence and what choosing a row does.
 
@@ -27,7 +27,7 @@
 | `src-tauri` | **Add** | channel `searchBodies` → command `search_bodies(text, articles: [{ workspace, fileName }])`; names parsed into `WorkspaceName` / `ArticleFileName` (outside-vault rejected as everywhere) |
 | `src/ipc/` | **Add / Modify** | `bodySearch.ts` (`BodySearchResult`, `BodyMatch`), `channels.searchBodies` |
 | `src/features/finding/` | **Add** | `FindingText`, `FindingKeys` (+ `FINDING_SHORTCUTS` for the keymap list), `useFindingKeys`, `FinderPalette`, `TitleFinder`, `BodyFinder` (+ `BodySearch`), `WorkspaceFinder`, `Finders` (which one is open) |
-| `src/features/vault/VaultSession.ts` | **Modify** | `goToWorkspace(workspace, order)`, `goToAllNotes(order)` (switch scope, open the first article of the list without taking the keyboard, an empty or unreadable one leaves the editor empty); `openFoundArticle(article, cursorLine?)` (open with the keyboard, put the cursor on the line; the already open article only moves its cursor) |
+| `src/features/vault/VaultSession.ts` | **Modify** | `goTo(scope, order)` (switch scope, open the first article of the list without taking the keyboard, an empty or unreadable one leaves the editor empty); `openFoundArticle(article, cursorLine?)` (open with the keyboard, put the cursor on the line; the already open article only moves its cursor) |
 | `src/features/vault/articleArrangement.ts` | **Modify** | `orderArticles(articles, order)` (every article in the list's order, no filter — what the finders list) and `firstArticleIn(articles, order)` ("newest" is the list's first row) |
 | `src/features/vault/ArticleColumn.tsx` | **Modify** | the order becomes a controlled prop (`order`, `onOrderChange`) so `App` owns the one order |
 | `src/features/autosave/AutosaveSession.ts`, `AutosavedEditor.tsx` | **Modify** | `OpenedArticle.cursorLine`, `placeCursor(line)`, `cursorPlacement` published next to `document` |
@@ -64,7 +64,7 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `VaultSession` | owns scope, selection, lists | `goToWorkspace` / `goToAllNotes` reuse `#openScope`, then open `firstArticleIn(articles, order)` without focus; on read failure clear the selection and the body failure so the editor stays empty; `openFoundArticle` opens with `focusEditor` and `cursorLine`, or asks the holder to `placeCursor` when it is already open |
+| `VaultSession` | owns scope, selection, lists | `goTo(scope, order)` reuse `#openScope`, then open `firstArticleIn(articles, order)` without focus; on read failure clear the selection and the body failure so the editor stays empty; `openFoundArticle` opens with `focusEditor` and `cursorLine`, or asks the holder to `placeCursor` when it is already open |
 | `ArticleHolder` | `openArticle` / `closeArticle` | adds `placeCursor(line)` |
 | `AutosaveSession` | owns the open article and the editor document | `cursorPlacement: { line, sequence } \| null`, set by `openArticle({ cursorLine })` and `placeCursor(line)` |
 | `MarkdownEditor` | one `EditorView` | applies a new `cursorPlacement` once the document it belongs to is shown (also after a deferred show during composition) |
@@ -81,7 +81,7 @@ flowchart TD
     Finders --> TitleFinder & BodyFinder & WorkspaceFinder
     TitleFinder & BodyFinder & WorkspaceFinder --> Palette[FinderPalette]
     TitleFinder -->|arrangeArticles + FindingText| Snapshot[(VaultSnapshot)]
-    WorkspaceFinder -->|goToWorkspace / goToAllNotes| VS[VaultSession]
+    WorkspaceFinder -->|goTo| VS[VaultSession]
     TitleFinder -->|openFoundArticle| VS
     BodyFinder -->|openFoundArticle line| VS
     BodyFinder --> BodySearch --> Ch[channels.searchBodies]
@@ -122,7 +122,7 @@ flowchart TD
 | US-03 沒有範圍時清單不開 | `Finders` |
 | US-04 all | `SearchText` (body only via `ArticleDocument::into_body`) |
 | US-05 列出 / 過濾 / 對不上 / 沒有 workspace | `WorkspaceFinder` |
-| US-05 選一個就換過去並停在最新那一篇 / 第一列那一篇 / 空 / 讀不出來 / 所有文章 | `VaultSession.goToWorkspace` / `goToAllNotes` + `firstArticleIn` |
+| US-05 選一個就換過去並停在最新那一篇 / 第一列那一篇 / 空 / 讀不出來 / 所有文章 | `VaultSession.goTo(scope, order)` + `firstArticleIn` |
 | US-05 點側邊欄仍然只是看 | `selectWorkspace` unchanged |
 | US-05 換完之後範圍跟著換 | scope lives in `VaultSession`; finders read the snapshot |
 | US-06 上下 / 頭尾 / 打字回第一列 / 離開 / 沒有列按確認 / 組字 | `FinderPalette` |

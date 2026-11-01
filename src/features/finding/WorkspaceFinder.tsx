@@ -1,19 +1,17 @@
 import { useMemo, useState } from "react";
 
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
-import type { VaultSnapshot } from "../vault/VaultSession";
+import type { Scope, VaultSnapshot } from "../vault/VaultSession";
 import { FinderPalette } from "./FinderPalette";
 import { FindingText } from "./FindingText";
 
-export type WorkspaceDestination = { kind: "allNotes" } | { kind: "workspace"; workspace: string };
-
 type WorkspaceFinderProps = {
   snapshot: VaultSnapshot;
-  onChoose: (destination: WorkspaceDestination) => void;
+  onChoose: (scope: Scope) => void;
   onDismiss: () => void;
 };
 
-type Destination = { destination: WorkspaceDestination; name: string; articleCount: number | null };
+type Destination = { destination: Scope; name: string; articleCount: number | null };
 
 /** All Notes first, then every workspace in the sidebar's order, narrowed by name. */
 export function WorkspaceFinder({ snapshot, onChoose, onDismiss }: WorkspaceFinderProps) {

@@ -1337,7 +1337,7 @@ describe("VaultSession", () => {
       const session = new VaultSession(channels, holder);
       await session.start();
 
-      await session.goToWorkspace("Work", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Work" }, "createdNewestFirst");
 
       expect(session.snapshot.selectedWorkspace).toBe("Work");
       expect(session.snapshot.articles).toEqual(WORK);
@@ -1352,7 +1352,7 @@ describe("VaultSession", () => {
       const session = new VaultSession(goingChannels());
       await session.start();
 
-      await session.goToWorkspace("Work", "title");
+      await session.goTo({ kind: "workspace", workspace: "Work" }, "title");
 
       expect(session.snapshot.selectedArticle).toEqual({ workspace: "Work", fileName: "older.md" });
     });
@@ -1362,7 +1362,7 @@ describe("VaultSession", () => {
       const session = new VaultSession(channels);
       await session.start();
 
-      await session.goToWorkspace("Work", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Work" }, "createdNewestFirst");
 
       expect(channels.writeSettings).toHaveBeenLastCalledWith(
         expect.objectContaining({ lastOpened: { workspace: "Work", article: "standup.md" } }),
@@ -1372,9 +1372,9 @@ describe("VaultSession", () => {
     it("leaves the editor empty in a workspace without articles", async () => {
       const session = new VaultSession(goingChannels());
       await session.start();
-      await session.goToWorkspace("Work", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Work" }, "createdNewestFirst");
 
-      await session.goToWorkspace("Recipes", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Recipes" }, "createdNewestFirst");
 
       expect(session.snapshot.selectedWorkspace).toBe("Recipes");
       expect(session.snapshot.selectedArticle).toBeNull();
@@ -1387,7 +1387,7 @@ describe("VaultSession", () => {
       const session = new VaultSession(channels);
       await session.start();
 
-      await session.goToWorkspace("Work", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Work" }, "createdNewestFirst");
 
       expect(session.snapshot.selectedWorkspace).toBe("Work");
       expect(session.snapshot.selectedArticle).toBeNull();
@@ -1401,9 +1401,9 @@ describe("VaultSession", () => {
     it("goes to All Notes and opens the newest article of the whole vault", async () => {
       const session = new VaultSession(goingChannels());
       await session.start();
-      await session.goToWorkspace("Diary", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Diary" }, "createdNewestFirst");
 
-      await session.goToAllNotes("createdNewestFirst");
+      await session.goTo({ kind: "allNotes" }, "createdNewestFirst");
 
       expect(session.snapshot.showsAllNotes).toBe(true);
       expect(session.snapshot.selectedWorkspace).toBeNull();
@@ -1415,10 +1415,10 @@ describe("VaultSession", () => {
       const holder = articleHolder();
       const session = new VaultSession(goingChannels(), holder);
       await session.start();
-      await session.goToWorkspace("Diary", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Diary" }, "createdNewestFirst");
       holder.closeArticle.mockResolvedValueOnce("blockedByFailedSave");
 
-      await session.goToWorkspace("Work", "createdNewestFirst");
+      await session.goTo({ kind: "workspace", workspace: "Work" }, "createdNewestFirst");
 
       expect(session.snapshot.selectedWorkspace).toBe("Diary");
       expect(session.snapshot.openedDocument).toBe("Diary/tired.md");

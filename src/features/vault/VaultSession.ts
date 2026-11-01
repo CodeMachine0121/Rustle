@@ -94,7 +94,8 @@ export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   operationFailure: null,
 };
 
-type Scope = { kind: "workspace"; workspace: string } | { kind: "allNotes" };
+/** What the sidebar can have selected: one workspace, or All Notes. */
+export type Scope = { kind: "workspace"; workspace: string } | { kind: "allNotes" };
 
 /**
  * The one owner of what is selected in the vault: the scope (one workspace
@@ -169,17 +170,34 @@ export class VaultSession {
   }
 
   /**
-   * Goes to a workspace rather than looking at it: the newest article (the
-   * list's first row in `order`) opens without taking the keyboard. An empty
-   * workspace, or a newest article that cannot be read, leaves the editor empty.
+   * Goes to a workspace or All Notes rather than looking at it: the newest
+   * article (the list's first row in `order`) opens without taking the
+   * keyboard. An empty scope, or a newest article that cannot be read,
+   * leaves the editor empty.
    */
-  async goToWorkspace(workspace: string, order: ArticleOrder): Promise<void> {
-    await this.#goTo({ kind: "workspace", workspace }, order);
-  }
-
-  /** Goes to All Notes, opening the newest article of the whole vault; see `goToWorkspace`. */
-  async goToAllNotes(order: ArticleOrder): Promise<void> {
-    await this.#goTo({ kind: "allNotes" }, order);
+  async goTo(scope: Scope, order: ArticleOrder): Promise<void> {
+    if ((await this.#articleHolder.closeArticle()) !== "switched") {
+      return;
+    }
+    const selection = this.#beginSelection();
+    if (!(await this.#openScope(scope, selection))) {
+      return;
+    }
+    const newest = firstArticleIn(this.#snapshot.articles, order);
+    if (newest !== null) {
+      const { workspace, fileName } = newest;
+      if (await this.#openArticle({ workspace, fileName }, selection)) {
+        this.#remember(workspace, fileName);
+        return;
+      }
+    }
+    if (selection !== this.#latestSelection) {
+      return;
+    }
+    this.#update({ selectedArticle: null, bodyFailure: null });
+    if (scope.kind === "workspace") {
+      this.#remember(scope.workspace, null);
+    }
   }
 
   /**
@@ -401,31 +419,6 @@ export class VaultSession {
   dismissOperationFailure(): void {
     if (this.#snapshot.operationFailure !== null) {
       this.#update({ operationFailure: null });
-    }
-  }
-
-  async #goTo(scope: Scope, order: ArticleOrder): Promise<void> {
-    if ((await this.#articleHolder.closeArticle()) !== "switched") {
-      return;
-    }
-    const selection = this.#beginSelection();
-    if (!(await this.#openScope(scope, selection))) {
-      return;
-    }
-    const newest = firstArticleIn(this.#snapshot.articles, order);
-    if (newest !== null) {
-      const { workspace, fileName } = newest;
-      if (await this.#openArticle({ workspace, fileName }, selection)) {
-        this.#remember(workspace, fileName);
-        return;
-      }
-    }
-    if (selection !== this.#latestSelection) {
-      return;
-    }
-    this.#update({ selectedArticle: null, bodyFailure: null });
-    if (scope.kind === "workspace") {
-      this.#remember(scope.workspace, null);
     }
   }
 
