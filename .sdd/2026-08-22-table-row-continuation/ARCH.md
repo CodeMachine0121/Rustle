@@ -35,7 +35,7 @@
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
 | `TableRow` | Value object (`TableRow.parse(lineText): TableRow \| null`) | Decide whether a line is a table row — after a prefix of spaces, tabs and `>` the first character is `\|` — and, for one that is: the prefix (`prefix`), the column count (cells between unescaped pipes; a trailing pipe closes the last cell; a lone `\|` is one column), `isBlank` (at least one closed cell, and every cell is whitespace only), `nextRow` (prefix + `\|` + `  \|` × columns, i.e. one space per cell like `/table`), `firstCellOffset` (prefix length + 2: just after `\| `) | — | US-01 all; US-02 「空的表格列」「只有一格空著不算寫完」 |
-| `TableRowContinuation` | Key owner (one per editor) | `continueRow(view)`: acts only for one empty selection at the end of a `TableRow` line in an editable, non-composing editor; a blank row → replace the row with its prefix (the row disappears, the cursor stays on that now-empty line below the table); otherwise → insert `\n` + `nextRow` and put the cursor at its first cell. Each is one isolated history event (`isolateHistory "full"`, `userEvent "input"`). Returns `false` otherwise so the default Enter runs. `extension()`: `Prec.high(keymap.of([{ any }]))` whose handler claims only a plain `Enter` (no Shift/Ctrl/Alt/Meta) and first asks `CompositionState.ownsKey(event)` | `TableRow`, `CompositionState`, `EditorView` | US-01, US-02, US-03 |
+| `TableRowContinuation` | Key owner (one per editor) | `continueRow(view)`: acts only for one empty selection in an editable, non-composing editor, at the end of a `TableRow` line (or anywhere after the first pipe of a blank row); a blank row → replace the row with its prefix (the row disappears, the cursor stays on that now-empty line below the table); otherwise → insert `\n` + `nextRow` and put the cursor at its first cell. Each is one isolated history event (`isolateHistory "full"`, `userEvent "input"`). Returns `false` otherwise so the default Enter runs. `extension()`: `Prec.high(keymap.of([{ any }]))` whose handler claims only a plain `Enter` (no Shift/Ctrl/Alt/Meta) and first asks `CompositionState.ownsKey(event)` | `TableRow`, `CompositionState`, `EditorView` | US-01, US-02, US-03 |
 
 Enter decision table (`TableRowContinuation`):
 
@@ -44,10 +44,10 @@ Enter decision table (`TableRowContinuation`):
 | `CompositionState.ownsKey(event)` (composing, `event.isComposing`, keyCode 229) | not claimed — the input method's key; the document is not touched by this slice |
 | Modifier held (Shift / Ctrl / Alt / Meta) | not claimed — default behaviour |
 | Read-only, several selection ranges, or a non-empty selection | not claimed — default Enter (replaces the selection) |
-| Cursor not at the end of its line | not claimed — default Enter splits the line |
 | Line is not a `TableRow` | not claimed — default Enter |
-| Line is a blank `TableRow` | row cleared to its prefix, cursor at line end — one undo step |
-| Line is a `TableRow` | `\n` + next row inserted, cursor in its first cell — one undo step |
+| Line is a blank `TableRow`, cursor anywhere after its first pipe | row cleared to its prefix, cursor at line end — one undo step |
+| Line is a non-blank `TableRow`, cursor not at the end of the line | not claimed — default Enter splits the line |
+| Line is a non-blank `TableRow`, cursor at the end of the line | `\n` + next row inserted, cursor in its first cell — one undo step |
 
 The keymap's `any` handler is used (instead of `run`) because only it receives the `KeyboardEvent`, and the project rule is to ask `CompositionState.ownsKey(event)` before acting on Enter. `any` handlers keep keymap precedence order, so a `Prec.highest` snippet-menu keymap still runs first and the `defaultKeymap` Enter still runs after.
 
@@ -121,5 +121,8 @@ Decisions taken without the user (also listed in the PR under "Assumptions"):
 5. **Several cursors** (multiple selection ranges) → default Enter; the PRD only speaks of "the cursor".
 6. **Escaped pipes** (`\|`) inside a cell do not split cells; the column count follows GFM.
 7. **Trailing whitespace after the last pipe** still counts as "at the end of the row".
+8. **On a blank row, Enter leaves the table from anywhere after its first pipe**, not only from the line end. R-1 says "only at the end of the row", but B-2 ("補一列，不填，再按一次就出來了") presses Enter right after a row was added, when the cursor sits in that row's first cell (PRD §5). A blank row has nothing to split, so this reading satisfies both; on a non-blank row R-1 holds strictly (cursor at the line end).
+9. **Enter while composing**: CodeMirror itself does not run key bindings during a composition, and this slice additionally refuses through `CompositionState.ownsKey(event)` and `isComposing` in `continueRow`. The tests assert that this slice neither changes the document nor claims the key; the real candidate-window behaviour is the manual IME checklist item T-6 (extended with a table row step).
+10. **Markdown's own Enter** (`insertNewlineContinueMarkup`, also `Prec.high`, from `markdown()`) continues quotes and lists. `TableRowContinuation` is listed before `markdown()` so it wins on a table row inside a quote; a test through `MarkdownEditor` pins this.
 
 - **Risks / trade-offs:** a non-table line starting with `|` is treated as a table row (PRD §7 accepts it).
