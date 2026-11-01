@@ -37,7 +37,7 @@ impl<'a, Workspaces: WorkspaceRepository> CreateWorkspace<'a, Workspaces> {
         Ok(CreateWorkspaceOutcome::Created {
             workspace: WorkspaceSummary {
                 name: workspace.to_string(),
-                article_count: 0,
+                article_count: Some(0),
             },
         })
     }

@@ -37,6 +37,13 @@ describe("WorkspaceColumn", () => {
     expect(screen.getByLabelText("2 篇文章")).toBeInTheDocument();
   });
 
+  it("still lists a workspace whose articles could not be counted", () => {
+    renderColumn({ ...EMPTY, workspaces: [{ name: "Locked", articleCount: null }] });
+
+    expect(screen.getByRole("button", { name: /Locked/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("讀不到篇數")).toBeInTheDocument();
+  });
+
   it("asks for the workspace that was clicked", () => {
     const { onSelect } = renderColumn(TWO_WORKSPACES);
 

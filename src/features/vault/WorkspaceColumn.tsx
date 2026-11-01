@@ -55,9 +55,15 @@ function WorkspaceRow({ workspace, isSelected, onSelect }: WorkspaceRowProps) {
       onClick={() => onSelect(workspace.name)}
     >
       <span className="row-title">{workspace.name}</span>
-      <span className="row-count" aria-label={`${workspace.articleCount} 篇文章`}>
-        {workspace.articleCount}
-      </span>
+      {workspace.articleCount === null ? (
+        <span className="row-count" aria-label="讀不到篇數">
+          ?
+        </span>
+      ) : (
+        <span className="row-count" aria-label={`${workspace.articleCount} 篇文章`}>
+          {workspace.articleCount}
+        </span>
+      )}
     </button>
   );
 }

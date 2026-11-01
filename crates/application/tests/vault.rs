@@ -168,11 +168,11 @@ fn each_workspace_carries_its_article_count() {
         vec![
             WorkspaceSummary {
                 name: "Blog".to_owned(),
-                article_count: 2
+                article_count: Some(2)
             },
             WorkspaceSummary {
                 name: "Work".to_owned(),
-                article_count: 0
+                article_count: Some(0)
             },
         ]
     );
@@ -334,7 +334,7 @@ fn creates_a_workspace_with_no_articles() {
         CreateWorkspaceOutcome::Created {
             workspace: WorkspaceSummary {
                 name: "Notes".to_owned(),
-                article_count: 0
+                article_count: Some(0)
             }
         }
     );
@@ -468,18 +468,27 @@ fn a_vault_that_refuses_new_folders_is_an_error_not_a_rejection() {
 
 #[cfg(unix)]
 #[test]
-fn a_workspace_that_cannot_be_read_is_reported_instead_of_counted_as_empty() {
+fn a_workspace_that_cannot_be_read_is_listed_with_an_unknown_count_beside_the_others() {
     let vault = Vault::create();
-    vault.folder("Locked");
+    vault.folder("Locked").folder("Blog").file("Blog/a.md", "a");
     with_permissions(&vault.root.join("Locked"), 0o000);
 
     let result = ListWorkspaces::new(&vault.workspaces()).execute();
 
     with_permissions(&vault.root.join("Locked"), 0o755);
-    assert!(matches!(
+    assert_eq!(
         result,
-        Err(WorkspaceRepositoryError::Unreadable { .. })
-    ));
+        Ok(vec![
+            WorkspaceSummary {
+                name: "Blog".to_owned(),
+                article_count: Some(1)
+            },
+            WorkspaceSummary {
+                name: "Locked".to_owned(),
+                article_count: None
+            },
+        ])
+    );
 }
 
 #[cfg(unix)]

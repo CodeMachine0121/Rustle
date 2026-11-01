@@ -1,4 +1,5 @@
 export type WorkspaceSummary = {
   name: string;
-  articleCount: number;
+  /** `null` when the workspace folder cannot be read. */
+  articleCount: number | null;
 };

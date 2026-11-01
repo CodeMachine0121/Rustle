@@ -6,7 +6,9 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSummary {
     pub name: String,
-    pub article_count: usize,
+    /// `None` when the workspace folder cannot be read: it is still listed,
+    /// as an unreadable article is, instead of hiding every other workspace.
+    pub article_count: Option<usize>,
 }
 
 pub struct ListWorkspaces<'a, Workspaces> {
@@ -27,12 +29,16 @@ impl<'a, Workspaces: WorkspaceRepository> ListWorkspaces<'a, Workspaces> {
             .iter()
             .filter_map(VaultEntry::as_workspace)
             .map(|workspace| {
-                let article_count = self
-                    .workspaces
-                    .workspace_entries(&workspace)?
-                    .iter()
-                    .filter(|entry| entry.as_article().is_some())
-                    .count();
+                let article_count = match self.workspaces.workspace_entries(&workspace) {
+                    Ok(entries) => Some(
+                        entries
+                            .iter()
+                            .filter(|entry| entry.as_article().is_some())
+                            .count(),
+                    ),
+                    Err(WorkspaceRepositoryError::Unreadable { .. }) => None,
+                    Err(error) => return Err(error),
+                };
                 Ok(WorkspaceSummary {
                     name: workspace.to_string(),
                     article_count,
