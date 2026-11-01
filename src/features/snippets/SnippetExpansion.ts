@@ -9,8 +9,8 @@ import { SnippetMenu } from "./SnippetMenu";
 /**
  * Snippets in one editor: the slash menu and the fields a snippet leaves.
  * Tab moves between waiting fields and is indentation otherwise. Esc closes
- * the menu first, then ends the waiting fields; when neither is there the
- * key is left to whatever comes next.
+ * the menu first, then ends the waiting fields; only when neither is there
+ * does it open the editor's way out (see `TabIndentation`).
  */
 export class SnippetExpansion {
   readonly #fields: SnippetFields;

@@ -3,6 +3,7 @@ import { EditorView, ViewPlugin, keymap, runScopeHandlers, type Command, type Ke
 import { getCM, Vim, vim, type CM5EditorInterface, type CodeMirrorV } from "@replit/codemirror-vim";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
+import { escapeRouteClosed } from "../editor/TabIndentation";
 import type { SystemClipboardRegister } from "./SystemClipboardRegister";
 import type { VimMode } from "./VimModeSession";
 import type { VimNormalCommand } from "./VimNormalCommand";
@@ -25,7 +26,8 @@ type VimModeChange = { mode: string };
  * the very same keymap, in the very same place, as without this class.
  *
  * Esc is Vim's own: back to Normal from Insert or Visual once the snippet
- * menu and fields had their turn, and left to the rest of the app in Normal.
+ * menu and fields had their turn, and left to the rest of the app in Normal;
+ * it never opens the editor's Esc-then-Tab way out, so Tab always indents.
  * A selection always means Visual, even one made while typing. While an
  * input method composes in Insert mode the key is the input method's: Vim
  * never sees it. Given a `SystemClipboardRegister`, Vim's unnamed register
@@ -132,6 +134,7 @@ export class VimEditing {
         view.dom.addEventListener("keydown", keepFromVim, { capture: true });
         return { destroy: () => view.dom.removeEventListener("keydown", keepFromVim, { capture: true }) };
       }),
+      escapeRouteClosed.of(true),
       // Visual block mode is one selection per line it covers.
       EditorState.allowMultipleSelections.of(true),
       Prec.low(vim()),
