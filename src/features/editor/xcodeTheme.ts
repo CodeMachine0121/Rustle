@@ -5,9 +5,9 @@ import { tags } from "@lezer/highlight";
 const MONOSPACED_FONT = '"SF Mono", SFMono-Regular, Menlo, Monaco, "PingFang TC", monospace';
 
 /**
- * Xcode's default Markdown colours. The values are the `--color-editor-*`
- * tokens in `app.css`, so the light and dark sets follow the system there;
- * text with no syntax keeps the plain editor text colour.
+ * Xcode's default Markdown colours. The values are the theme's
+ * `--color-editor-*` tokens, so they change with the theme; text with no
+ * syntax keeps the plain editor text colour.
  */
 export const xcodeHighlightStyle = HighlightStyle.define([
   { tag: tags.heading, color: "var(--color-editor-heading)", fontWeight: "bold" },
