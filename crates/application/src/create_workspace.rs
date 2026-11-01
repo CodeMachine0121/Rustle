@@ -33,19 +33,12 @@ impl<'a, Workspaces: WorkspaceRepository> CreateWorkspace<'a, Workspaces> {
             Ok(workspace) => workspace,
             Err(reason) => return Ok(CreateWorkspaceOutcome::Rejected { reason }),
         };
-        match self.workspaces.create(&workspace) {
-            Ok(()) => Ok(CreateWorkspaceOutcome::Created {
-                workspace: WorkspaceSummary {
-                    name: workspace.to_string(),
-                    article_count: 0,
-                },
-            }),
-            Err(WorkspaceRepositoryError::AlreadyExists(_)) => {
-                Ok(CreateWorkspaceOutcome::Rejected {
-                    reason: WorkspaceNameRejection::AlreadyUsed,
-                })
-            }
-            Err(error) => Err(error),
-        }
+        self.workspaces.create(&workspace)?;
+        Ok(CreateWorkspaceOutcome::Created {
+            workspace: WorkspaceSummary {
+                name: workspace.to_string(),
+                article_count: 0,
+            },
+        })
     }
 }

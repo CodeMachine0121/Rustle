@@ -7,8 +7,6 @@ use crate::vault_name::{VaultPathError, WorkspaceName};
 pub enum WorkspaceRepositoryError {
     #[error(transparent)]
     OutsideVault(#[from] VaultPathError),
-    #[error("'{0}' already exists")]
-    AlreadyExists(String),
     #[error("could not read '{folder}': {reason}")]
     Unreadable { folder: String, reason: String },
     #[error("could not create '{workspace}': {reason}")]

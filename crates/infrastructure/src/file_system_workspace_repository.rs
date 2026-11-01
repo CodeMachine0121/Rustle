@@ -38,15 +38,8 @@ impl FileSystemWorkspaceRepository {
         listing
             .map(|entry| {
                 let file_name = entry.map_err(unreadable)?.file_name();
-                Ok(match file_name.into_string() {
-                    Ok(name) => {
-                        let kind = Self::kind_of(locate(&name));
-                        VaultEntry::new(name, kind)
-                    }
-                    Err(name) => {
-                        VaultEntry::new(name.to_string_lossy(), VaultEntryKind::Unreachable)
-                    }
-                })
+                let name = file_name.to_string_lossy();
+                Ok(VaultEntry::new(name.as_ref(), Self::kind_of(locate(&name))))
             })
             .collect()
     }
@@ -85,11 +78,6 @@ impl WorkspaceRepository for FileSystemWorkspaceRepository {
         };
         fs::create_dir_all(self.vault.root()).map_err(unwritable)?;
         let folder = self.vault.workspace_path(workspace)?;
-        fs::create_dir(folder).map_err(|error| match error.kind() {
-            io::ErrorKind::AlreadyExists => {
-                WorkspaceRepositoryError::AlreadyExists(workspace.to_string())
-            }
-            _ => unwritable(error),
-        })
+        fs::create_dir(folder).map_err(unwritable)
     }
 }

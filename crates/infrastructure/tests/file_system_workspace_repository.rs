@@ -233,14 +233,16 @@ fn creates_the_vault_with_its_first_workspace() {
 }
 
 #[test]
-fn reports_a_folder_that_already_exists() {
+fn never_takes_over_a_folder_that_already_exists() {
     let vault = Vault::create();
     vault.folder("Notes");
+    vault.file("Notes/kept.md");
 
-    assert_eq!(
+    assert!(matches!(
         vault.workspaces().create(&workspace("Notes")),
-        Err(WorkspaceRepositoryError::AlreadyExists("Notes".to_owned()))
-    );
+        Err(WorkspaceRepositoryError::Unwritable { .. })
+    ));
+    assert!(vault.root.join("Notes/kept.md").is_file());
 }
 
 #[test]
@@ -259,4 +261,15 @@ fn reports_a_vault_that_cannot_hold_folders() {
         workspaces.vault_entries(),
         Err(WorkspaceRepositoryError::Unreadable { .. })
     ));
+}
+
+#[test]
+fn a_folder_named_only_with_spaces_cannot_be_reached() {
+    let vault = Vault::create();
+    vault.folder("   ");
+
+    assert_eq!(
+        vault.workspaces().vault_entries(),
+        Ok(vec![VaultEntry::new("   ", VaultEntryKind::Unreachable)])
+    );
 }
