@@ -2,8 +2,7 @@ use std::fmt;
 
 use rustle_application::CreateArticleError;
 use rustle_domain::{
-    ArticleDraftError, ArticleRepositoryError, SettingsError, VaultPathError,
-    WorkspaceRepositoryError,
+    ArticleRepositoryError, SettingsError, VaultPathError, WorkspaceRepositoryError,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -87,9 +86,7 @@ impl From<WorkspaceRepositoryError> for CommandError {
 impl From<CreateArticleError> for CommandError {
     fn from(error: CreateArticleError) -> Self {
         match error {
-            CreateArticleError::Draft(draft @ ArticleDraftError::BlankTitle) => {
-                Self::unexpected(draft)
-            }
+            CreateArticleError::Draft(draft) => Self::unexpected(draft),
             CreateArticleError::Workspace(workspace) => workspace.into(),
             CreateArticleError::Article(article) => article.into(),
         }
@@ -108,7 +105,7 @@ impl From<SettingsError> for CommandError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustle_domain::WorkspaceName;
+    use rustle_domain::{ArticleDraftError, WorkspaceName};
     use serde_json::json;
 
     #[test]
