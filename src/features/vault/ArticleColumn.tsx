@@ -6,13 +6,25 @@ const LEADING_DATE = /^\d{4}-\d{2}-\d{2}/;
 type ArticleColumnProps = {
   snapshot: VaultSnapshot;
   onSelect: (fileName: string) => void;
+  onCreateArticle: () => void;
 };
 
-export function ArticleColumn({ snapshot, onSelect }: ArticleColumnProps) {
-  const { articles, selectedWorkspace, selectedArticle, articleListFailure } = snapshot;
-  if (selectedWorkspace === null) {
+export function ArticleColumn({ snapshot, onSelect, onCreateArticle }: ArticleColumnProps) {
+  if (snapshot.selectedWorkspace === null) {
     return <p className="empty-state">選一個 workspace</p>;
   }
+  return (
+    <>
+      <button type="button" className="new-article-button" onClick={onCreateArticle}>
+        ＋ 新文章
+      </button>
+      <ArticleList snapshot={snapshot} onSelect={onSelect} onCreateArticle={onCreateArticle} />
+    </>
+  );
+}
+
+function ArticleList({ snapshot, onSelect, onCreateArticle }: ArticleColumnProps) {
+  const { articles, selectedArticle, articleListFailure } = snapshot;
   if (articleListFailure !== null) {
     return (
       <p className="column-message" role="alert">
@@ -21,7 +33,11 @@ export function ArticleColumn({ snapshot, onSelect }: ArticleColumnProps) {
     );
   }
   if (articles.length === 0) {
-    return <p className="empty-state">建立第一篇文章</p>;
+    return (
+      <button type="button" className="empty-state empty-state-action" onClick={onCreateArticle}>
+        建立第一篇文章
+      </button>
+    );
   }
   return (
     <ul className="column-list">
