@@ -328,6 +328,76 @@ describe("MarkdownEditor", () => {
     });
   });
 
+  describe("table rows", () => {
+    function renderTable(body: string) {
+      const onBodyChange = vi.fn();
+      const view = render(
+        <CompositionProvider state={new CompositionState()}>
+          <MarkdownEditor documentKey="Blog/table.md" body={body} onBodyChange={onBodyChange} />
+        </CompositionProvider>,
+      );
+      const content = view.container.querySelector(".cm-content");
+      const editor = content instanceof HTMLElement ? EditorView.findFromDOM(content) : null;
+      if (!(content instanceof HTMLElement) || editor === null) {
+        throw new Error("the editor did not render its content area");
+      }
+      editor.dispatch({ selection: { anchor: editor.state.doc.length } });
+      const type = (text: string) => {
+        editor.dispatch({ ...editor.state.replaceSelection(text), userEvent: "input.type" });
+      };
+      const moveToNextCell = () => {
+        editor.dispatch({ selection: { anchor: editor.state.selection.main.head + " | ".length } });
+      };
+      const moveToLineEnd = () => {
+        editor.dispatch({ selection: { anchor: editor.state.doc.lineAt(editor.state.selection.main.head).to } });
+      };
+      return { content, onBodyChange, type, moveToNextCell, moveToLineEnd };
+    }
+
+    it("adds the next row of a table on Enter and saves it as plain markdown", () => {
+      const { content, onBodyChange } = renderTable("| 甲 | 乙 |\n| --- | --- |");
+
+      fireEvent.keyDown(content, { key: "Enter" });
+
+      expect(onBodyChange).toHaveBeenLastCalledWith("| 甲 | 乙 |\n| --- | --- |\n|  |  |");
+    });
+
+    it("keeps the quote marker on the next row of a table inside a quote", () => {
+      const { content, onBodyChange } = renderTable("> | 甲 | 乙 |");
+
+      fireEvent.keyDown(content, { key: "Enter" });
+
+      expect(onBodyChange).toHaveBeenLastCalledWith("> | 甲 | 乙 |\n> |  |  |");
+    });
+
+    it("lets two rows be added and filled, then leaves the table on an empty row", () => {
+      const { content, onBodyChange, type, moveToNextCell, moveToLineEnd } = renderTable("| 甲 | 乙 |\n| --- | --- |");
+
+      fireEvent.keyDown(content, { key: "Enter" });
+      type("丙");
+      moveToNextCell();
+      type("丁");
+      moveToLineEnd();
+      fireEvent.keyDown(content, { key: "Enter" });
+      type("戊");
+      moveToNextCell();
+      type("己");
+      moveToLineEnd();
+      fireEvent.keyDown(content, { key: "Enter" });
+      fireEvent.keyDown(content, { key: "Enter" });
+
+      expect(onBodyChange).toHaveBeenLastCalledWith("| 甲 | 乙 |\n| --- | --- |\n| 丙 | 丁 |\n| 戊 | 己 |\n");
+    });
+
+    it("keeps Enter at the end of plain text a new line", () => {
+      const { content, onBodyChange } = renderTable("最近在選桌面框架");
+
+      fireEvent.keyDown(content, { key: "Enter" });
+
+      expect(onBodyChange).toHaveBeenLastCalledWith("最近在選桌面框架\n");
+    });
+  });
+
   describe("scroll sync", () => {
     function previewPane(): ScrollPane & { scroll: () => void } {
       let listener: () => void = () => undefined;

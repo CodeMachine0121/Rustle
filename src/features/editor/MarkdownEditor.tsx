@@ -11,6 +11,7 @@ import type { ImagePaste } from "../imagePaste/ImagePaste";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { EditorScrollPane } from "./EditorScrollPane";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
+import { TableRowContinuation } from "./TableRowContinuation";
 import { TabIndentation } from "./TabIndentation";
 
 type BodyChangeListener = (body: string) => void;
@@ -143,6 +144,7 @@ export function MarkdownEditor({
 function editorExtensions(composition: CompositionState, tabIndentation: Extension) {
   return [
     tabIndentation,
+    new TableRowContinuation(composition).extension(),
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     markdown(),
