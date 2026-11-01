@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["crates/domain", "crates/application", "crates/infrastructure"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+
+[workspace.dependencies]
+rustle-domain = { path = "crates/domain" }
+rustle-application = { path = "crates/application" }
+rustle-infrastructure = { path = "crates/infrastructure" }
+
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+thiserror = "=2.0.21"
+url = "=2.5.8"
+
+tauri = "=2.12.5"
+tauri-build = "=2.7.4"
+tauri-plugin-opener = "=2.7.2"
+
+rstest = "=0.28.0"
+tempfile = "=3.27.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
