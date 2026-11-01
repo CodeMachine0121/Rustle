@@ -49,7 +49,7 @@
 | `ThemeCache`, `SystemAppearance` (types) + `browserThemeCache()`, `browserSystemAppearance()` | Boundary | `read()/write(choice)` over `localStorage` (failures swallowed); `isDark()/watch(listener)` over `matchMedia` | browser | US-03 第一帧, US-02 系統切暗色 |
 | `useTheme(session)` | Hook | `useSyncExternalStore` over the session's `ThemeMenu` snapshot (`choice`, `options`, `choose`) | `ThemeSession` | wiring |
 | `ThemeSetting` | Component | The `<section className="settings-item">` with heading 主題 and a labelled `<select>` whose selected option is the current choice | `useMessages`, `useInterfaceLanguage`'s language | US-01 打開主題選單, NFR 可及性 |
-| `applyFirstFrameTheme()` | Function in `ThemeSession.ts` | Resolves the cached choice and applies it synchronously before React renders | `ThemeCatalog`, `ThemeCache`, `SystemAppearance` | US-03 第一帧 |
+| `paintCachedTheme(environment)` | Function in `ThemeSession.ts` | Resolves the cached choice and applies it synchronously before React renders | `ThemeCatalog`, `ThemeCache`, `SystemAppearance` | US-03 第一帧 |
 
 ---
 
@@ -70,7 +70,7 @@
 flowchart TD
     Files[themes/*.json] -- import.meta.glob --> Catalog[ThemeCatalog]
     Catalog --> Theme[Theme.parse / tokens / applyTo]
-    Main[main.tsx] -- before render --> First[applyFirstFrameTheme] --> Cache[ThemeCache: localStorage]
+    Main[main.tsx] -- before render --> First[paintCachedTheme] --> Cache[ThemeCache: localStorage]
     App --> Session[ThemeSession]
     Session --> Settings[SettingsSession] --> Channel[writeSettings] --> Rust[Settings.theme]
     Session --> Cache
@@ -85,7 +85,7 @@ flowchart TD
 ## 6. Extensibility & Handoff Notes
 
 - **Most likely next requirement:** a fifth shipped theme; later, themes the reader drops into the vault (PRD out of scope).
-- **Where it lands:** a fifth theme = copy `themeTemplate.json` to `themes/04-<id>.json` and fill the values. A reader's themes = another source of `unknown` files handed to `ThemeCatalog` (its constructor already takes `[fileName, content]` pairs; `shipped()` is just one source), probably over a new channel.
+- **Where it lands:** a fifth theme = copy `themeTemplate.json` to `themes/04-<id>.json` and fill the values. A reader's themes = another source of `unknown` files handed to `ThemeCatalog` (its constructor already takes a `{ fileName: content }` record; `shipped()` is just one source), probably over a new channel.
 - **A new colour token:** one entry in the derivation table in `Theme.ts` (and, if Light/Dark must keep a specific value, one override line in their files); then use `var(--color-<token>)` in CSS. Never put a literal colour in `app.css`.
 - **Patterns applied & why:** themes as data + one derivation table (the axis of change is "more themes", so themes must cost nothing in code); session class with subscribe/snapshot, like `EditingSurfaceFontSizes` and `WritingLayout`.
 - **Do not hardcode:** colours in CSS or TS; the list of themes; the menu order (file-name order).
@@ -110,7 +110,7 @@ flowchart TD
 | 從來沒選過主題 | `ThemeCatalog.choiceFor(undefined)` = Follow System; Light/Dark files reproduce today's colours exactly |
 | 記住的主題是一套 App 不認得的名字 | `ThemeCatalog.choiceFor` |
 | 一套主題少說了必填的基礎色 | `Theme.parse` → `null`; `ThemeCatalog` drops it |
-| 主題跨重啟記住（含第一帧） | `Settings.theme` (Rust) + `ThemeCache` + `applyFirstFrameTheme` + `ThemeSession` starting from the cache |
+| 主題跨重啟記住（含第一帧） | `Settings.theme` (Rust) + `ThemeCache` + `paintCachedTheme` + `ThemeSession` starting from the cache |
 | 設定寫不進去，畫面照樣立刻改變 | `SettingsSession.change` (screen first) |
 | 開啟 vault 沒有跑到最後 | `SettingsSession` writes the read settings including `theme` |
 | 設定寫不進去，這次調的活不過重啟 | `ThemeSession` follows `settings.theme` once settings are read |
