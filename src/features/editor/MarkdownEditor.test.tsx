@@ -13,7 +13,7 @@ function renderEditor(
 ) {
   const view = render(
     <CompositionProvider state={state}>
-      <MarkdownEditor initialBody={body} indentation={indentation} />
+      <MarkdownEditor documentKey={body} body={body} indentation={indentation} />
     </CompositionProvider>,
   );
   const content = view.container.querySelector(".cm-content");
@@ -70,23 +70,121 @@ describe("MarkdownEditor", () => {
     expect(state.isComposing).toBe(false);
   });
 
-  it("ends a composition still in progress when another article is opened", () => {
-    const { content, state, view } = renderEditor(new CompositionState(), "# First article");
+  it("keeps the same editable element while articles are opened one after another", () => {
+    const state = new CompositionState();
+    const { content, view } = renderEditor(state, "# First article");
+
+    for (const body of ["# Second article", "# Third article", "# First article"]) {
+      view.rerender(
+        <CompositionProvider state={state}>
+          <MarkdownEditor documentKey={body} body={body} />
+        </CompositionProvider>,
+      );
+
+      expect(view.container.querySelector(".cm-content")).toBe(content);
+      expect(content.textContent).toBe(body);
+    }
+  });
+
+  it("does not replace the document when the same document is given again", () => {
+    const state = new CompositionState();
+    const { content, view } = renderEditor(state, "字");
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    view.rerender(
+      <CompositionProvider state={state}>
+        <MarkdownEditor documentKey="字" body="字" indentation={{ style: "spaces", width: 2 }} />
+      </CompositionProvider>,
+    );
+
+    expect(content.textContent).toBe("  字");
+  });
+
+  it("shows another article even when its body is the same text", () => {
+    const state = new CompositionState();
+    const view = render(
+      <CompositionProvider state={state}>
+        <MarkdownEditor documentKey="Blog/a.md" body="" />
+      </CompositionProvider>,
+    );
+    const content = view.container.querySelector(".cm-content");
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("the editor did not render its content area");
+    }
+    fireEvent.keyDown(content, { key: "Tab" });
+    expect(content.textContent).toBe("  ");
+
+    view.rerender(
+      <CompositionProvider state={state}>
+        <MarkdownEditor documentKey="Blog/b.md" body="" />
+      </CompositionProvider>,
+    );
+
+    expect(content.textContent).toBe("");
+  });
+
+  it("shows the next article with its own indentation", () => {
+    const state = new CompositionState();
+    const { content, view } = renderEditor(state, "第一篇", { style: "spaces", width: 2 });
+
+    view.rerender(
+      <CompositionProvider state={state}>
+        <MarkdownEditor documentKey="第二篇" body="第二篇" indentation={{ style: "tab", width: 4 }} />
+      </CompositionProvider>,
+    );
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(content.textContent).toBe("\t第二篇");
+  });
+
+  it("waits for a composition to end before showing another article", () => {
+    const state = new CompositionState();
+    const { content, view } = renderEditor(state, "第一篇");
 
     fireEvent.compositionStart(content);
     view.rerender(
       <CompositionProvider state={state}>
-        <MarkdownEditor initialBody="# Second article" />
+        <MarkdownEditor documentKey="第二篇" body="第二篇" />
       </CompositionProvider>,
     );
 
+    expect(content.textContent).toBe("第一篇");
+    fireEvent.compositionEnd(content);
+    expect(content.textContent).toBe("第二篇");
+  });
+
+  it("shows the last article asked for once a composition ends", () => {
+    const state = new CompositionState();
+    const { content, view } = renderEditor(state, "第一篇");
+
+    fireEvent.compositionStart(content);
+    for (const body of ["第二篇", "第三篇"]) {
+      view.rerender(
+        <CompositionProvider state={state}>
+          <MarkdownEditor documentKey={body} body={body} />
+        </CompositionProvider>,
+      );
+    }
+    fireEvent.compositionEnd(content);
+
+    expect(content.textContent).toBe("第三篇");
+  });
+
+  it("ends a composition whose end never arrived when the editor loses focus", () => {
+    const { content, state } = renderEditor(new CompositionState(), "字");
+
+    fireEvent.compositionStart(content);
+    fireEvent.blur(content);
+    fireEvent.keyDown(content, { key: "Tab" });
+
     expect(state.isComposing).toBe(false);
+    expect(content.textContent).toBe("  字");
   });
 
   it("refuses to mount without a shared composition state", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    expect(() => render(<MarkdownEditor initialBody="# Zen" />)).toThrow(/CompositionProvider/);
+    expect(() => render(<MarkdownEditor documentKey="# Zen" body="# Zen" />)).toThrow(/CompositionProvider/);
   });
 
   it("indents the cursor line by two spaces when no indentation settings are given", () => {

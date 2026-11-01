@@ -13,7 +13,6 @@ import type { CompositionState } from "../../shared/composition/CompositionState
 import type { IndentUnit } from "./IndentUnit";
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
-const INPUT_METHOD_KEY_CODE = 229;
 
 /** Owns the Tab key of one editor: Tab indents, Shift+Tab outdents, Esc then Tab lets focus leave. */
 export class TabIndentation {
@@ -115,8 +114,7 @@ class TabKeyListener {
   };
 
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
-    const composing =
-      this.#composition.isComposing || event.isComposing || event.keyCode === INPUT_METHOD_KEY_CODE;
+    const composing = this.#composition.ownsKey(event);
     if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) {
       if (!MODIFIER_KEYS.has(event.key)) {
         this.#escapeArmed = event.key === "Escape" && !composing;

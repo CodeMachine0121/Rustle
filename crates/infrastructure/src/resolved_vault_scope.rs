@@ -17,6 +17,11 @@ impl ResolvedVaultScope {
         Self { scope }
     }
 
+    /// The vault folder as configured; it may not exist yet.
+    pub fn root(&self) -> &Path {
+        self.scope.root()
+    }
+
     pub fn workspace_path(&self, workspace: &WorkspaceName) -> Result<PathBuf, VaultPathError> {
         self.confine(self.scope.workspace_path(workspace), workspace.as_str())
     }

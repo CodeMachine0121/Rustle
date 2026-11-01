@@ -7,6 +7,20 @@ describe("CompositionState", () => {
     expect(new CompositionState().isComposing).toBe(false);
   });
 
+  it.each([
+    ["while composing", true, { isComposing: false, keyCode: 13 }, true],
+    ["the event says it is composing", false, { isComposing: true, keyCode: 13 }, true],
+    ["the input method key code", false, { isComposing: false, keyCode: 229 }, true],
+    ["an ordinary key outside a composition", false, { isComposing: false, keyCode: 13 }, false],
+  ])("decides whether a key belongs to the input method: %s", (_case, composing, event, owned) => {
+    const state = new CompositionState();
+    if (composing) {
+      state.start();
+    }
+
+    expect(state.ownsKey(event)).toBe(owned);
+  });
+
   it("reflects a composition starting and ending", () => {
     const state = new CompositionState();
 
