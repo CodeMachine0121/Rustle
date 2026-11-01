@@ -1,5 +1,5 @@
-use std::fs;
-use std::io;
+use std::fs::File;
+use std::io::{self, Read};
 
 use rustle_domain::{
     ArticleFileName, ArticleRepository, ArticleRepositoryError, StoredArticle, WorkspaceName,
@@ -32,10 +32,13 @@ impl ArticleRepository for FileSystemArticleRepository {
             article: format!("{workspace}/{article}"),
             reason: error.to_string(),
         };
-        let text = fs::read_to_string(&path).map_err(unreadable)?;
-        let modified = fs::metadata(&path)
+        let mut file = File::open(&path).map_err(unreadable)?;
+        let modified = file
+            .metadata()
             .and_then(|metadata| metadata.modified())
             .map_err(unreadable)?;
+        let mut text = String::new();
+        file.read_to_string(&mut text).map_err(unreadable)?;
         Ok(StoredArticle {
             text,
             last_modified_at: UtcTimestamp::from(modified).to_string(),
