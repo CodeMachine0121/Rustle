@@ -1110,6 +1110,21 @@ describe("App", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
 
+    it("finds titles in the workspace it just went to", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const content = await startWithZenOpen();
+      fireEvent.keyDown(content, { code: "KeyP", key: "p", metaKey: true });
+      const workspaceField = within(await screen.findByRole("dialog")).getByRole("textbox");
+      fireEvent.change(workspaceField, { target: { value: "work" } });
+      fireEvent.keyDown(workspaceField, { key: "Enter" });
+      await waitFor(() => expect(editorContent()).toHaveTextContent("# Q3 回顧"));
+
+      fireEvent.keyDown(document.body, { code: "KeyT", key: "t", metaKey: true });
+
+      const finder = await screen.findByRole("dialog", { name: "用標題找文章" });
+      expect(within(finder).getAllByRole("option").map((row) => row.textContent)).toEqual(["Q3 回顧"]);
+    });
+
     it("opens an article found by its title", async () => {
       answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
       const content = await startWithZenOpen();

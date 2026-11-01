@@ -585,6 +585,22 @@ describe("Finders", () => {
       expect(searchBodies).not.toHaveBeenCalled();
     });
 
+    it("searches the body once the input method has chosen the words", async () => {
+      vi.useFakeTimers();
+      const { searchBodies } = renderFinders(DIARY);
+      openBodyFinder();
+      fireEvent.compositionStart(field());
+      fireEvent.change(field(), { target: { value: "加班" } });
+
+      fireEvent.compositionEnd(field());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(BODY_SEARCH_DELAY_MILLISECONDS);
+      });
+
+      expect(searchBodies).toHaveBeenCalledTimes(1);
+      expect(searchBodies).toHaveBeenCalledWith(expect.objectContaining({ text: "加班" }));
+    });
+
     it("leaves Enter and the arrows to the input method while it composes", () => {
       const { onOpenFoundArticle } = renderFinders(DIARY);
       openTitleFinder();
