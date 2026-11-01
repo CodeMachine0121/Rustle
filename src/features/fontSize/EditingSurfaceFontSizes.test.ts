@@ -73,6 +73,10 @@ function hover(target: HTMLElement) {
   target.dispatchEvent(new Event("pointerover", { bubbles: true }));
 }
 
+function leaveWindow(from: HTMLElement) {
+  from.dispatchEvent(new MouseEvent("pointerout", { bubbles: true, relatedTarget: null }));
+}
+
 function pressReset(init: KeyboardEventInit = { metaKey: true }): KeyboardEvent {
   const event = new KeyboardEvent("keydown", { key: "0", bubbles: true, cancelable: true, ...init });
   document.body.dispatchEvent(event);
@@ -317,6 +321,37 @@ describe("EditingSurfaceFontSizes", () => {
     expect(overSidebar.defaultPrevented).toBe(false);
     expect(plainZero.defaultPrevented).toBe(false);
     expect(sizes.snapshot.editor.pixels).toBe(zoomed);
+  });
+
+  it("leaves Cmd+0 alone once the pointer has left the window", async () => {
+    const { sizes } = await fontSizes();
+    zoom(surface.editor, -MOUSE_NOTCH);
+    const zoomed = sizes.snapshot.editor.pixels;
+    hover(surface.editor);
+    leaveWindow(surface.editor);
+
+    const key = pressReset();
+
+    expect(key.defaultPrevented).toBe(false);
+    expect(sizes.snapshot.editor.pixels).toBe(zoomed);
+  });
+
+  it("leaves Cmd+0 alone when the hovered surface has been hidden or removed", async () => {
+    const { sizes } = await fontSizes();
+    zoom(surface.editor, -MOUSE_NOTCH);
+    zoom(surface.preview, -MOUSE_NOTCH);
+    const zoomed = sizes.snapshot;
+
+    hover(surface.editor);
+    surface.editor.closest("section")?.setAttribute("hidden", "");
+    const overHidden = pressReset();
+    hover(surface.preview);
+    surface.preview.closest("section")?.remove();
+    const overRemoved = pressReset();
+
+    expect(overHidden.defaultPrevented).toBe(false);
+    expect(overRemoved.defaultPrevented).toBe(false);
+    expect(sizes.snapshot).toBe(zoomed);
   });
 
   it("writes a gesture still waiting when it is disposed", async () => {

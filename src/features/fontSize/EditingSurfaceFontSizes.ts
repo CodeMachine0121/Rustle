@@ -30,7 +30,7 @@ export class EditingSurfaceFontSizes {
   // What this session set, unrounded: the settings keep a rounded copy.
   readonly #shown: Partial<Record<FontSizeSurface, FontSize>> = {};
   #snapshot: EditingSurfaceFontSizesSnapshot = { editor: FontSize.DEFAULT, preview: FontSize.DEFAULT };
-  #hoveredSurface: FontSizeSurface | null = null;
+  #hovered: Element | null = null;
   #pinchedSurface: FontSizeSurface | null = null;
   #pendingWrite: ReturnType<typeof setTimeout> | null = null;
 
@@ -81,15 +81,22 @@ export class EditingSurfaceFontSizes {
       this.#pinchedSurface = null;
     };
     const onPointerOver = (event: PointerEvent) => {
-      this.#hoveredSurface = surfaceOf(event.target);
+      this.#hovered = event.target instanceof Element ? event.target : null;
+    };
+    const onPointerOut = (event: PointerEvent) => {
+      if (event.relatedTarget === null) {
+        this.#hovered = null;
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       const isReset = (event.metaKey || event.ctrlKey) && event.key === "0";
-      if (!isReset || this.#hoveredSurface === null || this.#composition.ownsKey(event)) {
+      const isOnScreen = this.#hovered?.isConnected === true && this.#hovered.closest("[hidden]") === null;
+      const surface = isOnScreen ? surfaceOf(this.#hovered) : null;
+      if (!isReset || surface === null || this.#composition.ownsKey(event)) {
         return;
       }
       event.preventDefault();
-      this.#reset(this.#hoveredSurface);
+      this.#reset(surface);
     };
     const listening = new AbortController();
     const options = { capture: true, passive: false, signal: listening.signal };
@@ -98,6 +105,7 @@ export class EditingSurfaceFontSizes {
     target.addEventListener("gesturechange", onPinchChange, options);
     target.addEventListener("gestureend", onPinchEnd, options);
     target.addEventListener("pointerover", onPointerOver, options);
+    target.addEventListener("pointerout", onPointerOut, options);
     target.addEventListener("keydown", onKeyDown, options);
     return () => listening.abort();
   }
