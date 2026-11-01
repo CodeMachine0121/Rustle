@@ -4,6 +4,7 @@ import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
 import { NoArticleState } from "./NoArticleState";
 import type { VaultSnapshot } from "./VaultSession";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 type EditorColumnProps = {
   snapshot: VaultSnapshot;
@@ -14,10 +15,11 @@ type EditorColumnProps = {
 
 export function EditorColumn({ snapshot, autosave, scrollSynchronizer, imagePaste }: EditorColumnProps) {
   const { openedDocument, indentation, bodyFailure } = snapshot;
+  const messages = useMessages();
   if (bodyFailure !== null) {
     return (
       <p className="column-message" role="alert">
-        讀不到這篇文章：{bodyFailure}
+        {messages.articleUnreadable(bodyFailure)}
       </p>
     );
   }

@@ -1,3 +1,4 @@
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { AutosaveSession } from "./AutosaveSession";
 import { useAutosaveStatus } from "./useAutosaveSession";
 
@@ -7,32 +8,33 @@ type SaveStatusBarProps = {
 
 export function SaveStatusBar({ session }: SaveStatusBarProps) {
   const status = useAutosaveStatus(session);
+  const messages = useMessages();
 
   if (status.kind === "noArticle") {
-    return <header className="save-status-bar" aria-label="標題列" />;
+    return <header className="save-status-bar" aria-label={messages.titleBar} />;
   }
 
   return (
-    <header className="save-status-bar" aria-label="標題列">
+    <header className="save-status-bar" aria-label={messages.titleBar}>
       <span className="save-status-bar__title">{status.title}</span>
       {status.failureMessage !== null && (
         <span className="save-status-bar__failure" role="alert">
-          儲存失敗：{status.failureMessage}
+          {messages.saveFailed(status.failureMessage)}
         </span>
       )}
       {status.modifiedElsewhere ? (
         <span className="save-status-bar__warning" role="alert">
-          檔案在外部被改動過
+          {messages.changedOutsideRustle}
           <button type="button" onClick={() => void session.overwrite()}>
-            覆寫
+            {messages.overwrite}
           </button>
           <button type="button" onClick={() => void session.reload()}>
-            重新載入
+            {messages.reload}
           </button>
         </span>
       ) : (
         <span className="save-status-bar__state">
-          {status.hasUnsavedChanges ? "未儲存的變更" : "已儲存"}
+          {status.hasUnsavedChanges ? messages.unsavedChanges : messages.saved}
         </span>
       )}
     </header>

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { ImagePaste } from "./ImagePaste";
 
 type ImagePasteStatusLineProps = {
@@ -9,6 +10,7 @@ type ImagePasteStatusLineProps = {
 /** One line above the editor that never blocks typing. */
 export function ImagePasteStatusLine({ imagePaste }: ImagePasteStatusLineProps) {
   const status = useSyncExternalStore(imagePaste.subscribe, () => imagePaste.status);
+  const messages = useMessages();
 
   switch (status.kind) {
     case "idle":
@@ -16,13 +18,13 @@ export function ImagePasteStatusLine({ imagePaste }: ImagePasteStatusLineProps) 
     case "saving":
       return (
         <p className="image-paste-status" role="status">
-          正在存圖片…
+          {messages.savingImage}
         </p>
       );
     case "failed":
       return (
         <p className="image-paste-status image-paste-status--failed" role="alert">
-          圖片沒有存進去：{status.message}
+          {messages.imageNotSaved(status.message)}
         </p>
       );
   }

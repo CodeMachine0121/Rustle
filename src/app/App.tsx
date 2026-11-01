@@ -113,8 +113,9 @@ function VaultView() {
           onResizeEnd: previewPanel.commitWidth,
         }}
       />
-      {articleDialogOpenedAt !== null && (
+      {articleDialogOpenedAt !== null && snapshot.selectedWorkspace !== null && (
         <CreateArticleDialog
+          workspace={snapshot.selectedWorkspace}
           openedAt={articleDialogOpenedAt}
           vocabulary={vocabularyOf(snapshot.articles)}
           onCreate={(draft) => session.createArticle(draft)}

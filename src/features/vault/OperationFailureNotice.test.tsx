@@ -12,14 +12,14 @@ describe("OperationFailureNotice", () => {
     ["renameWorkspace", "重新命名 workspace 失敗"],
     ["deleteWorkspace", "刪除 workspace 失敗"],
   ] as const)("names the %s operation and keeps the reason", (operation: Operation, sentence) => {
-    render(<OperationFailureNotice failure={{ operation, message: "磁碟已滿" }} onDismiss={vi.fn()} />);
+    render(<OperationFailureNotice failure={{ operation, reason: { kind: "reported", message: "磁碟已滿" } }} onDismiss={vi.fn()} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent(`${sentence}：磁碟已滿`);
   });
 
   it("can be dismissed", () => {
     const onDismiss = vi.fn();
-    render(<OperationFailureNotice failure={{ operation: "deleteArticle", message: "x" }} onDismiss={onDismiss} />);
+    render(<OperationFailureNotice failure={{ operation: "deleteArticle", reason: { kind: "reported", message: "x" } }} onDismiss={onDismiss} />);
 
     fireEvent.click(screen.getByRole("button", { name: "關閉提示" }));
 

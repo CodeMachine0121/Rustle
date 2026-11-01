@@ -4,14 +4,10 @@ export type ArticleOrder = "createdNewestFirst" | "title" | "updatedNewestFirst"
 
 export const DEFAULT_ARTICLE_ORDER: ArticleOrder = "createdNewestFirst";
 
-export const ARTICLE_ORDERS: ReadonlyArray<{ order: ArticleOrder; label: string }> = [
-  { order: "createdNewestFirst", label: "建立時間（新到舊）" },
-  { order: "title", label: "標題" },
-  { order: "updatedNewestFirst", label: "更新時間（新到舊）" },
-];
+export const ARTICLE_ORDERS: readonly ArticleOrder[] = ["createdNewestFirst", "title", "updatedNewestFirst"];
 
 export function articleOrderNamed(name: string): ArticleOrder {
-  return ARTICLE_ORDERS.find(({ order }) => order === name)?.order ?? DEFAULT_ARTICLE_ORDER;
+  return ARTICLE_ORDERS.find((order) => order === name) ?? DEFAULT_ARTICLE_ORDER;
 }
 
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/;

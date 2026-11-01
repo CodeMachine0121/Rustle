@@ -127,13 +127,13 @@ describe("ArticleColumn", () => {
   it("asks for a workspace when none is selected", () => {
     renderColumn({ ...BLOG, selectedWorkspace: null, articles: [] });
 
-    expect(screen.getByText("選一個 workspace")).toBeInTheDocument();
+    expect(screen.getByText("先選一個 workspace")).toBeInTheDocument();
   });
 
   it("says in one line that the articles could not be read", () => {
     renderColumn({ ...BLOG, articles: [], articleListFailure: "permission denied" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("讀不到文章");
+    expect(screen.getByRole("alert")).toHaveTextContent("讀不到這個 workspace");
   });
 
   it("offers to edit the metadata of and to delete every article", () => {

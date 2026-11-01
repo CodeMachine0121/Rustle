@@ -55,10 +55,10 @@ describe("EditArticleMetadataDialog", () => {
   it("opens with the article's title, categories and tags filled in", () => {
     renderDialog();
 
-    expect(field("Title")).toHaveValue("舊標題");
+    expect(field("標題")).toHaveValue("舊標題");
     expect(screen.getByRole("button", { name: "移除 技術筆記" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "移除 electron" })).toBeInTheDocument();
-    expect(field("Title")).toHaveFocus();
+    expect(field("標題")).toHaveFocus();
   });
 
   it("shows both times as text in the file's own time zone, with no field to fill in", () => {
@@ -88,9 +88,9 @@ describe("EditArticleMetadataDialog", () => {
   it("cannot save a blank title and says why", () => {
     const { onSave } = renderDialog();
 
-    fireEvent.change(field("Title"), { target: { value: "   " } });
+    fireEvent.change(field("標題"), { target: { value: "   " } });
     fireEvent.click(saveButton());
-    fireEvent.keyDown(field("Title"), { key: "Enter" });
+    fireEvent.keyDown(field("標題"), { key: "Enter" });
 
     expect(saveButton()).toBeDisabled();
     expect(screen.getByText("請先輸入標題，「儲存」才會啟用。")).toBeInTheDocument();
@@ -100,16 +100,16 @@ describe("EditArticleMetadataDialog", () => {
   it("offers the workspace's words while typing a category", () => {
     renderDialog({ article: { ...TAURI, category: [] } });
 
-    fireEvent.change(field("Category"), { target: { value: "技" } });
+    fireEvent.change(field("分類"), { target: { value: "技" } });
 
     expect(screen.getByRole("button", { name: "技術筆記" })).toBeInTheDocument();
   });
 
   it("closes on Escape without saving", () => {
     const { onSave, onClose } = renderDialog();
-    fireEvent.change(field("Title"), { target: { value: "新標題" } });
+    fireEvent.change(field("標題"), { target: { value: "新標題" } });
 
-    fireEvent.keyDown(field("Title"), { key: "Escape" });
+    fireEvent.keyDown(field("標題"), { key: "Escape" });
 
     expect(onClose).toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
@@ -121,11 +121,11 @@ describe("EditArticleMetadataDialog", () => {
   ])("does not save on an Enter %s", (_case, enter, composing) => {
     const { onSave } = renderDialog();
     if (composing) {
-      fireEvent.compositionStart(field("Title"));
+      fireEvent.compositionStart(field("標題"));
     }
-    fireEvent.change(field("Title"), { target: { value: "新標題" } });
+    fireEvent.change(field("標題"), { target: { value: "新標題" } });
 
-    fireEvent.keyDown(field("Title"), enter);
+    fireEvent.keyDown(field("標題"), enter);
 
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -134,10 +134,10 @@ describe("EditArticleMetadataDialog", () => {
   it("neither saves on Enter nor closes on Escape while composing", () => {
     const { onSave, onClose } = renderDialog();
 
-    fireEvent.compositionStart(field("Title"));
-    fireEvent.change(field("Title"), { target: { value: "新標題" } });
-    fireEvent.keyDown(field("Title"), { key: "Enter" });
-    fireEvent.keyDown(field("Title"), { key: "Escape" });
+    fireEvent.compositionStart(field("標題"));
+    fireEvent.change(field("標題"), { target: { value: "新標題" } });
+    fireEvent.keyDown(field("標題"), { key: "Enter" });
+    fireEvent.keyDown(field("標題"), { key: "Escape" });
 
     expect(onSave).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
@@ -145,19 +145,19 @@ describe("EditArticleMetadataDialog", () => {
 
   it("saves the trimmed title and every chip, the unfinished one too, on Enter after composing", async () => {
     const { onSave, onClose } = renderDialog();
-    fireEvent.compositionStart(field("Title"));
-    fireEvent.change(field("Title"), { target: { value: "  新標題  " } });
-    fireEvent.compositionEnd(field("Title"));
-    fireEvent.change(field("Tags"), { target: { value: "tauri" } });
+    fireEvent.compositionStart(field("標題"));
+    fireEvent.change(field("標題"), { target: { value: "  新標題  " } });
+    fireEvent.compositionEnd(field("標題"));
+    fireEvent.change(field("標籤"), { target: { value: "tauri" } });
 
-    fireEvent.keyDown(field("Title"), { key: "Enter" });
+    fireEvent.keyDown(field("標題"), { key: "Enter" });
 
     expect(onSave).toHaveBeenCalledWith({ title: "新標題", category: ["技術筆記"], tags: ["electron", "tauri"] });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it("stays open and says why when the update failed", async () => {
-    const onSave = vi.fn((): Promise<MetadataEdit> => Promise.resolve({ outcome: "failed", message: "磁碟已滿" }));
+    const onSave = vi.fn((): Promise<MetadataEdit> => Promise.resolve({ outcome: "failed", reason: { kind: "reported", message: "磁碟已滿" } }));
     const { onClose } = renderDialog({ onSave });
 
     fireEvent.click(saveButton());

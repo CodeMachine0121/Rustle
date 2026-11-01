@@ -574,7 +574,7 @@ describe("VaultSession", () => {
 
       const creation = await session.createArticle(DRAFT);
 
-      expect(creation).toEqual({ outcome: "failed", message: "磁碟已滿" });
+      expect(creation).toEqual({ outcome: "failed", reason: { kind: "reported", message: "磁碟已滿" } });
       expect(session.snapshot.selectedArticle).toBe("zen-of-writing.md");
     });
 
@@ -682,9 +682,9 @@ describe("VaultSession", () => {
     });
 
     it.each([
-      ["blockedByUnansweredWarning", "請先回答標題列的外部改動提示，再試一次。"],
-      ["blockedByFailedSave", "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。"],
-    ] as const)("writes nothing when the open article cannot be left (%s)", async (refusal, message) => {
+      ["blockedByUnansweredWarning"],
+      ["blockedByFailedSave"],
+    ] as const)("writes nothing when the open article cannot be left (%s)", async (refusal) => {
       const channels = vaultChannels();
       const holder = articleHolder();
       const session = new VaultSession(channels, holder);
@@ -693,9 +693,10 @@ describe("VaultSession", () => {
 
       const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
 
-      expect(edit).toEqual({ outcome: "failed", message });
+      const reason = { kind: "leavingRefused", refusal };
+      expect(edit).toEqual({ outcome: "failed", reason });
       expect(channels.updateMetadata).not.toHaveBeenCalled();
-      expect(session.snapshot.operationFailure).toEqual({ operation: "updateMetadata", message });
+      expect(session.snapshot.operationFailure).toEqual({ operation: "updateMetadata", reason });
       expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
     });
 
@@ -709,7 +710,7 @@ describe("VaultSession", () => {
 
       expect(edit.outcome).toBe("failed");
       expect(session.snapshot.operationFailure?.operation).toBe("updateMetadata");
-      expect(session.snapshot.operationFailure?.message).toContain("被別的程式改過");
+      expect(session.snapshot.operationFailure?.reason).toEqual({ kind: "modifiedElsewhere" });
       expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
     });
 
@@ -721,8 +722,11 @@ describe("VaultSession", () => {
 
       const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
 
-      expect(edit).toEqual({ outcome: "failed", message: "磁碟已滿" });
-      expect(session.snapshot.operationFailure).toEqual({ operation: "updateMetadata", message: "磁碟已滿" });
+      expect(edit).toEqual({ outcome: "failed", reason: { kind: "reported", message: "磁碟已滿" } });
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "updateMetadata",
+        reason: { kind: "reported", message: "磁碟已滿" },
+      });
       expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
     });
 
@@ -804,7 +808,7 @@ describe("VaultSession", () => {
       expect(channels.deleteArticle).not.toHaveBeenCalled();
       expect(session.snapshot.operationFailure).toEqual({
         operation: "deleteArticle",
-        message: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
+        reason: { kind: "leavingRefused", refusal: "blockedByFailedSave" },
       });
 
       await session.deleteArticle("zen-of-writing.md");
@@ -825,7 +829,7 @@ describe("VaultSession", () => {
       expect(channels.deleteArticle).not.toHaveBeenCalled();
       expect(session.snapshot.operationFailure).toEqual({
         operation: "deleteArticle",
-        message: "請先回答標題列的外部改動提示，再試一次。",
+        reason: { kind: "leavingRefused", refusal: "blockedByUnansweredWarning" },
       });
     });
 
@@ -837,7 +841,7 @@ describe("VaultSession", () => {
 
       await session.deleteArticle("zen-of-writing.md");
 
-      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteArticle", message: "磁碟已滿" });
+      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteArticle", reason: { kind: "reported", message: "磁碟已滿" } });
       expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
     });
 
@@ -937,7 +941,7 @@ describe("VaultSession", () => {
       expect(channels.renameWorkspace).not.toHaveBeenCalled();
       expect(session.snapshot.operationFailure).toEqual({
         operation: "renameWorkspace",
-        message: "請先回答標題列的外部改動提示，再試一次。",
+        reason: { kind: "leavingRefused", refusal: "blockedByUnansweredWarning" },
       });
     });
 
@@ -948,7 +952,7 @@ describe("VaultSession", () => {
       await session.start();
 
       expect(await session.renameWorkspace("Work", "Job")).toBe(false);
-      expect(session.snapshot.operationFailure).toEqual({ operation: "renameWorkspace", message: "磁碟已滿" });
+      expect(session.snapshot.operationFailure).toEqual({ operation: "renameWorkspace", reason: { kind: "reported", message: "磁碟已滿" } });
     });
   });
 
@@ -969,7 +973,7 @@ describe("VaultSession", () => {
       expect(await session.countWorkspaceContents("Blog")).toBeNull();
       expect(session.snapshot.operationFailure).toEqual({
         operation: "deleteWorkspace",
-        message: "permission denied",
+        reason: { kind: "reported", message: "permission denied" },
       });
     });
 
@@ -1041,9 +1045,9 @@ describe("VaultSession", () => {
     });
 
     it.each([
-      ["blockedByUnansweredWarning", "請先回答標題列的外部改動提示，再試一次。"],
-      ["blockedByFailedSave", "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。"],
-    ] as const)("deletes nothing when the open article cannot be left (%s)", async (refusal, message) => {
+      ["blockedByUnansweredWarning"],
+      ["blockedByFailedSave"],
+    ] as const)("deletes nothing when the open article cannot be left (%s)", async (refusal) => {
       const channels = vaultChannels();
       const holder = articleHolder();
       const session = new VaultSession(channels, holder);
@@ -1053,7 +1057,10 @@ describe("VaultSession", () => {
       await session.deleteWorkspace("Blog");
 
       expect(channels.deleteWorkspace).not.toHaveBeenCalled();
-      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteWorkspace", message });
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "deleteWorkspace",
+        reason: { kind: "leavingRefused", refusal },
+      });
     });
 
     it("reports the trash's reason and opens the left article again", async () => {
@@ -1064,7 +1071,7 @@ describe("VaultSession", () => {
 
       await session.deleteWorkspace("Blog");
 
-      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteWorkspace", message: "磁碟已滿" });
+      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteWorkspace", reason: { kind: "reported", message: "磁碟已滿" } });
       expect(session.snapshot.selectedWorkspace).toBe("Blog");
       expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
     });
@@ -1081,7 +1088,7 @@ describe("VaultSession", () => {
 
       expect(session.snapshot.operationFailure).toEqual({
         operation: "createArticle",
-        message: "'Blog/zen.md' already exists",
+        reason: { kind: "reported", message: "'Blog/zen.md' already exists" },
       });
       expect(session.snapshot.articleListFailure).toBeNull();
     });

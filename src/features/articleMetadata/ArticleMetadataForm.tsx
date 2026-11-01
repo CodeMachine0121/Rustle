@@ -1,14 +1,15 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
-import { describeOperationFailure, type Operation } from "../vault/operationFailure";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
+import { describeOperationFailure, type FailureReason, type Operation } from "../vault/operationFailure";
 import type { ArticleDraft } from "../vault/VaultSession";
 import type { ArticleVocabulary } from "./articleVocabulary";
 import { ChipInput } from "./ChipInput";
 import { withChip } from "./chipValues";
 
 /** `null` when the article was written; otherwise why it was not. */
-export type ArticleMetadataSubmission = Promise<string | null>;
+export type ArticleMetadataSubmission = Promise<FailureReason | null>;
 
 type ArticleMetadataFormProps = {
   heading: string;
@@ -40,6 +41,7 @@ export function ArticleMetadataForm({
   onClose,
 }: ArticleMetadataFormProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const headingId = useId();
   const titleId = useId();
   const requirementId = useId();
@@ -51,7 +53,7 @@ export function ArticleMetadataForm({
   const [tags, setTags] = useState(initial.tags);
   const [typedTag, setTypedTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<FailureReason | null>(null);
   const isTitleBlank = title.trim() === "";
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export function ArticleMetadataForm({
       >
         <h2 id={headingId}>{heading}</h2>
         <div className="dialog-field">
-          <label htmlFor={titleId}>Title</label>
+          <label htmlFor={titleId}>{messages.titleField}</label>
           <input
             ref={titleRef}
             id={titleId}
@@ -121,7 +123,7 @@ export function ArticleMetadataForm({
           />
         </div>
         <ChipInput
-          label="Category"
+          label={messages.categoryField}
           values={category}
           typed={typedCategory}
           vocabulary={vocabulary.category}
@@ -129,7 +131,7 @@ export function ArticleMetadataForm({
           onTypedChange={setTypedCategory}
         />
         <ChipInput
-          label="Tags"
+          label={messages.tagsField}
           values={tags}
           typed={typedTag}
           vocabulary={vocabulary.tags}
@@ -144,12 +146,12 @@ export function ArticleMetadataForm({
         )}
         {failure !== null && (
           <p className="column-message" role="alert">
-            {describeOperationFailure({ operation, message: failure })}
+            {describeOperationFailure({ operation, reason: failure }, messages)}
           </p>
         )}
         <div className="dialog-actions">
           <button type="button" disabled={isSubmitting} onClick={onClose}>
-            取消
+            {messages.cancel}
           </button>
           <button type="button" disabled={isTitleBlank || isSubmitting} onClick={() => void submit()}>
             {submitLabel}

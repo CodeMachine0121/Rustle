@@ -7,8 +7,8 @@ import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
 import type { AutosaveSession } from "../autosave/AutosaveSession";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import {
-  LEAVING_REFUSAL_MESSAGES,
-  MODIFIED_ELSEWHERE_MESSAGE,
+  reportedFailure,
+  type FailureReason,
   type Operation,
   type OperationFailure,
 } from "./operationFailure";
@@ -32,9 +32,9 @@ export type VaultChannels = Pick<
 /** What the user typed into the create article dialog or the metadata form. */
 export type ArticleDraft = { title: string; category: string[]; tags: string[] };
 
-export type ArticleCreation = { outcome: "created" } | { outcome: "failed"; message: string };
+export type ArticleCreation = { outcome: "created" } | { outcome: "failed"; reason: FailureReason };
 
-export type MetadataEdit = { outcome: "updated" } | { outcome: "failed"; message: string };
+export type MetadataEdit = { outcome: "updated" } | { outcome: "failed"; reason: FailureReason };
 
 export type RenameRejection = { workspace: string; reason: WorkspaceNameRejection };
 
@@ -179,13 +179,13 @@ export class VaultSession {
   async createArticle(draft: ArticleDraft): Promise<ArticleCreation> {
     const workspace = this.#snapshot.selectedWorkspace;
     if (workspace === null) {
-      return { outcome: "failed", message: "沒有選取 workspace" };
+      return { outcome: "failed", reason: { kind: "noWorkspaceSelected" } };
     }
     const selection = this.#beginSelection();
     const result = await this.#channels.createArticle({ workspace, ...draft });
     if (!result.ok) {
-      this.#fail("createArticle", result.message);
-      return { outcome: "failed", message: result.message };
+      this.#fail("createArticle", reportedFailure(result.message));
+      return { outcome: "failed", reason: reportedFailure(result.message) };
     }
     this.dismissOperationFailure();
     await this.#loadWorkspaces();
@@ -211,7 +211,7 @@ export class VaultSession {
   async updateMetadata(fileName: string, draft: ArticleDraft): Promise<MetadataEdit> {
     const workspace = this.#snapshot.selectedWorkspace;
     if (workspace === null) {
-      return { outcome: "failed", message: "沒有選取 workspace" };
+      return { outcome: "failed", reason: { kind: "noWorkspaceSelected" } };
     }
     const wasOpen = this.#snapshot.openedDocument === `${workspace}/${fileName}`;
     const selection = this.#selectionFor(wasOpen);
@@ -222,11 +222,11 @@ export class VaultSession {
     await this.#reloadArticles(workspace, selection);
     await this.#openAgain(workspace, wasOpen ? fileName : null, selection);
     if (!result.ok) {
-      this.#fail("updateMetadata", result.message);
+      this.#fail("updateMetadata", reportedFailure(result.message));
       return this.#failedEdit();
     }
     if (result.payload.outcome === "modifiedElsewhere") {
-      this.#fail("updateMetadata", MODIFIED_ELSEWHERE_MESSAGE);
+      this.#fail("updateMetadata", { kind: "modifiedElsewhere" });
       return this.#failedEdit();
     }
     this.dismissOperationFailure();
@@ -246,7 +246,7 @@ export class VaultSession {
     }
     const result = await this.#channels.deleteArticle(workspace, fileName);
     if (!result.ok) {
-      this.#fail("deleteArticle", result.message);
+      this.#fail("deleteArticle", reportedFailure(result.message));
       await this.#openAgain(workspace, wasSelected ? fileName : null, selection);
       return;
     }
@@ -270,7 +270,7 @@ export class VaultSession {
     }
     const result = await this.#channels.renameWorkspace(workspace, typedName);
     if (!result.ok) {
-      this.#fail("renameWorkspace", result.message);
+      this.#fail("renameWorkspace", reportedFailure(result.message));
       await this.#openAgain(workspace, openArticle, selection);
       return false;
     }
@@ -294,7 +294,7 @@ export class VaultSession {
   async countWorkspaceContents(workspace: string): Promise<WorkspaceContents | null> {
     const result = await this.#channels.countWorkspaceContents(workspace);
     if (!result.ok) {
-      this.#fail("deleteWorkspace", result.message);
+      this.#fail("deleteWorkspace", reportedFailure(result.message));
       return null;
     }
     return result.payload;
@@ -310,7 +310,7 @@ export class VaultSession {
     }
     const result = await this.#channels.deleteWorkspace(workspace);
     if (!result.ok) {
-      this.#fail("deleteWorkspace", result.message);
+      this.#fail("deleteWorkspace", reportedFailure(result.message));
       await this.#openAgain(workspace, openArticle, selection);
       return;
     }
@@ -337,7 +337,7 @@ export class VaultSession {
   async #letGoOfOpenArticle(operation: Operation): Promise<boolean> {
     const outcome = await this.#articleHolder.closeArticle();
     if (outcome !== "switched") {
-      this.#fail(operation, LEAVING_REFUSAL_MESSAGES[outcome]);
+      this.#fail(operation, { kind: "leavingRefused", refusal: outcome });
       return false;
     }
     this.#update({ body: null, openedDocument: null, bodyFailure: null });
@@ -364,11 +364,11 @@ export class VaultSession {
   }
 
   #failedEdit(): MetadataEdit {
-    return { outcome: "failed", message: this.#snapshot.operationFailure?.message ?? "" };
+    return { outcome: "failed", reason: this.#snapshot.operationFailure?.reason ?? reportedFailure("") };
   }
 
-  #fail(operation: Operation, message: string): void {
-    this.#update({ operationFailure: { operation, message } });
+  #fail(operation: Operation, reason: FailureReason): void {
+    this.#update({ operationFailure: { operation, reason } });
   }
 
   async #loadWorkspaces(): Promise<boolean> {

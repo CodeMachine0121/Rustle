@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import { NoArticleState } from "../vault/NoArticleState";
 import type { PreviewedBody } from "./PreviewedBody";
 import { PreviewScrollPane } from "./PreviewScrollPane";
@@ -29,6 +30,7 @@ type PreviewContentProps = {
 
 function PreviewContent({ body, workspace, scrollSynchronizer }: PreviewContentProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const messages = useMessages();
   const html = useMemo(() => renderPreviewHtml(body, workspace), [body, workspace]);
   const lineCount = useMemo(() => body.split("\n").length, [body]);
 
@@ -44,7 +46,7 @@ function PreviewContent({ body, workspace, scrollSynchronizer }: PreviewContentP
     <div className="preview-scroller" ref={scrollerRef}>
       <article
         className="preview-content"
-        aria-label="預覽內容"
+        aria-label={messages.previewContent}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>

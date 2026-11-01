@@ -2,6 +2,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 
 import { CompositionAwareDebouncer } from "../../shared/composition/CompositionAwareDebouncer";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 /** The same pause the preview waits for after typing stops. */
 export const FILTER_DELAY_MILLISECONDS = 150;
@@ -17,6 +18,7 @@ type ArticleFilterFieldProps = {
  */
 export function ArticleFilterField({ onApply }: ArticleFilterFieldProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const [typedText, setTypedText] = useState("");
   const [debouncer] = useState(
     () => new CompositionAwareDebouncer(composition, FILTER_DELAY_MILLISECONDS),
@@ -47,8 +49,8 @@ export function ArticleFilterField({ onApply }: ArticleFilterFieldProps) {
     <input
       type="text"
       className="article-filter-field"
-      aria-label="篩選文章"
-      placeholder="🔍 篩選…"
+      aria-label={messages.filterArticles}
+      placeholder={messages.filterPlaceholder}
       value={typedText}
       onChange={(event) => {
         const text = event.target.value;
