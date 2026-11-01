@@ -178,6 +178,24 @@ describe("opening the snippet menu", () => {
     expect(view.state.doc.toString()).toBe("/ㄅ");
   });
 
+  it("leaves out a snippet that cannot be read and still lands the others", () => {
+    const { view } = openEditor(
+      CURSOR,
+      new SnippetCatalog({
+        "./snippets/01-h1.json": { name: "H1", template: "# {{標題文字}}" },
+        "./snippets/02-h2.json": { name: "H2", template: "## {{標題文字" },
+        "./snippets/07-link.json": { name: "Link", template: "[{{要填的文字}}]({{要填的網址}})" },
+      }),
+    );
+
+    type(view, "/");
+    expect(menuRows(view)).toEqual(["H1", "Link"]);
+    type(view, "h");
+    press(view, "Enter");
+
+    expect(marked(view)).toBe("# ‸");
+  });
+
   it("offers nothing when no snippet could be read", () => {
     const { view } = openEditor(CURSOR, new SnippetCatalog({}));
 
@@ -277,6 +295,7 @@ describe("filtering and choosing", () => {
     const event = press(view, "Enter");
 
     expect(marked(view)).toBe("## ‸");
+    expect(markers(view)).toBe(1);
     expect(menuRows(view)).toBeNull();
     expect(event.defaultPrevented).toBe(true);
   });

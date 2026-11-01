@@ -691,12 +691,12 @@ describe("MarkdownEditor marks and emphasis", () => {
 });
 
 describe("MarkdownEditor snippets", () => {
-  function openEditor(documentKey: string, body: string) {
+  function openEditor(documentKey: string, body: string, onBodyChange?: (body: string) => void) {
     const composition = new CompositionState();
     const element = (key: string, text: string) => (
       <InterfaceLanguageProvider language="en">
         <CompositionProvider state={composition}>
-          <MarkdownEditor documentKey={key} body={text} />
+          <MarkdownEditor documentKey={key} body={text} onBodyChange={onBodyChange} />
         </CompositionProvider>
       </InterfaceLanguageProvider>
     );
@@ -724,6 +724,16 @@ describe("MarkdownEditor snippets", () => {
 
     expect(menu?.getAttribute("aria-label")).toBe("Snippets");
     expect(editor.state.doc.toString()).toBe("## ");
+  });
+
+  it("reports the landed snippet as the body to save, plain Markdown as shown", () => {
+    const onBodyChange = vi.fn();
+    const { content, typeText } = openEditor("Blog/a.md", "", onBodyChange);
+
+    typeText("/table");
+    fireEvent.keyDown(content, { key: "Enter" });
+
+    expect(onBodyChange).toHaveBeenLastCalledWith("|  |  |\n| --- | --- |\n|  |  |");
   });
 
   it("forgets the waiting fields when another article is shown", () => {
