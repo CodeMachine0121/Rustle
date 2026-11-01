@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -6,6 +8,16 @@ pub enum ClipboardError {
     Unreadable(String),
     #[error("could not write the clipboard: {0}")]
     Unwritable(String),
+}
+
+impl ClipboardError {
+    pub fn unreadable(cause: impl Display) -> Self {
+        Self::Unreadable(cause.to_string())
+    }
+
+    pub fn unwritable(cause: impl Display) -> Self {
+        Self::Unwritable(cause.to_string())
+    }
 }
 
 #[cfg_attr(any(test, feature = "mocks"), mockall::automock)]
