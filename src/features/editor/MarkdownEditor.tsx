@@ -12,6 +12,7 @@ import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { SnippetCatalog } from "../snippets/SnippetCatalog";
 import { SnippetExpansion } from "../snippets/SnippetExpansion";
+import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import { VimEditing } from "../vim/VimEditing";
 import type { VimMode } from "../vim/VimModeSession";
 import { cursorLineHighlight } from "./cursorLineHighlight";
@@ -41,6 +42,7 @@ type MarkdownEditorProps = {
   scrollSynchronizer?: ScrollSynchronizer;
   fontSizePixels?: number;
   vimEnabled?: boolean;
+  vimRegister?: SystemClipboardRegister;
   onVimModeChange?: (mode: VimMode) => void;
 };
 
@@ -73,6 +75,7 @@ export function MarkdownEditor({
   scrollSynchronizer,
   fontSizePixels,
   vimEnabled = false,
+  vimRegister,
   onVimModeChange,
 }: MarkdownEditorProps) {
   const composition = useCompositionState();
@@ -84,7 +87,7 @@ export function MarkdownEditor({
   const appliedPlacementRef = useRef<number | null>(null);
   const onBodyChangeRef = useRef(onBodyChange);
   const [indentationCompartment] = useState(() => new Compartment());
-  const [vimEditing] = useState(() => new VimEditing(composition, vimEnabled));
+  const [vimEditing] = useState(() => new VimEditing(composition, vimEnabled, vimRegister));
 
   useEffect(() => {
     onBodyChangeRef.current = onBodyChange;

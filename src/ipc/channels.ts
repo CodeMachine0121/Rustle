@@ -4,6 +4,7 @@ import type { ArticleBody } from "./articleBody";
 import type { ArticleSummary } from "./articleSummary";
 import type { BodySearchRequest, BodySearchResult } from "./bodySearch";
 import { callChannel } from "./callChannel";
+import type { ClipboardText } from "./clipboardText";
 import type { CreateArticleRequest } from "./createArticleRequest";
 import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
 import type { MetadataUpdateOutcome, MetadataUpdateRequest } from "./metadataUpdate";
@@ -54,6 +55,10 @@ export const channels = {
 
   saveClipboardImage: (workspace: string) =>
     callChannel<SavedClipboardImages>("save_clipboard_image", { workspace }),
+
+  readClipboardText: () => callChannel<ClipboardText>("read_clipboard_text"),
+
+  writeClipboardText: (text: string) => callChannel<null>("write_clipboard_text", { text }),
 
   readSettings: () => callChannel<Settings>("read_settings"),
 

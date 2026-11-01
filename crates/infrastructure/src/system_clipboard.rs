@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::Path;
 
-use clipboard_rs::{Clipboard as _, ClipboardContext};
+use clipboard_rs::{Clipboard as _, ClipboardContext, ContentFormat};
 use rustle_domain::{Clipboard, ClipboardError, PastedImage};
 
 const PICTURE_FORMATS: [&str; 4] = ["public.png", "public.tiff", "PNG", "image/png"];
@@ -14,15 +14,13 @@ pub struct SystemClipboard;
 
 impl Clipboard for SystemClipboard {
     fn image_candidates(&self) -> Result<Vec<Vec<u8>>, ClipboardError> {
-        let unreadable =
-            |error: &dyn std::fmt::Display| ClipboardError::Unreadable(error.to_string());
-        let clipboard = ClipboardContext::new().map_err(|error| unreadable(&error))?;
+        let clipboard = ClipboardContext::new().map_err(ClipboardError::unreadable)?;
         let files = clipboard.get_files().unwrap_or_default();
         if !files.is_empty() {
             return files
                 .iter()
                 .filter_map(|file| CopiedFile::new(Path::new(file)).image_bytes().transpose())
-                .map(|bytes| bytes.map_err(|error| unreadable(&error)))
+                .map(|bytes| bytes.map_err(ClipboardError::unreadable))
                 .collect();
         }
         Ok(PICTURE_FORMATS
@@ -31,6 +29,24 @@ impl Clipboard for SystemClipboard {
             .filter(|picture| !picture.is_empty())
             .into_iter()
             .collect())
+    }
+
+    fn text(&self) -> Result<Option<String>, ClipboardError> {
+        let clipboard = ClipboardContext::new().map_err(ClipboardError::unreadable)?;
+        if !clipboard.has(ContentFormat::Text) {
+            return Ok(None);
+        }
+        clipboard
+            .get_text()
+            .map(Some)
+            .map_err(ClipboardError::unreadable)
+    }
+
+    fn set_text(&self, text: &str) -> Result<(), ClipboardError> {
+        let clipboard = ClipboardContext::new().map_err(ClipboardError::unwritable)?;
+        clipboard
+            .set_text(text.to_owned())
+            .map_err(ClipboardError::unwritable)
     }
 }
 

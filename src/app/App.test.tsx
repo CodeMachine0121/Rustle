@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { undo } from "@codemirror/commands";
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -1944,6 +1945,60 @@ describe("App", () => {
 
       press(content, "Escape");
       expect(isZen()).toBe(false);
+    });
+
+    it("pastes what the system clipboard holds and yanks onto it, in a vault with Vim on", async () => {
+      answerWithVimMode(true);
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) =>
+        command === "read_clipboard_text" ? { text: "營收成長" } : answer?.(command, args),
+      );
+      const { content, view } = await startEditing();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve));
+      });
+
+      press(content, "p");
+      expect(view.state.doc.toString()).toBe("正營收成長文的第一行。");
+
+      act(() => view.dispatch({ selection: EditorSelection.single(1, 5), userEvent: "select.pointer" }));
+      press(content, "y");
+      expect(invoke).toHaveBeenCalledWith("write_clipboard_text", { text: "營收成長" });
+    });
+
+    it("still saves a pasted image into the workspace with Vim on", async () => {
+      answerWithVimMode(true);
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) =>
+        command === "save_clipboard_image" ? { images: [{ relativePath: "images/8f3c.png" }] } : answer?.(command, args),
+      );
+      Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
+      Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+      const { content, view } = await startEditing();
+
+      const paste = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(paste, "clipboardData", {
+        value: { items: [{ kind: "file", type: "image/png" }], files: [], getData: () => "" },
+      });
+      act(() => {
+        content.dispatchEvent(paste);
+      });
+
+      expect(invoke).toHaveBeenCalledWith("save_clipboard_image", { workspace: "Blog" });
+      await waitFor(() => expect(view.state.doc.toString()).toBe("![](images/8f3c.png)正文的第一行。"));
+    });
+
+    it("never touches the system clipboard while Vim is off", async () => {
+      answerWithVimMode(undefined);
+      await startEditing();
+      act(() => {
+        window.dispatchEvent(new Event("focus"));
+      });
+
+      const clipboardCalls = vi
+        .mocked(invoke)
+        .mock.calls.filter(([command]) => command === "read_clipboard_text" || command === "write_clipboard_text");
+      expect(clipboardCalls).toEqual([]);
     });
 
     it("does nothing on Esc in Normal mode outside Zen Mode", async () => {

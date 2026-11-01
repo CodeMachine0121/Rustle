@@ -5,8 +5,8 @@ use rustle_application::{
     UpdateArticleMetadataError,
 };
 use rustle_domain::{
-    ArticleRepositoryError, ImageAssetRepositoryError, SettingsError, TrashError, VaultPathError,
-    WorkspaceRepositoryError,
+    ArticleRepositoryError, ClipboardError, ImageAssetRepositoryError, SettingsError, TrashError,
+    VaultPathError, WorkspaceRepositoryError,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -154,6 +154,12 @@ impl From<SaveClipboardImagesError> for CommandError {
     }
 }
 
+impl From<ClipboardError> for CommandError {
+    fn from(error: ClipboardError) -> Self {
+        Self::unexpected(error)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,6 +193,14 @@ mod tests {
         let error = CommandError::from(ArticleRepositoryError::OutsideVault(rejected));
 
         assert_eq!(error.reason(), FailureReason::OutsideVault);
+    }
+
+    #[test]
+    fn a_clipboard_failure_is_unexpected_and_says_what_went_wrong() {
+        let error = CommandError::from(ClipboardError::Unwritable("denied".to_owned()));
+
+        assert_eq!(error.reason(), FailureReason::Unexpected);
+        assert!(error.to_string().contains("denied"));
     }
 
     #[test]

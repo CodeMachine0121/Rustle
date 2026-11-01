@@ -1,8 +1,9 @@
-import { Compartment, Prec, type Extension, type StateEffect } from "@codemirror/state";
+import { Compartment, EditorState, Prec, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin, keymap, runScopeHandlers, type Command, type KeyBinding } from "@codemirror/view";
 import { getCM, Vim, vim, type CM5EditorInterface, type CodeMirrorV } from "@replit/codemirror-vim";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
+import type { SystemClipboardRegister } from "./SystemClipboardRegister";
 import type { VimMode } from "./VimModeSession";
 
 /** Keys the editor owns while typing; with Vim on they run after Vim, under this scope. */
@@ -22,18 +23,21 @@ type VimModeChange = { mode: string };
  * menu and fields had their turn, and left to the rest of the app in Normal.
  * A selection always means Visual, even one made while typing. While an
  * input method composes in Insert mode the key is the input method's: Vim
- * never sees it.
+ * never sees it. Given a `SystemClipboardRegister`, Vim's unnamed register
+ * is the system clipboard while Vim is on.
  */
 export class VimEditing {
   readonly #composition: CompositionState;
+  readonly #register: SystemClipboardRegister | undefined;
   #reportMode: (mode: VimMode) => void = () => {};
   readonly #vimSlot = new Compartment();
   readonly #typingSlots = new Map<readonly KeyBinding[], Compartment>();
   #isEnabled: boolean;
 
-  constructor(composition: CompositionState, isEnabled: boolean) {
+  constructor(composition: CompositionState, isEnabled: boolean, register?: SystemClipboardRegister) {
     this.#composition = composition;
     this.#isEnabled = isEnabled;
+    this.#register = register;
   }
 
   /** Every mode the editor enters from now on, starting with Normal each time Vim starts. */
@@ -101,7 +105,10 @@ export class VimEditing {
         view.dom.addEventListener("keydown", keepFromVim, { capture: true });
         return { destroy: () => view.dom.removeEventListener("keydown", keepFromVim, { capture: true }) };
       }),
+      // Visual block mode is one selection per line it covers.
+      EditorState.allowMultipleSelections.of(true),
       Prec.low(vim()),
+      this.#register?.extension() ?? [],
       Prec.low(
         ViewPlugin.define((view) => {
           const editor = getCM(view);
