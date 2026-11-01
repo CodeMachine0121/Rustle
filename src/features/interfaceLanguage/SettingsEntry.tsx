@@ -52,7 +52,7 @@ export function SettingsEntry({ language, onChoose, theme, vimModes, previewTogg
     const toggleOnSettingsKey = (event: KeyboardEvent) => {
       const isSettingsKey =
         (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.code === "Comma";
-      if (!isSettingsKey || composition.ownsKey(event)) {
+      if (!isSettingsKey || event.repeat || composition.ownsKey(event)) {
         return;
       }
       event.preventDefault();

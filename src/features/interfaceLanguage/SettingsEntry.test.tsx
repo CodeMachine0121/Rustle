@@ -146,6 +146,15 @@ describe("SettingsEntry", () => {
       expect(event.defaultPrevented).toBe(false);
     });
 
+    it("keeps the settings open while the key is held down", () => {
+      renderEntry();
+      pressComma();
+
+      pressComma({ metaKey: true, repeat: true });
+
+      expect(screen.getByRole("dialog", { name: "設定" })).toBeInTheDocument();
+    });
+
     it.each([
       ["without Cmd or Ctrl", {}],
       ["with Shift", { metaKey: true, shiftKey: true }],
