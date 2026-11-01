@@ -12,6 +12,7 @@ type AutosavedEditorProps = {
   indentation?: IndentationSettings;
   scrollSynchronizer?: ScrollSynchronizer;
   imagePaste?: ImagePaste;
+  fontSizePixels?: number;
 };
 
 /** The image paste line, the editor and the save status line under it, with every edit going to the session. */
@@ -20,6 +21,7 @@ export function AutosavedEditor({
   indentation,
   scrollSynchronizer,
   imagePaste,
+  fontSizePixels,
 }: AutosavedEditorProps) {
   const editorDocument = useEditorDocument(session);
 
@@ -35,6 +37,7 @@ export function AutosavedEditor({
         imagePaste={imagePaste}
         onBodyChange={(body) => session.changeBody(body)}
         scrollSynchronizer={scrollSynchronizer}
+        fontSizePixels={fontSizePixels}
       />
       <SaveStatusLine session={session} />
     </>

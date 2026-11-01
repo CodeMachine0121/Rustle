@@ -147,4 +147,11 @@ describe("AppLayout", () => {
     expect(EditorView.findFromDOM(content)).toBe(editor);
     expect(content.isConnected).toBe(true);
   });
+  it("marks the editor and the preview, and nothing else, as surfaces a zoom acts on", () => {
+    renderLayout();
+
+    expect(region("編輯區").getAttribute("data-font-size-surface")).toBe("editor");
+    expect(region("預覽區").getAttribute("data-font-size-surface")).toBe("preview");
+    expect(document.querySelectorAll("[data-font-size-surface]")).toHaveLength(2);
+  });
 });

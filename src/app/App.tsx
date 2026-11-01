@@ -8,6 +8,8 @@ import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialo
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
 import { Finders } from "../features/finding/Finders";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
+import { EditingSurfaceFontSizes } from "../features/fontSize/EditingSurfaceFontSizes";
+import { useEditingSurfaceFontSizes } from "../features/fontSize/useEditingSurfaceFontSizes";
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { InterfaceLanguageProvider } from "../features/interfaceLanguage/InterfaceLanguageContext";
 import { SettingsEntry } from "../features/interfaceLanguage/SettingsEntry";
@@ -55,7 +57,9 @@ function VaultView() {
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
   const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
+  const [fontSizes] = useState(() => new EditingSurfaceFontSizes(settings, composition));
   const snapshot = useVaultSnapshot(session);
+  const fontSize = useEditingSurfaceFontSizes(fontSizes);
   const previewPanel = usePreviewPanel(settings);
   const writing = useWritingLayout(layout, settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
@@ -85,6 +89,8 @@ function VaultView() {
   useEffect(() => () => previewedBody.dispose(), [previewedBody]);
 
   useEffect(() => () => imagePaste.dispose(), [imagePaste]);
+
+  useEffect(() => () => fontSizes.dispose(), [fontSizes]);
 
   return (
     <InterfaceLanguageProvider language={interfaceLanguage.language}>
@@ -128,6 +134,7 @@ function VaultView() {
             autosave={autosave}
             scrollSynchronizer={scrollSynchronizer}
             imagePaste={imagePaste}
+            fontSizePixels={fontSize.editor.pixels}
           />
         }
         sidebarFooter={
@@ -140,7 +147,11 @@ function VaultView() {
         }}
         preview={{
           content: (
-            <PreviewPanel previewedBody={previewedBody} scrollSynchronizer={scrollSynchronizer} />
+            <PreviewPanel
+              previewedBody={previewedBody}
+              scrollSynchronizer={scrollSynchronizer}
+              fontSizePixels={fontSize.preview.pixels}
+            />
           ),
           width: previewPanel.width,
           onResize: previewPanel.resize,

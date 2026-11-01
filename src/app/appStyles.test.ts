@@ -81,4 +81,24 @@ describe("app styles", () => {
     expect(tokenIn(lightBlock, `color-${token}`)).toBe(light);
     expect(tokenIn(darkBlock, `color-${token}`)).toBe(dark);
   });
+  it.each(["h1", "h2", "h3", "h4", "h5", "h6", "code", "table"])(
+    "sizes the preview's %s relative to the article, never the window",
+    (element) => {
+      expect(ruleFor(`.preview-content ${element}`)).toMatch(/font-size: [\d.]+em;/);
+    },
+  );
+
+  it("keeps the preview's headings larger than its text, level by level", () => {
+    const sizes = ["h1", "h2", "h3"].map((heading) =>
+      Number(/font-size: ([\d.]+)em;/.exec(ruleFor(`.preview-content ${heading}`))?.[1]),
+    );
+
+    expect(sizes).toEqual([...sizes].sort((first, second) => second - first));
+    expect(sizes.every((size) => size > 1)).toBe(true);
+  });
+
+  it("never fixes the editor's font size in the stylesheet", () => {
+    expect(ruleFor(".markdown-editor .cm-editor")).not.toMatch(/font-size/);
+    expect(CSS).not.toMatch(/\.preview-content[^{]*\{[^}]*font-size: [\d.]+(px|rem)/);
+  });
 });

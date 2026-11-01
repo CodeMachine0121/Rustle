@@ -1530,4 +1530,71 @@ describe("App", () => {
       expect(editorKeys).toHaveBeenCalledTimes(1);
     });
   });
+  describe("font sizes", () => {
+    function previewArticle(): HTMLElement {
+      return screen.getByRole("article", { name: "預覽內容" });
+    }
+
+    function editorRoot(): HTMLElement {
+      const root = document.querySelector(".cm-editor");
+      if (!(root instanceof HTMLElement)) {
+        throw new Error("no editor");
+      }
+      return root;
+    }
+
+    it("zooms the editor under the pointer, leaves the preview alone and remembers the size", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      fireEvent.wheel(editorContent() ?? document.body, { deltaY: -100, metaKey: true });
+
+      expect(Number.parseFloat(editorRoot().style.fontSize)).toBeGreaterThan(15);
+      expect(previewArticle()).toHaveStyle({ fontSize: "15px" });
+      await waitFor(() =>
+        expect(invoke).toHaveBeenLastCalledWith("write_settings", {
+          settings: expect.objectContaining({
+            fontSize: { editor: Math.round(Number.parseFloat(editorRoot().style.fontSize) * 10) / 10 },
+            lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+          }),
+        }),
+      );
+    });
+
+    it("zooms only the preview article, never the sidebar, the article list or the page", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(previewArticle()).toHaveTextContent("正文的第一行。"));
+      const sizedElements = () => Array.from(document.querySelectorAll<HTMLElement>("[style*='font-size']"));
+
+      const wheel = fireEvent.wheel(previewArticle(), { deltaY: -100, metaKey: true });
+
+      expect(wheel).toBe(false);
+      expect(Number.parseFloat(previewArticle().style.fontSize)).toBeGreaterThan(15);
+      expect(sizedElements()).toEqual([editorRoot(), previewArticle()]);
+      expect(document.documentElement.getAttribute("style")).toBeNull();
+      expect(document.body.getAttribute("style")).toBeNull();
+    });
+
+    it("opens the preview at its remembered size and puts it back with Cmd+0 over it", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        const answered = await answer?.(command, args);
+        return command === "read_settings"
+          ? { ...(answered as object), fontSize: { editor: 18, preview: 22.5 } }
+          : answered;
+      });
+      render(<App />);
+      await waitFor(() => expect(previewArticle()).toHaveStyle({ fontSize: "22.5px" }));
+      expect(editorRoot().style.fontSize).toBe("18px");
+
+      fireEvent.pointerOver(previewArticle());
+      fireEvent.keyDown(document.body, { key: "0", metaKey: true });
+
+      expect(previewArticle()).toHaveStyle({ fontSize: "15px" });
+      expect(editorRoot().style.fontSize).toBe("18px");
+    });
+  });
 });

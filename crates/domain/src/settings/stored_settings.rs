@@ -4,8 +4,8 @@ use serde::de::IgnoredAny;
 use crate::interface_language::InterfaceLanguage;
 
 use super::{
-    IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
-    SidebarSection, SidebarSettings,
+    FontSizeSettings, IndentationSettings, IndentationStyle, LastOpenedSettings,
+    PreviewPanelSettings, Settings, SidebarSection, SidebarSettings,
 };
 
 /// A value as found in the file: either understood, or anything else.
@@ -23,11 +23,15 @@ impl<T> Default for Tolerant<T> {
 }
 
 impl<T> Tolerant<T> {
-    fn or(self, fallback: T) -> T {
+    fn understood(self) -> Option<T> {
         match self {
-            Self::Understood(value) => value,
-            Self::NotUnderstood(_) => fallback,
+            Self::Understood(value) => Some(value),
+            Self::NotUnderstood(_) => None,
         }
+    }
+
+    fn or(self, fallback: T) -> T {
+        self.understood().unwrap_or(fallback)
     }
 }
 
@@ -41,6 +45,23 @@ pub(super) struct StoredSettings {
     last_opened: Tolerant<StoredLastOpened>,
     interface_language: Tolerant<Option<InterfaceLanguage>>,
     sidebar: Tolerant<StoredSidebar>,
+    font_size: Tolerant<StoredFontSize>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct StoredFontSize {
+    editor: Tolerant<f64>,
+    preview: Tolerant<f64>,
+}
+
+impl From<StoredFontSize> for FontSizeSettings {
+    fn from(stored: StoredFontSize) -> Self {
+        Self {
+            editor: stored.editor.understood(),
+            preview: stored.preview.understood(),
+        }
+    }
 }
 
 #[derive(Deserialize, Default)]
@@ -114,6 +135,7 @@ impl From<StoredSettings> for Settings {
             },
             interface_language: stored.interface_language.or(None),
             sidebar: stored.sidebar.or_default().into(),
+            font_size: stored.font_size.or_default().into(),
         }
     }
 }

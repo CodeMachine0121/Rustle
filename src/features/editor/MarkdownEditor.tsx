@@ -32,6 +32,7 @@ type MarkdownEditorProps = {
   imagePaste?: ImagePaste;
   onBodyChange?: BodyChangeListener;
   scrollSynchronizer?: ScrollSynchronizer;
+  fontSizePixels?: number;
 };
 
 /**
@@ -46,6 +47,8 @@ type MarkdownEditorProps = {
  * With a `scrollSynchronizer` the editor is its editor side while mounted.
  * A new `cursorPlacement` puts the cursor at the start of that line of the
  * shown document (the last line when it is shorter) and takes the keyboard.
+ * A new `fontSizePixels` resizes the text in place and re-measures it, so
+ * the text, cursor, undo history and composition are untouched.
  */
 export function MarkdownEditor({
   documentKey,
@@ -56,6 +59,7 @@ export function MarkdownEditor({
   imagePaste,
   onBodyChange,
   scrollSynchronizer,
+  fontSizePixels,
 }: MarkdownEditorProps) {
   const composition = useCompositionState();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -93,6 +97,15 @@ export function MarkdownEditor({
     }
     return scrollSynchronizer.attach("editor", new EditorScrollPane(view));
   }, [scrollSynchronizer]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view === null || fontSizePixels === undefined) {
+      return;
+    }
+    view.dom.style.fontSize = `${fontSizePixels}px`;
+    view.requestMeasure();
+  }, [fontSizePixels]);
 
   useEffect(() => {
     const view = viewRef.current;
