@@ -17,9 +17,15 @@ const LIGHT_TEXT = "#1f1f1f";
 const DARK_TEXT = "#e8e8e6";
 const FOREST_TEXT = "#d3c6aa";
 
-function settingsSession(stored: Partial<Settings>, write: ChannelResult<null> = { ok: true, payload: null }) {
+const UNREADABLE: ChannelResult<Settings> = { ok: false, reason: "unexpected", message: "denied" };
+
+function settingsSession(
+  stored: Partial<Settings>,
+  write: ChannelResult<null> = { ok: true, payload: null },
+  read: ChannelResult<Settings> = { ok: true, payload: { ...STORED_SETTINGS, ...stored } },
+) {
   const channels = {
-    readSettings: vi.fn(() => Promise.resolve<ChannelResult<Settings>>({ ok: true, payload: { ...STORED_SETTINGS, ...stored } })),
+    readSettings: vi.fn(() => Promise.resolve(read)),
     writeSettings: vi.fn(() => Promise.resolve(write)),
   };
   return { settings: new SettingsSession(channels), channels };
@@ -160,6 +166,48 @@ describe("ThemeSession", () => {
 
     expect(session.menu.choice).toBe("forest");
     expect(env.text()).toBe(FOREST_TEXT);
+  });
+
+  it("keeps the cached theme while the settings are still being read, whatever else changes", () => {
+    const { settings } = settingsSession({ theme: "forest" });
+    const env = environment({ cached: "forest" });
+    const session = new ThemeSession(settings, env.value);
+
+    settings.change((current) => ({ ...current, sidebar: { collapsedSections: ["tags"] } }));
+
+    expect(session.menu.choice).toBe("forest");
+    expect(env.text()).toBe(FOREST_TEXT);
+    expect(env.cache.write).not.toHaveBeenCalled();
+  });
+
+  it("keeps the cached theme when the settings cannot be read", async () => {
+    const { settings } = settingsSession({}, undefined, UNREADABLE);
+    const env = environment({ cached: "forest" });
+    const session = new ThemeSession(settings, env.value);
+
+    await settings.load();
+    settings.change((current) => ({ ...current, sidebar: { collapsedSections: ["tags"] } }));
+
+    expect(session.menu.choice).toBe("forest");
+    expect(env.text()).toBe(FOREST_TEXT);
+    expect(env.cache.write).not.toHaveBeenCalled();
+  });
+
+  it("repaints a theme chosen while the settings cannot be read, without remembering it", async () => {
+    const { settings, channels } = settingsSession({}, undefined, UNREADABLE);
+    const env = environment();
+    const session = new ThemeSession(settings, env.value);
+    await settings.load();
+    const listener = vi.fn();
+    session.subscribe(listener);
+
+    session.menu.choose("forest");
+
+    expect(session.menu.choice).toBe("forest");
+    expect(env.text()).toBe(FOREST_TEXT);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(env.cache.write).not.toHaveBeenCalled();
+    expect(channels.writeSettings).not.toHaveBeenCalled();
   });
 
   it("goes dark with the system while following it", () => {

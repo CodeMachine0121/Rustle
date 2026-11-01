@@ -51,6 +51,19 @@ describe("SettingsSession", () => {
     });
   });
 
+  it.each([
+    ["before the read", null, false],
+    ["after a failed read", { ok: false, reason: "unexpected", message: "denied" } as const, false],
+    ["after a successful read", { ok: true, payload: STORED_SETTINGS } as const, true],
+  ])("says whether the file was read %s", async (_, read, wasRead) => {
+    const session = new SettingsSession(settingsChannels(read ?? { ok: true, payload: STORED_SETTINGS }));
+    if (read !== null) {
+      await session.load();
+    }
+
+    expect(session.wasRead).toBe(wasRead);
+  });
+
   it("changes unread settings on screen without writing them", async () => {
     const channels = settingsChannels({ ok: false, reason: "unexpected", message: "denied" });
     const session = new SettingsSession(channels);

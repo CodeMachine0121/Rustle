@@ -35,9 +35,10 @@ export function paintCachedTheme({ catalog, cache, system, root }: ThemeEnvironm
 }
 
 /**
- * The theme in use. It starts from the cache, follows the settings once they
- * speak, and follows the system's light or dark only while that is the
- * choice. The screen changes first; the settings write comes after.
+ * The theme in use. It starts from the cache and follows the settings only
+ * once their file is read, so the cache only ever remembers the file's
+ * choice. Following the system repaints with its light or dark. The screen
+ * changes first; the settings write comes after.
  */
 export class ThemeSession {
   readonly #settings: SettingsSession;
@@ -52,12 +53,8 @@ export class ThemeSession {
     this.#menu = this.#menuFor(paintCachedTheme(environment));
     this.#stops = [
       settings.subscribe(() => {
-        const choice = environment.catalog.choiceFor(settings.settings.theme);
-        if (choice !== this.#menu.choice) {
-          this.#menu = this.#menuFor(choice);
-          this.#paint();
-          environment.cache.write(choice);
-          this.#listeners.forEach((listener) => listener());
+        if (settings.wasRead) {
+          this.#show(environment.catalog.choiceFor(settings.settings.theme), { remember: true });
         }
       }),
       environment.system.watch(() => this.#paint()),
@@ -77,6 +74,17 @@ export class ThemeSession {
     this.#stops.forEach((stop) => stop());
   }
 
+  #show(choice: ThemeChoice, { remember }: { remember: boolean }): void {
+    if (choice !== this.#menu.choice) {
+      this.#menu = this.#menuFor(choice);
+      this.#paint();
+      if (remember) {
+        this.#environment.cache.write(choice);
+      }
+      this.#listeners.forEach((listener) => listener());
+    }
+  }
+
   #paint(): void {
     const { catalog, system, root } = this.#environment;
     catalog.resolve(this.#menu.choice, system.isDark())?.applyTo(root);
@@ -88,6 +96,9 @@ export class ThemeSession {
       themes: this.#environment.catalog.themes,
       choose: (chosen) => {
         if (chosen !== this.#menu.choice) {
+          if (!this.#settings.wasRead) {
+            this.#show(chosen, { remember: false });
+          }
           this.#settings.change((settings) => ({ ...settings, theme: chosen }));
         }
       },
