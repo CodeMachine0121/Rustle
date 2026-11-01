@@ -98,4 +98,27 @@ describe("useInterfaceLanguage", () => {
     expect(result.current.language).toBe("en");
     expect(writeSettings).toHaveBeenCalledWith({ ...stored, interfaceLanguage: "en" });
   });
+
+  it("leaves the settings file alone when the remembered language is chosen again", async () => {
+    stubWebviewLanguages(["zh-TW"]);
+    const { session, writeSettings } = settingsSession({ ...DEFAULT_SETTINGS, interfaceLanguage: "en" });
+    const { result } = renderHook(() => useInterfaceLanguage(session, preferredLocales(["zh-Hant-TW"])));
+    await act(() => session.load());
+
+    act(() => result.current.choose("en"));
+
+    expect(result.current.language).toBe("en");
+    expect(writeSettings).not.toHaveBeenCalled();
+  });
+
+  it("remembers a choice that matches the system language but was never chosen before", async () => {
+    stubWebviewLanguages(["zh-TW"]);
+    const { session, writeSettings } = settingsSession(DEFAULT_SETTINGS);
+    const { result } = renderHook(() => useInterfaceLanguage(session, preferredLocales(["zh-Hant-TW"])));
+    await act(() => session.load());
+
+    act(() => result.current.choose("zh"));
+
+    expect(writeSettings).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, interfaceLanguage: "zh" });
+  });
 });

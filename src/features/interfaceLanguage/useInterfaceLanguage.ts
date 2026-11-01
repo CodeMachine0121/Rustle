@@ -38,6 +38,10 @@ export function useInterfaceLanguage(
 
   return {
     language: interfaceLanguage ?? systemLanguage,
-    choose: (language) => settings.change((current) => ({ ...current, interfaceLanguage: language })),
+    choose: (language) => {
+      if (language !== interfaceLanguage) {
+        settings.change((current) => ({ ...current, interfaceLanguage: language }));
+      }
+    },
   };
 }
