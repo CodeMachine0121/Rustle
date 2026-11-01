@@ -1,7 +1,9 @@
 use std::fmt;
 
+use rustle_application::CreateArticleError;
 use rustle_domain::{
-    ArticleRepositoryError, SettingsError, VaultPathError, WorkspaceRepositoryError,
+    ArticleDraftError, ArticleRepositoryError, SettingsError, VaultPathError,
+    WorkspaceRepositoryError,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -78,6 +80,18 @@ impl From<WorkspaceRepositoryError> for CommandError {
         match error {
             WorkspaceRepositoryError::OutsideVault(outside) => outside.into(),
             other => Self::unexpected(other),
+        }
+    }
+}
+
+impl From<CreateArticleError> for CommandError {
+    fn from(error: CreateArticleError) -> Self {
+        match error {
+            CreateArticleError::Draft(draft @ ArticleDraftError::BlankTitle) => {
+                Self::unexpected(draft)
+            }
+            CreateArticleError::Workspace(workspace) => workspace.into(),
+            CreateArticleError::Article(article) => article.into(),
         }
     }
 }
@@ -173,6 +187,37 @@ mod tests {
         assert_eq!(unreadable.reason(), FailureReason::Unexpected);
         assert!(unreadable.to_string().contains("Permission denied"));
         assert_eq!(unwritable.reason(), FailureReason::Unexpected);
+    }
+
+    #[test]
+    fn an_article_creation_failure_keeps_the_reason_of_what_went_wrong() {
+        let rejected = || WorkspaceName::parse("..").expect_err("'..' is rejected");
+
+        assert_eq!(
+            CommandError::from(CreateArticleError::Draft(ArticleDraftError::BlankTitle)).reason(),
+            FailureReason::Unexpected
+        );
+        assert_eq!(
+            CommandError::from(CreateArticleError::Workspace(
+                WorkspaceRepositoryError::OutsideVault(rejected())
+            ))
+            .reason(),
+            FailureReason::OutsideVault
+        );
+        assert_eq!(
+            CommandError::from(CreateArticleError::Article(
+                ArticleRepositoryError::OutsideVault(rejected())
+            ))
+            .reason(),
+            FailureReason::OutsideVault
+        );
+        let taken = CommandError::from(CreateArticleError::Article(
+            ArticleRepositoryError::AlreadyExists {
+                article: "Blog/zen-of-writing.md".to_owned(),
+            },
+        ));
+        assert_eq!(taken.reason(), FailureReason::Unexpected);
+        assert!(taken.to_string().contains("Blog/zen-of-writing.md"));
     }
 
     #[test]

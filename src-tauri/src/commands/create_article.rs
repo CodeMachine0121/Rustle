@@ -1,7 +1,24 @@
-use crate::channel::Channel;
+use rustle_application::{ArticleSummary, CreateArticle};
+use rustle_domain::WorkspaceName;
+use rustle_infrastructure::{
+    FileSystemArticleRepository, FileSystemWorkspaceRepository, SystemClock,
+};
+use tauri::State;
+
 use crate::command_error::CommandError;
 
-#[tauri::command]
-pub fn create_article() -> Result<(), CommandError> {
-    Err(CommandError::not_implemented(Channel::CreateArticle))
+#[tauri::command(async)]
+pub fn create_article(
+    workspaces: State<'_, FileSystemWorkspaceRepository>,
+    articles: State<'_, FileSystemArticleRepository>,
+    workspace: String,
+    title: String,
+    category: Vec<String>,
+    tags: Vec<String>,
+) -> Result<ArticleSummary, CommandError> {
+    let workspace = WorkspaceName::parse(&workspace)?;
+    Ok(
+        CreateArticle::new(workspaces.inner(), articles.inner(), &SystemClock)
+            .execute(&workspace, &title, &category, &tags)?,
+    )
 }

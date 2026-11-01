@@ -239,3 +239,92 @@ fn refuses_settings_kept_outside_the_vault() {
     assert_eq!(read["reason"], json!("outsideVault"));
     assert_eq!(written["reason"], json!("outsideVault"));
 }
+
+#[test]
+fn creates_an_article_and_answers_with_its_row() {
+    let app = RunningApp::start();
+    fs::create_dir_all(app.vault_root.join("Blog")).expect("workspace");
+    app.write("Blog/zen-of-writing.md", "別人的文章");
+
+    let payload = app
+        .call(
+            "create_article",
+            json!({
+                "workspace": "Blog",
+                "title": "Zen of Writing",
+                "category": ["技術筆記"],
+                "tags": ["electron"],
+            }),
+        )
+        .expect("created");
+
+    assert_eq!(payload["fileName"], json!("zen-of-writing-2.md"));
+    assert_eq!(payload["title"], json!("Zen of Writing"));
+    assert_eq!(payload["category"], json!(["技術筆記"]));
+    assert_eq!(payload["tags"], json!(["electron"]));
+    assert_eq!(payload["hasIncompleteMetadata"], json!(false));
+    let text =
+        fs::read_to_string(app.vault_root.join("Blog/zen-of-writing-2.md")).expect("created file");
+    assert!(
+        text.starts_with("---\ntitle: Zen of Writing\ncreated_at: "),
+        "{text}"
+    );
+    assert_eq!(
+        fs::read_to_string(app.vault_root.join("Blog/zen-of-writing.md")).expect("readable"),
+        "別人的文章"
+    );
+}
+
+#[test]
+fn refuses_to_create_an_article_without_a_title_and_writes_nothing() {
+    let app = RunningApp::start();
+    fs::create_dir_all(app.vault_root.join("Blog")).expect("workspace");
+
+    let failure = app
+        .call(
+            "create_article",
+            json!({ "workspace": "Blog", "title": "   ", "category": [], "tags": [] }),
+        )
+        .expect_err("blank title");
+
+    assert_eq!(failure["reason"], json!("unexpected"));
+    assert_eq!(
+        fs::read_dir(app.vault_root.join("Blog"))
+            .expect("listable")
+            .count(),
+        0
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn refuses_to_create_an_article_in_a_workspace_that_links_outside_the_vault() {
+    let app = RunningApp::start();
+    let outside = app.vault_directory.path().join("outside");
+    fs::create_dir_all(&outside).expect("outside folder");
+    std::os::unix::fs::symlink(&outside, app.vault_root.join("Escape")).expect("symlink");
+
+    let failure = app
+        .call(
+            "create_article",
+            json!({ "workspace": "Escape", "title": "Zen", "category": [], "tags": [] }),
+        )
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+    assert_eq!(fs::read_dir(&outside).expect("listable").count(), 0);
+}
+
+#[test]
+fn refuses_a_workspace_name_with_a_path_in_it() {
+    let app = RunningApp::start();
+
+    let failure = app
+        .call(
+            "create_article",
+            json!({ "workspace": "../Elsewhere", "title": "Zen", "category": [], "tags": [] }),
+        )
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+}
