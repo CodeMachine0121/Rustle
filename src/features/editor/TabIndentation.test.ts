@@ -14,6 +14,7 @@ type EditorOptions = {
   settings?: IndentationSettings;
   readOnly?: boolean;
   competingTabBinding?: boolean;
+  wordExpansionOnTab?: boolean;
 };
 
 const openViews: EditorView[] = [];
@@ -22,7 +23,14 @@ afterEach(() => {
   openViews.splice(0).forEach((view) => view.destroy());
 });
 
-function openEditor({ doc, selection, settings, readOnly = false, competingTabBinding = false }: EditorOptions) {
+function openEditor({
+  doc,
+  selection,
+  settings,
+  readOnly = false,
+  competingTabBinding = false,
+  wordExpansionOnTab = false,
+}: EditorOptions) {
   const composition = new CompositionState();
   const indentation = new TabIndentation(composition, IndentUnit.from(settings));
   const view = new EditorView({
@@ -36,6 +44,7 @@ function openEditor({ doc, selection, settings, readOnly = false, competingTabBi
         indentation.extension(),
         EditorState.readOnly.of(readOnly),
         competingTabBinding ? Prec.highest(keymap.of([{ key: "Tab", run: insertText("搶走") }])) : [],
+        wordExpansionOnTab ? Prec.highest(keymap.of([{ key: "Tab", run: insertText("sole.log()") }])) : [],
       ],
     }),
   });
@@ -329,7 +338,11 @@ describe("Tab does nothing but indent", () => {
   });
 
   it("does not complete or expand the word before the cursor", () => {
-    const { view } = openEditor({ doc: "con", selection: [EditorSelection.cursor(3)] });
+    const { view } = openEditor({
+      doc: "con",
+      selection: [EditorSelection.cursor(3)],
+      wordExpansionOnTab: true,
+    });
 
     pressTab(view);
 
