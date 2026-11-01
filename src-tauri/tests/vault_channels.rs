@@ -465,3 +465,20 @@ fn refuses_to_delete_an_article_in_a_workspace_linked_outside_the_vault() {
     assert_eq!(failure["reason"], json!("outsideVault"));
     assert!(outside.join("a.md").exists());
 }
+
+#[test]
+fn reports_a_workspace_that_could_not_be_moved_to_the_trash() {
+    let app = RunningApp::start();
+
+    let failure = app
+        .call("delete_workspace", json!({ "workspace": "Gone" }))
+        .expect_err("nothing to move");
+
+    assert_eq!(failure["reason"], json!("unexpected"));
+    assert!(
+        failure["message"]
+            .as_str()
+            .expect("message is text")
+            .contains("Gone")
+    );
+}

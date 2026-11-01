@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::Path;
 
 use rustle_domain::{ArticleFileName, Trash, TrashError, WorkspaceName};
@@ -19,14 +18,12 @@ impl SystemTrash {
     }
 
     fn move_to_trash(location: &Path, item: String) -> Result<(), TrashError> {
-        let not_moved = |reason: String| TrashError::NotMoved {
-            item: item.clone(),
-            reason,
-        };
-        fs::symlink_metadata(location).map_err(|error| not_moved(error.to_string()))?;
         Self::context()
             .delete(location)
-            .map_err(|error| not_moved(error.to_string()))
+            .map_err(|error| TrashError::NotMoved {
+                item,
+                reason: error.to_string(),
+            })
     }
 
     // Finder, the default on macOS, would ask for permission to automate it.
