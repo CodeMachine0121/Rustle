@@ -30,6 +30,11 @@ export class WritingLayout {
 
   constructor(settings: SettingsSession) {
     this.#settings = settings;
+    settings.subscribe(() => {
+      if (!settings.settings.previewPanel.isOpen) {
+        this.#showsOnlyPreview = false;
+      }
+    });
   }
 
   get snapshot(): WritingLayoutSnapshot {

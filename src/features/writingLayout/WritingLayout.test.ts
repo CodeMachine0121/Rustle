@@ -137,6 +137,16 @@ describe("WritingLayout", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it("forgets preview only once the settings close the preview from elsewhere", async () => {
+    const { layout, settings } = await layoutWith();
+    layout.choose("previewOnly");
+
+    settings.change((current) => ({ ...current, previewPanel: { ...current.previewPanel, isOpen: false } }));
+    settings.change((current) => ({ ...current, previewPanel: { ...current.previewPanel, isOpen: true } }));
+
+    expect(layout.snapshot.viewMode).toBe("sideBySide");
+  });
+
   it("gives the same snapshot until something changes", async () => {
     const { layout } = await layoutWith();
     const first = layout.snapshot;
