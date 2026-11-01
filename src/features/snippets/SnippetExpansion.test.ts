@@ -188,6 +188,30 @@ describe("opening the snippet menu", () => {
   });
 });
 
+describe("the menu for assistive technology", () => {
+  it("points the editor at the highlighted row while the menu is open", () => {
+    const { view } = openEditor();
+    type(view, "/");
+    press(view, "ArrowDown");
+
+    const activeRow = view.contentDOM.getAttribute("aria-activedescendant");
+    const controlled = view.contentDOM.getAttribute("aria-controls");
+
+    expect(activeRow === null ? null : document.getElementById(activeRow)?.textContent).toBe("H2");
+    expect(controlled === null ? null : document.getElementById(controlled)?.getAttribute("role")).toBe("listbox");
+  });
+
+  it("points at nothing once the menu is closed", () => {
+    const { view } = openEditor();
+    type(view, "/");
+
+    press(view, "Escape");
+
+    expect(view.contentDOM.getAttribute("aria-activedescendant")).toBeNull();
+    expect(view.contentDOM.getAttribute("aria-controls")).toBeNull();
+  });
+});
+
 describe("filtering and choosing", () => {
   it.each([
     ["h", ["H1", "H2", "H3", "H4", "H5", "H6"]],

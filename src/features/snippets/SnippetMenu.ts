@@ -10,6 +10,8 @@ import { slashOpeningSnippetMenu } from "./slashTrigger";
 
 const SLASH = "/";
 
+let menusCreated = 0;
+
 type OpenMenu = {
   readonly slashAt: number;
   readonly query: string;
@@ -27,6 +29,8 @@ const highlightRow = StateEffect.define<number>();
  * It never opens while an input method composes, and a composition closes it.
  * Arrows move the highlighted row, Enter or a click lands the snippet in place
  * of the slash and the filter text, as one undo step. Tab is never the menu's.
+ * The editor keeps the keyboard and points assistive technology at the
+ * highlighted row.
  */
 export class SnippetMenu {
   readonly #composition: CompositionState;
@@ -34,6 +38,7 @@ export class SnippetMenu {
   readonly #fields: SnippetFields;
   readonly #label: () => string;
   readonly #menu: StateField<OpenMenu | null>;
+  readonly #listId = `snippet-menu-${(menusCreated += 1)}`;
 
   constructor(composition: CompositionState, catalog: SnippetCatalog, fields: SnippetFields, label: () => string) {
     this.#composition = composition;
@@ -118,10 +123,16 @@ export class SnippetMenu {
     return StateField.define<OpenMenu | null>({
       create: () => null,
       update: (menu, transaction) => this.#nextMenu(menu, transaction),
-      provide: (field) =>
+      provide: (field) => [
         showTooltip.from(field, (menu): Tooltip | null =>
           menu === null ? null : { pos: menu.slashAt, above: false, create: tooltipView },
         ),
+        EditorView.contentAttributes.from(field, (menu): Record<string, string> =>
+          menu === null
+            ? {}
+            : { "aria-controls": this.#listId, "aria-activedescendant": this.#rowId(menu.highlighted) },
+        ),
+      ],
     });
   }
 
@@ -157,6 +168,7 @@ export class SnippetMenu {
 
   #createTooltipView(view: EditorView): TooltipView {
     const list = document.createElement("ul");
+    list.id = this.#listId;
     list.className = "snippet-menu";
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", this.#label());
@@ -169,6 +181,7 @@ export class SnippetMenu {
       list.replaceChildren(
         ...(menu?.matches ?? []).map((snippet, index) => {
           const row = document.createElement("li");
+          row.id = this.#rowId(index);
           row.className = "snippet-menu-row";
           row.setAttribute("role", "option");
           row.setAttribute("aria-selected", String(index === menu?.highlighted));
@@ -180,6 +193,10 @@ export class SnippetMenu {
     };
     render(this.#currentMenu(view));
     return { dom: list, update: (update) => render(update.state.field(this.#menu, false) ?? null) };
+  }
+
+  #rowId(index: number): string {
+    return `${this.#listId}-row-${index}`;
   }
 
   #currentMenu(view: EditorView): OpenMenu | null {
