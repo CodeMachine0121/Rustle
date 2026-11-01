@@ -51,7 +51,15 @@ export class ThemeSession {
     this.#environment = environment;
     this.#menu = this.#menuFor(paintCachedTheme(environment));
     this.#stops = [
-      settings.subscribe(() => this.#follow(environment.catalog.choiceFor(settings.settings.theme))),
+      settings.subscribe(() => {
+        const choice = environment.catalog.choiceFor(settings.settings.theme);
+        if (choice !== this.#menu.choice) {
+          this.#menu = this.#menuFor(choice);
+          this.#paint();
+          environment.cache.write(choice);
+          this.#listeners.forEach((listener) => listener());
+        }
+      }),
       environment.system.watch(() => this.#paint()),
     ];
   }
@@ -67,16 +75,6 @@ export class ThemeSession {
 
   dispose(): void {
     this.#stops.forEach((stop) => stop());
-  }
-
-  #follow(choice: ThemeChoice): void {
-    if (choice === this.#menu.choice) {
-      return;
-    }
-    this.#menu = this.#menuFor(choice);
-    this.#paint();
-    this.#environment.cache.write(choice);
-    this.#listeners.forEach((listener) => listener());
   }
 
   #paint(): void {
