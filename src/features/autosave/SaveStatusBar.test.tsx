@@ -154,6 +154,47 @@ describe("SaveStatusBar", () => {
     expect(screen.getByText("已儲存")).toBeInTheDocument();
   });
 
+  it("shows why 覆寫 failed alongside the outside change warning", async () => {
+    render(<SaveStatusBar session={session} />);
+    await openArticle();
+    await saveWith({
+      ok: true,
+      payload: { outcome: "modifiedElsewhere", lastKnownModifiedAt: ARTICLE.lastKnownModifiedAt },
+    });
+    saveBody.mockResolvedValueOnce({
+      ok: false,
+      reason: "unexpected",
+      message: "No space left on device",
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "覆寫" }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByText("儲存失敗：No space left on device")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "覆寫" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新載入" })).toBeInTheDocument();
+  });
+
+  it("shows why 重新載入 failed alongside the outside change warning", async () => {
+    render(<SaveStatusBar session={session} />);
+    await openArticle();
+    await saveWith({
+      ok: true,
+      payload: { outcome: "modifiedElsewhere", lastKnownModifiedAt: ARTICLE.lastKnownModifiedAt },
+    });
+    readBody.mockResolvedValueOnce({ ok: false, reason: "unexpected", message: "gone" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "重新載入" }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByText("儲存失敗：gone")).toBeInTheDocument();
+    expect(screen.getByText("檔案在外部被改動過")).toBeInTheDocument();
+  });
+
   it("keeps the warning and both choices after a switch is refused", async () => {
     render(<SaveStatusBar session={session} />);
     await openArticle();

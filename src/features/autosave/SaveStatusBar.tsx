@@ -15,6 +15,11 @@ export function SaveStatusBar({ session }: SaveStatusBarProps) {
   return (
     <header className="save-status-bar" aria-label="標題列">
       <span className="save-status-bar__title">{status.title}</span>
+      {status.failureMessage !== null && (
+        <span className="save-status-bar__failure" role="alert">
+          儲存失敗：{status.failureMessage}
+        </span>
+      )}
       {status.modifiedElsewhere ? (
         <span className="save-status-bar__warning" role="alert">
           檔案在外部被改動過
@@ -26,16 +31,9 @@ export function SaveStatusBar({ session }: SaveStatusBarProps) {
           </button>
         </span>
       ) : (
-        <>
-          {status.failureMessage !== null && (
-            <span className="save-status-bar__failure" role="alert">
-              儲存失敗：{status.failureMessage}
-            </span>
-          )}
-          <span className="save-status-bar__state">
-            {status.hasUnsavedChanges ? "未儲存的變更" : "已儲存"}
-          </span>
-        </>
+        <span className="save-status-bar__state">
+          {status.hasUnsavedChanges ? "未儲存的變更" : "已儲存"}
+        </span>
       )}
     </header>
   );
