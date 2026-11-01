@@ -445,6 +445,16 @@ mod writing_lists {
     }
 
     #[test]
+    fn adds_keys_after_the_comments_of_a_block_without_entries() {
+        let text = rewritten(
+            "---\n# 只有註解\n---\n",
+            &MetadataUpdate::default().title("Zen"),
+        );
+
+        assert_eq!(text, "---\n# 只有註解\ntitle: Zen\n---\n");
+    }
+
+    #[test]
     fn adds_missing_keys_after_the_last_entry() {
         let text = rewritten(
             "---\n# 開頭\ntitle: Zen\n\n# 結尾\n---\n",
