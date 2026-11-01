@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
-import { KeyboardShortcut } from "../preview/KeyboardShortcut";
+import { usePreviewToggleShortcut } from "../preview/usePreviewToggleShortcut";
 import type { SettingsSession } from "../settings/SettingsSession";
-import { useSettings } from "../settings/useSettings";
 import type { WritingLayout, WritingLayoutSnapshot } from "./WritingLayout";
 
 /**
@@ -14,11 +13,7 @@ import type { WritingLayout, WritingLayoutSnapshot } from "./WritingLayout";
  */
 export function useWritingLayout(layout: WritingLayout, settings: SettingsSession): WritingLayoutSnapshot {
   const composition = useCompositionState();
-  const { previewPanel } = useSettings(settings);
-  const shortcut = useMemo(
-    () => KeyboardShortcut.fromSetting(previewPanel.toggleShortcut),
-    [previewPanel.toggleShortcut],
-  );
+  const shortcut = usePreviewToggleShortcut(settings);
 
   useEffect(() => {
     const toggleOnShortcut = (event: KeyboardEvent) => {

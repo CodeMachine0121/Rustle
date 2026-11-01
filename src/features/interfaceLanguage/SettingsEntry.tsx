@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import type { KeyboardShortcut } from "../preview/KeyboardShortcut";
 import type { ThemeMenu } from "../theme/ThemeSession";
 import type { VimModeSession } from "../vim/VimModeSession";
 import type { InterfaceLanguage } from "./interfaceLanguage";
@@ -11,10 +12,11 @@ type SettingsEntryProps = {
   onChoose: (language: InterfaceLanguage) => void;
   theme: ThemeMenu;
   vimModes: VimModeSession;
+  previewToggle: KeyboardShortcut;
 };
 
 /** The gear and the settings it opens; the keyboard goes back to the gear when they close. */
-export function SettingsEntry({ language, onChoose, theme, vimModes }: SettingsEntryProps) {
+export function SettingsEntry({ language, onChoose, theme, vimModes, previewToggle }: SettingsEntryProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -26,7 +28,16 @@ export function SettingsEntry({ language, onChoose, theme, vimModes }: SettingsE
   return (
     <>
       <SettingsButton buttonRef={buttonRef} isOpen={isOpen} onToggle={() => (isOpen ? close() : setIsOpen(true))} />
-      {isOpen && <SettingsDialog language={language} onChoose={onChoose} theme={theme} vimModes={vimModes} onClose={close} />}
+      {isOpen && (
+        <SettingsDialog
+          language={language}
+          onChoose={onChoose}
+          theme={theme}
+          vimModes={vimModes}
+          previewToggle={previewToggle}
+          onClose={close}
+        />
+      )}
     </>
   );
 }
