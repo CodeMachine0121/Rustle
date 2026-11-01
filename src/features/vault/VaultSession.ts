@@ -214,7 +214,7 @@ export class VaultSession {
       return { outcome: "failed", message: "沒有選取 workspace" };
     }
     const wasOpen = this.#snapshot.openedDocument === `${workspace}/${fileName}`;
-    const selection = this.#beginSelection();
+    const selection = this.#selectionFor(wasOpen);
     if (wasOpen && !(await this.#letGoOfOpenArticle("updateMetadata"))) {
       return this.#failedEdit();
     }
@@ -240,7 +240,7 @@ export class VaultSession {
       return;
     }
     const wasSelected = this.#snapshot.selectedArticle === fileName;
-    const selection = this.#beginSelection();
+    const selection = this.#selectionFor(wasSelected);
     if (wasSelected && !(await this.#letGoOfOpenArticle("deleteArticle"))) {
       return;
     }
@@ -264,7 +264,7 @@ export class VaultSession {
     this.#update({ renameRejection: null });
     const wasSelected = this.#snapshot.selectedWorkspace === workspace;
     const openArticle = wasSelected ? this.#snapshot.selectedArticle : null;
-    const selection = this.#beginSelection();
+    const selection = this.#selectionFor(wasSelected);
     if (wasSelected && !(await this.#letGoOfOpenArticle("renameWorkspace"))) {
       return false;
     }
@@ -304,7 +304,7 @@ export class VaultSession {
   async deleteWorkspace(workspace: string): Promise<void> {
     const wasSelected = this.#snapshot.selectedWorkspace === workspace;
     const openArticle = wasSelected ? this.#snapshot.selectedArticle : null;
-    const selection = this.#beginSelection();
+    const selection = this.#selectionFor(wasSelected);
     if (wasSelected && !(await this.#letGoOfOpenArticle("deleteWorkspace"))) {
       return;
     }
@@ -433,6 +433,11 @@ export class VaultSession {
     }
     this.#update({ body: result.payload.body, openedDocument: `${workspace}/${fileName}` });
     return true;
+  }
+
+  /** An operation on what is selected starts a new selection; one on anything else leaves the user's click alone. */
+  #selectionFor(touchesSelection: boolean): number {
+    return touchesSelection ? this.#beginSelection() : this.#latestSelection;
   }
 
   #beginSelection(): number {

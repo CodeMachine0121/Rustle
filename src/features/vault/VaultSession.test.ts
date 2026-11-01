@@ -1002,6 +1002,31 @@ describe("VaultSession", () => {
       });
     });
 
+    it("still opens an article clicked just before another workspace is deleted", async () => {
+      const channels = vaultChannels();
+      const session = new VaultSession(channels);
+      await session.start();
+      let finishReading: () => void = () => undefined;
+      channels.readBody.mockImplementation(
+        (workspace: string, fileName: string) =>
+          new Promise((resolve) => {
+            finishReading = () =>
+              resolve({
+                ok: true,
+                payload: { workspace, fileName, body: "a 的正文", lastKnownModifiedAt: "2026-08-20T08:04:11.123Z" },
+              });
+          }),
+      );
+
+      const click = session.selectArticle("a.md");
+      await session.deleteWorkspace("Work");
+      finishReading();
+      await click;
+
+      expect(session.snapshot.selectedWorkspace).toBe("Blog");
+      expect(session.snapshot.openedDocument).toBe("Blog/a.md");
+    });
+
     it("keeps the selection and lists the workspaces again when another one is deleted", async () => {
       const channels = vaultChannels();
       const holder = articleHolder();
