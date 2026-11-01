@@ -320,9 +320,32 @@ body {
   margin: 8px 8px 0;
 }
 
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
+.sidebar-section-header .region-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.new-workspace-dialog input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: inherit;
+  font: inherit;
+}
+
 .sidebar-section-toggle {
   width: 100%;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: 0;
   border: none;
