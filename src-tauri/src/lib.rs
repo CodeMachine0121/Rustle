@@ -1,3 +1,8 @@
+// The webview reads its policy from tauri.conf.json; this module is the
+// readable source of truth that a test pins that file to.
+#[cfg(test)]
+mod content_security_policy;
+
 use tauri::{App, WebviewUrl, WebviewWindowBuilder};
 
 const MAIN_WINDOW_LABEL: &str = "main";
