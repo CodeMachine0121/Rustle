@@ -1944,6 +1944,37 @@ describe("App", () => {
       expect(escape.defaultPrevented).toBe(false);
     });
 
+    it("toggles the preview on its shortcut in Visual mode, as always", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+      act(() => view.dispatch({ selection: { anchor: 0, head: 2 }, userEvent: "select.pointer" }));
+      expect(modeLabel()).toBe("VISUAL");
+
+      fireEvent.keyDown(content, { metaKey: true, shiftKey: true, key: "P", code: "KeyP" });
+
+      expect(screen.getByRole("button", { name: "只有編輯" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("puts the editor's font size back with Cmd+0 in Normal mode, as always", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        const answered = await answer?.(command, args);
+        return command === "read_settings"
+          ? { ...(answered as object), vimMode: true, fontSize: { editor: 18 } }
+          : answered;
+      });
+      const { content, view } = await startEditing();
+      await waitFor(() => expect(view.dom.style.fontSize).toBe("18px"));
+
+      fireEvent.pointerOver(content);
+      fireEvent.keyDown(content, { key: "0", metaKey: true });
+
+      expect(modeLabel()).toBe("NORMAL");
+      expect(view.dom.style.fontSize).toBe("15px");
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+    });
+
     it("shows neither the status line nor the mode in preview only", async () => {
       answerWithVimMode(true);
       await startEditing();

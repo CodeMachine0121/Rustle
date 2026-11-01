@@ -56,6 +56,10 @@ describe("app styles", () => {
     expect(ruleFor(".article-path__file")).toMatch(/flex-shrink: 0;/);
   });
 
+  it("never shortens the vim mode label, so the workspace gives way first", () => {
+    expect(ruleFor(".vim-mode-label")).toMatch(/flex: none;/);
+  });
+
   it("spins the saving mark and keeps the three marks the same size", () => {
     expect(ruleFor(".save-indicator--saving .icon")).toMatch(/animation: save-indicator-spin/);
     expect(ruleFor(".save-indicator")).toMatch(/width: 16px;[\s\S]*height: 16px;/);
