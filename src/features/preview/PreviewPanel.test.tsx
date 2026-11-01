@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { AutosaveSession } from "../autosave/AutosaveSession";
 import { PreviewedBody } from "./PreviewedBody";
 import { PreviewPanel } from "./PreviewPanel";
+import { ScrollSynchronizer, type ScrollPane } from "./ScrollSynchronizer";
 
 function editorSession(): AutosaveSession {
   return new AutosaveSession(new CompositionState(), {
@@ -57,5 +58,81 @@ describe("PreviewPanel", () => {
 
     expect(screen.getByRole("article", { name: "預覽內容" })).toBeEmptyDOMElement();
     expect(screen.queryByText("選一篇文章開始寫作")).not.toBeInTheDocument();
+  });
+
+  describe("scroll sync", () => {
+    function editorPane(): ScrollPane {
+      return {
+        position: () => 0,
+        maximumPosition: () => 1000,
+        lineAtTop: () => 0,
+        positionForLine: (line) => line * 20,
+        scrollTo: vi.fn(),
+      };
+    }
+
+    async function showBody(editor: AutosaveSession, body: string) {
+      await act(() =>
+        editor.openArticle({
+          article: { workspace: "Blog", fileName: "a.md", body, lastKnownModifiedAt: "2026-08-20T08:00:00.000Z" },
+          title: "A",
+        }),
+      );
+    }
+
+    function scrollPreview(scroller: Element, position: number) {
+      Object.defineProperties(scroller, {
+        scrollHeight: { value: 2000, configurable: true },
+        clientHeight: { value: 300, configurable: true },
+      });
+      scroller.scrollTop = position;
+      fireEvent.scroll(scroller);
+    }
+
+    it("leads the editor while it shows a body", async () => {
+      const editor = editorSession();
+      const synchronizer = new ScrollSynchronizer();
+      const pane = editorPane();
+      synchronizer.attach("editor", pane);
+      const { container } = render(
+        <PreviewPanel
+          previewedBody={new PreviewedBody(editor, new CompositionState())}
+          scrollSynchronizer={synchronizer}
+        />,
+      );
+      await showBody(editor, "# 標題\n\n正文");
+
+      const scroller = container.querySelector(".preview-scroller");
+      if (scroller === null) {
+        throw new Error("the preview has no scroller");
+      }
+      scrollPreview(scroller, 1700);
+
+      expect(pane.scrollTo).toHaveBeenCalledWith(1000);
+    });
+
+    it("stops leading once it is gone", async () => {
+      const editor = editorSession();
+      const synchronizer = new ScrollSynchronizer();
+      const pane = editorPane();
+      const editorSide = synchronizer.attach("editor", pane);
+      const { container, unmount } = render(
+        <PreviewPanel
+          previewedBody={new PreviewedBody(editor, new CompositionState())}
+          scrollSynchronizer={synchronizer}
+        />,
+      );
+      await showBody(editor, "正文");
+      const scroller = container.querySelector(".preview-scroller");
+
+      unmount();
+      if (scroller !== null) {
+        scrollPreview(scroller, 1700);
+      }
+      editorSide.scrolled();
+
+      expect(scroller).not.toBeNull();
+      expect(pane.scrollTo).not.toHaveBeenCalled();
+    });
   });
 });

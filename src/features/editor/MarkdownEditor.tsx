@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
+import { EditorScrollPane } from "./EditorScrollPane";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TabIndentation } from "./TabIndentation";
 
@@ -18,6 +20,7 @@ type MarkdownEditorProps = {
   indentation?: IndentationSettings;
   focusOnShow?: boolean;
   onBodyChange?: BodyChangeListener;
+  scrollSynchronizer?: ScrollSynchronizer;
 };
 
 /**
@@ -29,6 +32,7 @@ type MarkdownEditorProps = {
  * not a document being shown. With `focusOnShow` the editor takes the
  * keyboard when the document appears, cursor at its start; otherwise focus
  * stays where it is, so opening an article from the list keeps the list.
+ * With a `scrollSynchronizer` the editor is its editor side while mounted.
  */
 export function MarkdownEditor({
   documentKey,
@@ -36,6 +40,7 @@ export function MarkdownEditor({
   indentation,
   focusOnShow = false,
   onBodyChange,
+  scrollSynchronizer,
 }: MarkdownEditorProps) {
   const composition = useCompositionState();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -64,6 +69,19 @@ export function MarkdownEditor({
       composition.end();
     };
   }, [composition]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view === null || scrollSynchronizer === undefined) {
+      return;
+    }
+    const attached = scrollSynchronizer.attach("editor", new EditorScrollPane(view));
+    view.scrollDOM.addEventListener("scroll", attached.scrolled, { passive: true });
+    return () => {
+      view.scrollDOM.removeEventListener("scroll", attached.scrolled);
+      attached.detach();
+    };
+  }, [scrollSynchronizer]);
 
   useEffect(() => {
     const view = viewRef.current;

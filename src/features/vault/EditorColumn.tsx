@@ -1,14 +1,16 @@
 import { AutosavedEditor } from "../autosave/AutosavedEditor";
 import type { AutosaveSession } from "../autosave/AutosaveSession";
+import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { NoArticleState } from "./NoArticleState";
 import type { VaultSnapshot } from "./VaultSession";
 
 type EditorColumnProps = {
   snapshot: VaultSnapshot;
   autosave: AutosaveSession;
+  scrollSynchronizer?: ScrollSynchronizer;
 };
 
-export function EditorColumn({ snapshot, autosave }: EditorColumnProps) {
+export function EditorColumn({ snapshot, autosave, scrollSynchronizer }: EditorColumnProps) {
   const { openedDocument, indentation, bodyFailure } = snapshot;
   if (bodyFailure !== null) {
     return (
@@ -20,5 +22,11 @@ export function EditorColumn({ snapshot, autosave }: EditorColumnProps) {
   if (openedDocument === null) {
     return <NoArticleState />;
   }
-  return <AutosavedEditor session={autosave} indentation={indentation} />;
+  return (
+    <AutosavedEditor
+      session={autosave}
+      indentation={indentation}
+      scrollSynchronizer={scrollSynchronizer}
+    />
+  );
 }
