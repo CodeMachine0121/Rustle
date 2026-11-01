@@ -14,20 +14,22 @@ type PreviewPanelProps = {
 /** The rendered body; while one is shown it is the preview side of the scroll sync. */
 export function PreviewPanel({ previewedBody, scrollSynchronizer }: PreviewPanelProps) {
   const body = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.body);
+  const workspace = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.workspace);
   if (body === null) {
     return <NoArticleState />;
   }
-  return <PreviewContent body={body} scrollSynchronizer={scrollSynchronizer} />;
+  return <PreviewContent body={body} workspace={workspace} scrollSynchronizer={scrollSynchronizer} />;
 }
 
 type PreviewContentProps = {
   body: string;
+  workspace: string | null;
   scrollSynchronizer?: ScrollSynchronizer;
 };
 
-function PreviewContent({ body, scrollSynchronizer }: PreviewContentProps) {
+function PreviewContent({ body, workspace, scrollSynchronizer }: PreviewContentProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const html = useMemo(() => renderPreviewHtml(body), [body]);
+  const html = useMemo(() => renderPreviewHtml(body, workspace), [body, workspace]);
   const lineCount = useMemo(() => body.split("\n").length, [body]);
 
   useEffect(() => {

@@ -2,13 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
-
-const REJECTION_EXPLANATIONS: Record<WorkspaceNameRejection, string> = {
-  empty: "名稱不可為空",
-  containsPathSeparator: "名稱不能含有 / 或 \\",
-  reserved: "這是保留名稱（images 或以 . 開頭的名稱）",
-  alreadyUsed: "這個名稱已經被使用了",
-};
+import { WORKSPACE_NAME_REJECTION_EXPLANATIONS } from "./workspaceNameRejection";
 
 type NewWorkspaceFieldProps = {
   rejection: WorkspaceNameRejection | null;
@@ -34,7 +28,7 @@ export function NewWorkspaceField({ rejection, failure, onCreate }: NewWorkspace
     void submit();
   };
 
-  const problem = rejection === null ? failure : REJECTION_EXPLANATIONS[rejection];
+  const problem = rejection === null ? failure : WORKSPACE_NAME_REJECTION_EXPLANATIONS[rejection];
 
   return (
     <div className="new-workspace-field">

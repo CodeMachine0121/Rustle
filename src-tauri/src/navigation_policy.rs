@@ -34,7 +34,12 @@ impl NavigationPolicy {
         target.scheme() == self.app_page.scheme()
             && target.host_str() == self.app_page.host_str()
             && target.port_or_known_default() == self.app_page.port_or_known_default()
-            && target.path() == self.app_page.path()
+            && self.is_app_page_path(target.path())
+    }
+
+    fn is_app_page_path(&self, path: &str) -> bool {
+        let app_page_path = self.app_page.path();
+        path == app_page_path || (path == "/" && app_page_path == "/index.html")
     }
 }
 
@@ -53,6 +58,7 @@ mod tests {
     #[case::the_same_page("tauri://localhost/index.html")]
     #[case::a_fragment_of_the_same_page("tauri://localhost/index.html#heading")]
     #[case::the_same_page_with_a_query("tauri://localhost/index.html?reload=1")]
+    #[case::the_app_root_that_serves_the_page("tauri://localhost/")]
     fn allows_staying_on_the_app_page(#[case] target: &str) {
         assert_eq!(policy().decide(target), NavigationDecision::Allow);
     }
@@ -85,6 +91,18 @@ mod tests {
         assert_eq!(
             policy().decide(target),
             NavigationDecision::Deny { open_in_browser }
+        );
+    }
+
+    #[test]
+    fn allows_the_dev_server_root_that_serves_the_page() {
+        let policy = NavigationPolicy::new(
+            Url::parse("http://localhost:1420/index.html").expect("valid dev page"),
+        );
+
+        assert_eq!(
+            policy.decide("http://localhost:1420/"),
+            NavigationDecision::Allow
         );
     }
 

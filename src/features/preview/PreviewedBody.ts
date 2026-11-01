@@ -4,7 +4,7 @@ import type { CompositionState } from "../../shared/composition/CompositionState
 
 export const PREVIEW_DELAY_MILLISECONDS = 150;
 
-export type PreviewSource = Pick<AutosaveSession, "subscribe" | "document" | "body">;
+export type PreviewSource = Pick<AutosaveSession, "subscribe" | "document" | "body" | "workspace">;
 
 /**
  * The body the preview shows. A newly opened (or closed) article shows at
@@ -19,6 +19,7 @@ export class PreviewedBody {
   #documentVersion: number;
   #latestBody: string | null;
   #body: string | null;
+  #workspace: string | null;
 
   constructor(
     source: PreviewSource,
@@ -30,12 +31,18 @@ export class PreviewedBody {
     this.#documentVersion = source.document.version;
     this.#latestBody = source.body;
     this.#body = source.body;
+    this.#workspace = source.workspace;
     this.#stopFollowing = source.subscribe(() => this.#follow());
   }
 
   /** `null` while no article is open. */
   get body(): string | null {
     return this.#body;
+  }
+
+  /** The workspace of the article being shown; it changes only with the article. */
+  get workspace(): string | null {
+    return this.#workspace;
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
@@ -54,6 +61,7 @@ export class PreviewedBody {
     const { version } = this.#source.document;
     if (version !== this.#documentVersion) {
       this.#documentVersion = version;
+      this.#workspace = this.#source.workspace;
       this.#latestBody = body;
       this.#debouncer.cancel();
       this.#show(body);

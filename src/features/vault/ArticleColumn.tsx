@@ -17,13 +17,16 @@ type ArticleColumnProps = {
   snapshot: VaultSnapshot;
   onSelect: (fileName: string) => void;
   onCreateArticle: () => void;
+  onEditMetadata: (article: ArticleSummary) => void;
+  onDelete: (article: ArticleSummary) => void;
 };
 
 /**
  * The selected workspace's articles, filtered and ordered on screen only:
  * the snapshot's list, the selection and the files stay as they are.
  */
-export function ArticleColumn({ snapshot, onSelect, onCreateArticle }: ArticleColumnProps) {
+export function ArticleColumn(props: ArticleColumnProps) {
+  const { snapshot, onCreateArticle } = props;
   const [filterText, setFilterText] = useState("");
   const [order, setOrder] = useState<ArticleOrder>(DEFAULT_ARTICLE_ORDER);
   if (snapshot.selectedWorkspace === null) {
@@ -48,20 +51,22 @@ export function ArticleColumn({ snapshot, onSelect, onCreateArticle }: ArticleCo
       <button type="button" className="new-article-button" onClick={onCreateArticle}>
         ＋ 新文章
       </button>
-      <ArticleList
-        snapshot={snapshot}
-        filterText={filterText}
-        order={order}
-        onSelect={onSelect}
-        onCreateArticle={onCreateArticle}
-      />
+      <ArticleList {...props} filterText={filterText} order={order} />
     </>
   );
 }
 
 type ArticleListProps = ArticleColumnProps & { filterText: string; order: ArticleOrder };
 
-function ArticleList({ snapshot, filterText, order, onSelect, onCreateArticle }: ArticleListProps) {
+function ArticleList({
+  snapshot,
+  filterText,
+  order,
+  onSelect,
+  onCreateArticle,
+  onEditMetadata,
+  onDelete,
+}: ArticleListProps) {
   const { articles, selectedArticle, articleListFailure } = snapshot;
   const rows = useMemo(
     () => arrangeArticles(articles, { filterText, order, openArticle: selectedArticle }),
@@ -87,13 +92,25 @@ function ArticleList({ snapshot, filterText, order, onSelect, onCreateArticle }:
   return (
     <ul className="column-list">
       {rows.map(({ article, isOutsideFilter }) => (
-        <li key={article.fileName}>
+        <li key={article.fileName} className="column-item">
           <ArticleRow
             article={article}
             isSelected={article.fileName === selectedArticle}
             isOutsideFilter={isOutsideFilter}
             onSelect={onSelect}
           />
+          <div className="row-actions">
+            <button
+              type="button"
+              aria-label={`編輯 ${article.title} 的 metadata`}
+              onClick={() => onEditMetadata(article)}
+            >
+              編輯 metadata
+            </button>
+            <button type="button" aria-label={`刪除 ${article.title}`} onClick={() => onDelete(article)}>
+              刪除
+            </button>
+          </div>
         </li>
       ))}
     </ul>

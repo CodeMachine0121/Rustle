@@ -13,22 +13,26 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 type ArgumentlessChannelName = Extract<
   ChannelName,
-  "updateMetadata" | "saveClipboardImage" | "listWorkspaces" | "readSettings"
+  "listWorkspaces" | "readSettings"
 >;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
-  updateMetadata: "update_metadata",
-  saveClipboardImage: "save_clipboard_image",
   readSettings: "read_settings",
 };
 
 const CHANNELS_WITH_ARGUMENTS = [
+  "updateMetadata",
+  "deleteArticle",
+  "renameWorkspace",
+  "countWorkspaceContents",
+  "deleteWorkspace",
   "createArticle",
   "listArticles",
   "createWorkspace",
   "readBody",
   "saveBody",
+  "saveClipboardImage",
   "writeSettings",
   "watchCloseRequests",
   "answerCloseRequest",
@@ -41,6 +45,16 @@ describe("channels", () => {
     await channels[channel as ArgumentlessChannelName]();
 
     expect(invoke).toHaveBeenLastCalledWith(commandName, undefined);
+  });
+
+  it("asks to store the clipboard's images in a workspace by its name", async () => {
+    const saved = { images: [{ relativePath: "images/8f3c.png" }] };
+    vi.mocked(invoke).mockResolvedValue(saved);
+
+    const result = await channels.saveClipboardImage("Blog");
+
+    expect(invoke).toHaveBeenLastCalledWith("save_clipboard_image", { workspace: "Blog" });
+    expect(result).toEqual({ ok: true, payload: saved });
   });
 
   it("asks for one article's body by workspace and file name", async () => {
@@ -139,6 +153,55 @@ describe("channels", () => {
 
     expect(invoke).toHaveBeenLastCalledWith("create_article", request);
     expect(result).toEqual({ ok: true, payload: created });
+  });
+
+  it("asks to update an article's metadata with its workspace, file name, title, categories and tags", async () => {
+    const outcome = { outcome: "modifiedElsewhere" };
+    vi.mocked(invoke).mockResolvedValue(outcome);
+    const request = {
+      workspace: "Blog",
+      fileName: "tauri.md",
+      title: "新標題",
+      category: ["技術筆記"],
+      tags: [],
+    };
+
+    const result = await channels.updateMetadata(request);
+
+    expect(invoke).toHaveBeenLastCalledWith("update_metadata", request);
+    expect(result).toEqual({ ok: true, payload: outcome });
+  });
+
+  it("asks to delete an article by workspace and file name", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await channels.deleteArticle("Blog", "tauri.md");
+
+    expect(invoke).toHaveBeenLastCalledWith("delete_article", {
+      workspace: "Blog",
+      fileName: "tauri.md",
+    });
+  });
+
+  it("asks to rename a workspace with the new name as typed", async () => {
+    vi.mocked(invoke).mockResolvedValue({ outcome: "renamed", workspace: "Writing" });
+
+    await channels.renameWorkspace("Blog", "Writing");
+
+    expect(invoke).toHaveBeenLastCalledWith("rename_workspace", {
+      workspace: "Blog",
+      newName: "Writing",
+    });
+  });
+
+  it("asks to count and to delete a workspace by name", async () => {
+    vi.mocked(invoke).mockResolvedValue({ articleCount: 2, imageCount: 2 });
+
+    await channels.countWorkspaceContents("Blog");
+    expect(invoke).toHaveBeenLastCalledWith("count_workspace_contents", { workspace: "Blog" });
+
+    await channels.deleteWorkspace("Blog");
+    expect(invoke).toHaveBeenLastCalledWith("delete_workspace", { workspace: "Blog" });
   });
 
   it("writes the whole settings object", async () => {

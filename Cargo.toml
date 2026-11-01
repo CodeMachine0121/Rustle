@@ -13,12 +13,17 @@ rustle-domain = { path = "crates/domain" }
 rustle-application = { path = "crates/application" }
 rustle-infrastructure = { path = "crates/infrastructure" }
 
+clipboard-rs = { version = "=0.3.5", default-features = false }
 chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
+image = { version = "=0.25.10", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
+percent-encoding = "=2.3.2"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
 thiserror = "=2.0.21"
+trash = "=5.2.9"
 unicode-normalization = "=0.1.25"
 url = "=2.5.8"
+uuid = { version = "=1.29.0", features = ["v4"] }
 yaml-rust2 = "=0.13.0"
 
 tauri = "=2.12.5"

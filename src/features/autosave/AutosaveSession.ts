@@ -99,6 +99,11 @@ export class AutosaveSession {
     return this.#article === null ? null : this.#body;
   }
 
+  /** The open article's workspace; `null` while no article is open. */
+  get workspace(): string | null {
+    return this.#article?.workspace ?? null;
+  }
+
   subscribe(listener: () => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);

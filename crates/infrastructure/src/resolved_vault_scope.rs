@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rustle_domain::{ArticleFileName, ImageFileName, VaultPathError, VaultScope, WorkspaceName};
+use rustle_domain::{
+    ArticleFileName, IMAGES_FOLDER_NAME, ImageFileName, VaultPathError, VaultScope, WorkspaceName,
+};
 
 /// [`VaultScope`] plus symlink resolution: the real location of every
 /// returned path is inside the real vault root. Paths that do not exist
@@ -37,6 +39,34 @@ impl ResolvedVaultScope {
         )
     }
 
+    /// The workspace entry itself rather than what a link points to, for
+    /// operations that act on the entry: renaming and trashing.
+    pub fn workspace_entry_path(
+        &self,
+        workspace: &WorkspaceName,
+    ) -> Result<PathBuf, VaultPathError> {
+        self.entry(self.scope.workspace_path(workspace), workspace.as_str())
+    }
+
+    /// The article entry itself rather than what a link points to.
+    pub fn article_entry_path(
+        &self,
+        workspace: &WorkspaceName,
+        article: &ArticleFileName,
+    ) -> Result<PathBuf, VaultPathError> {
+        self.entry(
+            self.scope.article_path(workspace, article),
+            &format!("{workspace}/{article}"),
+        )
+    }
+
+    pub fn images_folder_path(&self, workspace: &WorkspaceName) -> Result<PathBuf, VaultPathError> {
+        self.confine(
+            self.scope.images_folder_path(workspace),
+            &format!("{workspace}/{IMAGES_FOLDER_NAME}"),
+        )
+    }
+
     pub fn image_path(
         &self,
         workspace: &WorkspaceName,
@@ -52,6 +82,20 @@ impl ResolvedVaultScope {
         let path = self.scope.settings_file_path();
         let requested = path.display().to_string();
         self.confine(path, &requested)
+    }
+
+    /// Confined like any other path, then rebuilt from the real parent and
+    /// the entry's own name, so a link is not replaced by its target.
+    fn entry(&self, path: PathBuf, requested: &str) -> Result<PathBuf, VaultPathError> {
+        let outside_vault = || VaultPathError::OutsideVault {
+            rejected: requested.to_owned(),
+        };
+        let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
+            return Err(outside_vault());
+        };
+        let real_parent = self.confine(parent.to_path_buf(), requested)?;
+        self.confine(path.clone(), requested)?;
+        Ok(real_parent.join(name))
     }
 
     fn confine(&self, path: PathBuf, requested: &str) -> Result<PathBuf, VaultPathError> {

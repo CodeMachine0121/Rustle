@@ -4,6 +4,10 @@ import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
 import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
+import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialog";
+import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
+import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
+import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
@@ -11,10 +15,13 @@ import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
+import { OperationFailureNotice } from "../features/vault/OperationFailureNotice";
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
+import type { ArticleSummary } from "../ipc/articleSummary";
 import { channels } from "../ipc/channels";
+import type { WorkspaceContents } from "../ipc/workspaceContents";
 import { CompositionProvider, useCompositionState } from "../shared/composition/CompositionContext";
 import { AppLayout } from "./AppLayout";
 
@@ -35,9 +42,22 @@ function VaultView() {
   const [session] = useState(() => new VaultSession(channels, autosave, settings));
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
   const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());
+  const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
+  const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
+  const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<
+    { workspace: string; contents: WorkspaceContents } | null
+  >(null);
+
+  const askToDeleteWorkspace = async (workspace: string) => {
+    const contents = await session.countWorkspaceContents(workspace);
+    if (contents !== null) {
+      setWorkspaceToDelete({ workspace, contents });
+    }
+  };
 
   useEffect(() => {
     void session.start();
@@ -50,6 +70,8 @@ function VaultView() {
 
   useEffect(() => () => previewedBody.dispose(), [previewedBody]);
 
+  useEffect(() => () => imagePaste.dispose(), [imagePaste]);
+
   return (
     <>
       <AppLayout
@@ -58,6 +80,8 @@ function VaultView() {
             snapshot={snapshot}
             onSelect={(workspace) => void session.selectWorkspace(workspace)}
             onCreate={(typedName) => session.createWorkspace(typedName)}
+            onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
+            onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
           />
         }
         articles={
@@ -65,6 +89,8 @@ function VaultView() {
             snapshot={snapshot}
             onSelect={(fileName) => void session.selectArticle(fileName)}
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
+            onEditMetadata={setArticleBeingEdited}
+            onDelete={setArticleToDelete}
           />
         }
         editor={
@@ -72,6 +98,7 @@ function VaultView() {
             snapshot={snapshot}
             autosave={autosave}
             scrollSynchronizer={scrollSynchronizer}
+            imagePaste={imagePaste}
           />
         }
         preview={{
@@ -94,6 +121,39 @@ function VaultView() {
           onClose={() => setArticleDialogOpenedAt(null)}
         />
       )}
+      {articleBeingEdited !== null && (
+        <EditArticleMetadataDialog
+          article={articleBeingEdited}
+          vocabulary={vocabularyOf(snapshot.articles)}
+          onSave={(draft) => session.updateMetadata(articleBeingEdited.fileName, draft)}
+          onClose={() => setArticleBeingEdited(null)}
+        />
+      )}
+      {articleToDelete !== null && (
+        <ArticleDeletionDialog
+          title={articleToDelete.title}
+          onConfirm={async () => {
+            await session.deleteArticle(articleToDelete.fileName);
+            setArticleToDelete(null);
+          }}
+          onCancel={() => setArticleToDelete(null)}
+        />
+      )}
+      {workspaceToDelete !== null && (
+        <WorkspaceDeletionDialog
+          workspace={workspaceToDelete.workspace}
+          contents={workspaceToDelete.contents}
+          onConfirm={async () => {
+            await session.deleteWorkspace(workspaceToDelete.workspace);
+            setWorkspaceToDelete(null);
+          }}
+          onCancel={() => setWorkspaceToDelete(null)}
+        />
+      )}
+      <OperationFailureNotice
+        failure={snapshot.operationFailure}
+        onDismiss={() => session.dismissOperationFailure()}
+      />
     </>
   );
 }

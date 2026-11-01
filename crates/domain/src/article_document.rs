@@ -3,6 +3,8 @@ mod mapping_text;
 #[cfg(test)]
 mod tests;
 
+use thiserror::Error;
+
 use crate::article_metadata::ArticleMetadata;
 use crate::metadata_update::MetadataUpdate;
 use crate::vault_name::ArticleFileName;
@@ -10,6 +12,10 @@ use crate::vault_name::ArticleFileName;
 use front_matter::FrontMatter;
 
 const BYTE_ORDER_MARK: char = '\u{feff}';
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("the front matter is not a mapping that can be edited safely")]
+pub struct UneditableFrontMatter;
 
 /// An article file split into its front matter and its body. Rendering it
 /// back gives the original text byte for byte, except where a change was
@@ -70,6 +76,21 @@ impl ArticleDocument {
         Self {
             front_matter,
             ..self
+        }
+    }
+
+    /// Like `with_metadata`, but refuses instead of keeping a front matter
+    /// it cannot edit safely.
+    pub fn edit_metadata(self, update: &MetadataUpdate) -> Result<Self, UneditableFrontMatter> {
+        match &self.front_matter {
+            Some(existing) => {
+                let front_matter = existing.with_update(update).ok_or(UneditableFrontMatter)?;
+                Ok(Self {
+                    front_matter: Some(front_matter),
+                    ..self
+                })
+            }
+            None => Ok(self.with_metadata(update)),
         }
     }
 

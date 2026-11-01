@@ -7,10 +7,14 @@ license.workspace = true
 
 [dependencies]
 chrono.workspace = true
+clipboard-rs.workspace = true
+image.workspace = true
 rustle-domain.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
+trash.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true

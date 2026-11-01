@@ -12,6 +12,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 rustle-domain = { workspace = true, features = ["mocks"] }
+mockall.workspace = true
 rustle-infrastructure.workspace = true
 rstest.workspace = true
 serde_json.workspace = true

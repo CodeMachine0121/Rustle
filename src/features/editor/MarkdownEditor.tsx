@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import type { ImagePaste } from "../imagePaste/ImagePaste";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { EditorScrollPane } from "./EditorScrollPane";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
@@ -19,6 +20,7 @@ type MarkdownEditorProps = {
   body: string;
   indentation?: IndentationSettings;
   focusOnShow?: boolean;
+  imagePaste?: ImagePaste;
   onBodyChange?: BodyChangeListener;
   scrollSynchronizer?: ScrollSynchronizer;
 };
@@ -39,6 +41,7 @@ export function MarkdownEditor({
   body,
   indentation,
   focusOnShow = false,
+  imagePaste,
   onBodyChange,
   scrollSynchronizer,
 }: MarkdownEditorProps) {
@@ -99,6 +102,7 @@ export function MarkdownEditor({
           doc: body,
           extensions: [
             editorExtensions(composition, indentationCompartment.of(tabIndentation)),
+            imagePaste?.extension() ?? [],
             EditorView.updateListener.of((update) => {
               if (update.docChanged) {
                 onBodyChangeRef.current?.(update.state.doc.toString());
@@ -127,6 +131,7 @@ export function MarkdownEditor({
     documentKey,
     body,
     focusOnShow,
+    imagePaste,
     indentationStyle,
     indentationWidth,
     indentationCompartment,

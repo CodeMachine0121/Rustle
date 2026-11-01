@@ -34,10 +34,21 @@ const BLOG: VaultSnapshot = {
   articles: [NO_TITLE, TAURI],
 };
 
-function renderColumn(snapshot: VaultSnapshot, onSelect = vi.fn(), onCreateArticle = vi.fn()) {
+function renderColumn(
+  snapshot: VaultSnapshot,
+  onSelect = vi.fn(),
+  onCreateArticle = vi.fn(),
+  { onEditMetadata = vi.fn(), onDelete = vi.fn() } = {},
+) {
   render(
     <CompositionProvider>
-      <ArticleColumn snapshot={snapshot} onSelect={onSelect} onCreateArticle={onCreateArticle} />
+      <ArticleColumn
+        snapshot={snapshot}
+        onSelect={onSelect}
+        onCreateArticle={onCreateArticle}
+        onEditMetadata={onEditMetadata}
+        onDelete={onDelete}
+      />
     </CompositionProvider>,
   );
   return onSelect;
@@ -53,7 +64,7 @@ describe("ArticleColumn", () => {
   it("shows the title, creation date, category and tags of an article", () => {
     renderColumn(BLOG);
 
-    const row = screen.getByRole("button", { name: /Tauri 與 Electron 的取捨/ });
+    const row = screen.getByRole("button", { name: /^Tauri 與 Electron 的取捨/ });
     expect(row).toHaveTextContent("2026-08-20");
     expect(row).toHaveTextContent("技術筆記");
     expect(row).toHaveTextContent("tauri");
@@ -65,19 +76,19 @@ describe("ArticleColumn", () => {
   it("marks an article whose metadata is incomplete", () => {
     renderColumn(BLOG);
 
-    expect(screen.getByRole("button", { name: /no-title/ })).toHaveTextContent("metadata 不完整");
+    expect(screen.getByRole("button", { name: /^no-title/ })).toHaveTextContent("metadata 不完整");
   });
 
   it("shows a creation time that does not start with a date as written", () => {
     renderColumn({ ...BLOG, articles: [{ ...TAURI, createdAt: "last summer" }] });
 
-    expect(screen.getByRole("button", { name: /Tauri/ })).toHaveTextContent("last summer");
+    expect(screen.getByRole("button", { name: /^Tauri/ })).toHaveTextContent("last summer");
   });
 
   it("asks for the article that was clicked", () => {
     const onSelect = renderColumn(BLOG);
 
-    fireEvent.click(screen.getByRole("button", { name: /Tauri/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Tauri/ }));
 
     expect(onSelect).toHaveBeenCalledWith("tauri.md");
   });
@@ -85,8 +96,8 @@ describe("ArticleColumn", () => {
   it("marks only the selected article as selected", () => {
     renderColumn({ ...BLOG, selectedArticle: "tauri.md" });
 
-    expect(screen.getByRole("button", { name: /Tauri/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /no-title/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /^Tauri/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^no-title/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("invites the user to create a first article in an empty workspace and opens the dialog from there", () => {
@@ -124,6 +135,19 @@ describe("ArticleColumn", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("讀不到文章");
   });
+
+  it("offers to edit the metadata of and to delete every article", () => {
+    const onEditMetadata = vi.fn();
+    const onDelete = vi.fn();
+    renderColumn(BLOG, vi.fn(), vi.fn(), { onEditMetadata, onDelete });
+
+    fireEvent.click(screen.getByRole("button", { name: "編輯 Tauri 與 Electron 的取捨 的 metadata" }));
+    fireEvent.click(screen.getByRole("button", { name: "刪除 no-title" }));
+
+    expect(onEditMetadata).toHaveBeenCalledWith(TAURI);
+    expect(onDelete).toHaveBeenCalledWith(NO_TITLE);
+    expect(screen.getAllByRole("button", { name: /metadata$/ })[0]).toHaveTextContent("編輯 metadata");
+  });
 });
 
 const ZEN: ArticleSummary = {
@@ -154,7 +178,13 @@ function renderControlledColumn(snapshot: VaultSnapshot) {
   const onCreateArticle = vi.fn();
   render(
     <CompositionProvider state={composition}>
-      <ArticleColumn snapshot={snapshot} onSelect={onSelect} onCreateArticle={onCreateArticle} />
+      <ArticleColumn
+        snapshot={snapshot}
+        onSelect={onSelect}
+        onCreateArticle={onCreateArticle}
+        onEditMetadata={vi.fn()}
+        onDelete={vi.fn()}
+      />
     </CompositionProvider>,
   );
   return { composition, onSelect, onCreateArticle };
@@ -195,7 +225,7 @@ describe("ArticleColumn ordering and filtering", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
 
     expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing", "日常"]);
-    expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -322,10 +352,10 @@ describe("ArticleColumn ordering and filtering", () => {
     act(() => vi.advanceTimersByTime(150));
 
     expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing"]);
-    const openRow = screen.getByRole("button", { name: /Zen of Writing/ });
+    const openRow = screen.getByRole("button", { name: /^Zen of Writing/ });
     expect(openRow).toHaveAttribute("aria-pressed", "true");
     expect(openRow).toHaveTextContent("開著・不符合篩選");
-    expect(screen.getByRole("button", { name: /Tauri/ })).not.toHaveTextContent("不符合篩選");
+    expect(screen.getByRole("button", { name: /^Tauri/ })).not.toHaveTextContent("不符合篩選");
     expect(onSelect).not.toHaveBeenCalled();
   });
 

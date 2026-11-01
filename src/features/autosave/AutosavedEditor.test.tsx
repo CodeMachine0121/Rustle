@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { AutosaveSession } from "./AutosaveSession";
+import { ImagePaste } from "../imagePaste/ImagePaste";
 import { AutosavedEditor } from "./AutosavedEditor";
 
 function renderEditor() {
@@ -89,5 +90,54 @@ describe("AutosavedEditor", () => {
     await act(() => session.reload());
 
     expect(content()).toHaveTextContent("磁碟上的正文");
+  });
+
+  it("turns a pasted image into a body change saved with the article, with a line saying so", async () => {
+    const composition = new CompositionState();
+    const saveBody = vi.fn().mockResolvedValue({
+      ok: true,
+      payload: {
+        outcome: "saved",
+        updatedAt: "2026-08-20T08:04:11.123Z",
+        lastKnownModifiedAt: "2026-08-20T08:04:11.200Z",
+      },
+    });
+    const session = new AutosaveSession(composition, { saveBody, readBody: vi.fn() }, { delayMilliseconds: 0 });
+    let finish: () => void = () => undefined;
+    const saveClipboardImage = vi.fn(
+      () =>
+        new Promise<{ ok: true; payload: { images: { relativePath: string }[] } }>((resolve) => {
+          finish = () => resolve({ ok: true, payload: { images: [{ relativePath: "images/8f3c.png" }] } });
+        }),
+    );
+    const imagePaste = new ImagePaste(composition, { saveClipboardImage }, session);
+    const view = render(
+      <CompositionProvider state={composition}>
+        <AutosavedEditor session={session} imagePaste={imagePaste} />
+      </CompositionProvider>,
+    );
+    await act(() => session.openArticle({ article: { ...ARTICLE, body: "" }, title: "寫作的禪" }));
+    const content = view.container.querySelector(".cm-content");
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("the editor did not render its content area");
+    }
+
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", {
+      value: { items: [{ kind: "file", type: "image/png" }], files: [], getData: () => "" },
+    });
+    act(() => {
+      content.dispatchEvent(paste);
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("正在存圖片…");
+
+    await act(async () => {
+      finish();
+      await Promise.resolve();
+    });
+
+    expect(saveClipboardImage).toHaveBeenCalledWith("Blog");
+    expect(session.body).toBe("![](images/8f3c.png)");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
