@@ -93,8 +93,10 @@ describe("ArticleColumn", () => {
 
   it("offers a new article button in a selected workspace", () => {
     const onCreateArticle = renderColumnForCreating(BLOG);
+    const newArticleButton = screen.getByRole("button", { name: "＋ 新文章" });
+    expect(newArticleButton).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+    fireEvent.click(newArticleButton);
 
     expect(onCreateArticle).toHaveBeenCalledTimes(1);
   });
