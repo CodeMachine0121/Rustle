@@ -7,8 +7,19 @@ import type { AutosaveSession } from "../autosave/AutosaveSession";
 
 export type VaultChannels = Pick<
   Channels,
-  "listWorkspaces" | "listArticles" | "createWorkspace" | "readBody" | "readSettings" | "writeSettings"
+  | "listWorkspaces"
+  | "listArticles"
+  | "createWorkspace"
+  | "createArticle"
+  | "readBody"
+  | "readSettings"
+  | "writeSettings"
 >;
+
+/** What the user typed into the create article dialog. */
+export type ArticleDraft = { title: string; category: string[]; tags: string[] };
+
+export type ArticleCreation = { outcome: "created" } | { outcome: "failed"; message: string };
 
 /** Holds the open article and may refuse to let it go, for example while it cannot be saved. */
 export type ArticleHolder = Pick<AutosaveSession, "openArticle" | "closeArticle">;
@@ -143,6 +154,36 @@ export class VaultSession {
     return true;
   }
 
+  /**
+   * Creates an article in the selected workspace, refreshes both lists and
+   * opens it with the cursor in the editor. The article counts as created
+   * even when the open article may not be left yet.
+   */
+  async createArticle(draft: ArticleDraft): Promise<ArticleCreation> {
+    const workspace = this.#snapshot.selectedWorkspace;
+    if (workspace === null) {
+      return { outcome: "failed", message: "沒有選取 workspace" };
+    }
+    const selection = this.#beginSelection();
+    const result = await this.#channels.createArticle({ workspace, ...draft });
+    if (!result.ok) {
+      return { outcome: "failed", message: result.message };
+    }
+    await this.#loadWorkspaces();
+    const articles = await this.#channels.listArticles(workspace);
+    if (selection !== this.#latestSelection) {
+      return { outcome: "created" };
+    }
+    if (articles.ok) {
+      this.#update({ articles: articles.payload, articleListFailure: null });
+    }
+    const { fileName } = result.payload;
+    if (await this.#openArticle(workspace, fileName, selection, { focusEditor: true })) {
+      this.#remember(workspace, fileName);
+    }
+    return { outcome: "created" };
+  }
+
   async #loadWorkspaces(): Promise<boolean> {
     const result = await this.#channels.listWorkspaces();
     if (!result.ok) {
@@ -175,7 +216,12 @@ export class VaultSession {
     return true;
   }
 
-  async #openArticle(workspace: string, fileName: string, selection: number): Promise<boolean> {
+  async #openArticle(
+    workspace: string,
+    fileName: string,
+    selection: number,
+    { focusEditor = false } = {},
+  ): Promise<boolean> {
     const previousArticle = this.#snapshot.selectedArticle;
     this.#update({ selectedArticle: fileName, bodyFailure: null });
     const result = await this.#channels.readBody(workspace, fileName);
@@ -185,7 +231,7 @@ export class VaultSession {
     const title =
       this.#snapshot.articles.find((summary) => summary.fileName === fileName)?.title ?? fileName;
     const outcome = result.ok
-      ? await this.#articleHolder.openArticle({ article: result.payload, title })
+      ? await this.#articleHolder.openArticle({ article: result.payload, title, focusEditor })
       : await this.#articleHolder.closeArticle();
     if (selection !== this.#latestSelection) {
       return false;

@@ -13,18 +13,18 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 type ArgumentlessChannelName = Extract<
   ChannelName,
-  "createArticle" | "updateMetadata" | "saveClipboardImage" | "listWorkspaces" | "readSettings"
+  "updateMetadata" | "saveClipboardImage" | "listWorkspaces" | "readSettings"
 >;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
-  createArticle: "create_article",
   updateMetadata: "update_metadata",
   saveClipboardImage: "save_clipboard_image",
   readSettings: "read_settings",
 };
 
 const CHANNELS_WITH_ARGUMENTS = [
+  "createArticle",
   "listArticles",
   "createWorkspace",
   "readBody",
@@ -120,6 +120,24 @@ describe("channels", () => {
 
     expect(invoke).toHaveBeenLastCalledWith("create_workspace", { name: "Blog" });
     expect(result).toEqual({ ok: true, payload: { outcome: "rejected", reason: "alreadyUsed" } });
+  });
+
+  it("asks to create an article with its workspace, title, categories and tags", async () => {
+    const created = {
+      fileName: "zen-of-writing.md",
+      title: "Zen of Writing",
+      createdAt: "2026-08-20T14:32:05+08:00",
+      category: ["技術筆記"],
+      tags: ["electron"],
+      hasIncompleteMetadata: false,
+    };
+    vi.mocked(invoke).mockResolvedValue(created);
+    const request = { workspace: "Blog", title: "Zen of Writing", category: ["技術筆記"], tags: ["electron"] };
+
+    const result = await channels.createArticle(request);
+
+    expect(invoke).toHaveBeenLastCalledWith("create_article", request);
+    expect(result).toEqual({ ok: true, payload: created });
   });
 
   it("writes the whole settings object", async () => {
