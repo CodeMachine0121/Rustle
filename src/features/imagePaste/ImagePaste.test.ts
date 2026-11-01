@@ -128,6 +128,17 @@ describe("ImagePaste", () => {
       expect(view.state.doc.toString()).toBe("在這裡：![](images/8f3c.png)");
     });
 
+    it("replaces the selected text, like any paste", async () => {
+      view.destroy();
+      view = editorWith("留下選取的字");
+      view.dispatch({ selection: { anchor: 2, head: 6 } });
+
+      paste(["image/png"]);
+      await answer(saved("images/a.png"));
+
+      expect(view.state.doc.toString()).toBe("留下![](images/a.png)");
+    });
+
     it("inserts one line per image in clipboard order, cursor in the last one", async () => {
       paste(["image/png", "image/gif"]);
       await answer(saved("images/a.png", "images/b.gif"));
@@ -200,6 +211,16 @@ describe("ImagePaste", () => {
       undo(view);
 
       expect(view.state.doc.toString()).toBe("先寫一句");
+    });
+
+    it("keeps typing right after the paste as its own step", async () => {
+      paste(["image/png"]);
+      await answer(saved("images/a.png"));
+      type("封面");
+
+      undo(view);
+
+      expect(view.state.doc.toString()).toBe("![](images/a.png)");
     });
 
     it("asks the backend for nothing, so no file is deleted", async () => {
@@ -284,6 +305,17 @@ describe("ImagePaste", () => {
       await answer(saved("images/a.png"));
 
       expect(view.state.doc.toString()).toBe("前![](images/a.png)後");
+    });
+
+    it("follows the paste position when text is added before it meanwhile", async () => {
+      view.destroy();
+      view = editorWith("前");
+
+      paste(["image/png"]);
+      view.dispatch({ changes: { from: 0, insert: "最" } });
+      await answer(saved("images/a.png"));
+
+      expect(view.state.doc.toString()).toBe("最前![](images/a.png)");
     });
 
     it("waits for a composition to end before inserting", async () => {

@@ -228,3 +228,27 @@ fn reads_through_an_images_folder_that_links_inside_the_vault() {
         b"shared pixels"
     );
 }
+
+#[test]
+fn a_workspace_that_cannot_hold_an_images_folder_says_why() {
+    use std::os::unix::fs::PermissionsExt;
+    let vault = Vault::create();
+    let workspace = vault.root.join("Blog");
+    fs::set_permissions(&workspace, fs::Permissions::from_mode(0o500)).expect("read only");
+
+    let result = vault.create_image("Blog", "x.png");
+
+    fs::set_permissions(&workspace, fs::Permissions::from_mode(0o700)).expect("writable again");
+    let error = result.expect_err("refused");
+    assert!(matches!(
+        error,
+        ImageAssetRepositoryError::Unwritable { .. }
+    ));
+    assert!(
+        error
+            .to_string()
+            .to_lowercase()
+            .contains("permission denied"),
+        "{error}"
+    );
+}

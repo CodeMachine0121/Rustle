@@ -242,6 +242,7 @@ mod tests {
     #[case::one_folder_too_deep("rustle://vault/Blog/images/nested/x.png")]
     #[case::no_file_name("rustle://vault/Blog/images/")]
     #[case::no_images_folder("rustle://vault/Blog/x.png")]
+    #[case::another_folder("rustle://vault/Blog/other/x.png")]
     #[case::another_host("rustle://elsewhere/Blog/images/x.png")]
     #[case::another_scheme("https://vault/Blog/images/x.png")]
     #[case::a_prefix_lookalike("rustle://vault/..%2Fvault-evil/images/x.png")]
