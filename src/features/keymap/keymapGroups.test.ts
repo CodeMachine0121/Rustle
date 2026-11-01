@@ -34,7 +34,13 @@ describe("keymapGroups", () => {
           ["字體回預設", "Cmd+0"],
         ],
       ],
-      ["視窗", [["關閉視窗", "Shift+Cmd+W"]]],
+      [
+        "視窗",
+        [
+          ["關閉視窗", "Shift+Cmd+W"],
+          ["開關設定", "Cmd+,"],
+        ],
+      ],
       [
         "尋找",
         [
@@ -61,6 +67,13 @@ describe("keymapGroups", () => {
     expect(keys).not.toContain("Shift+Cmd+Z");
     expect(keys).not.toContain("Cmd+C");
     expect(keys).not.toContain("Cmd+V");
+  });
+
+  it("leaves out Vim's keys, the Zen Mode key zz among them, and keeps Esc", () => {
+    const keys = keymapGroups(KeyboardShortcut.DEFAULT).flatMap((group) => group.rows.map((row) => row.keys));
+
+    expect(keys).not.toContain("zz");
+    expect(keys).toContain("Esc");
   });
 
   it("says what each key does in a word or two, never a sentence, in both languages", () => {

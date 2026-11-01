@@ -63,6 +63,7 @@ export const CHINESE_MESSAGES = {
   togglePreview: "開關預覽",
   resetFontSize: "字體回預設",
   closeWindow: "關閉視窗",
+  toggleSettings: "開關設定",
 
   vaultUnreadable: (reason: string) => `讀不到 vault：${reason}`,
   firstWorkspace: "建立你的第一個 workspace",
@@ -231,6 +232,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   togglePreview: "Toggle preview",
   resetFontSize: "Reset font size",
   closeWindow: "Close window",
+  toggleSettings: "Toggle settings",
 
   vaultUnreadable: (reason) => `Cannot read the vault: ${reason}`,
   firstWorkspace: "Create your first workspace",

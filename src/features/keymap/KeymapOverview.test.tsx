@@ -41,6 +41,7 @@ describe("KeymapOverview", () => {
     expect(keyFor("縮排")).toBe("Tab");
     expect(keyFor("擴大選取")).toBe("Cmd+W");
     expect(keyFor("關閉視窗")).toBe("Shift+Cmd+W");
+    expect(keyFor("開關設定")).toBe("Cmd+,");
   });
 
   it("describes the same row in English and keeps its key", () => {
@@ -64,7 +65,7 @@ describe("KeymapOverview", () => {
     const keyNames = Array.from(document.querySelectorAll("kbd")).map((element) => element.textContent);
 
     expect(words.filter((word) => !sentences.has(word))).toEqual([]);
-    expect(keyNames.every((keyName) => /^(?:[A-Z][a-z]*\+)*(?:[A-Z][a-z]*|[A-Z0-9/])$/.test(keyName ?? ""))).toBe(true);
+    expect(keyNames.every((keyName) => /^(?:[A-Z][a-z]*\+)*(?:[A-Z][a-z]*|[A-Z0-9/,])$/.test(keyName ?? ""))).toBe(true);
   });
 
   it("has no rows for undo or redo", () => {
