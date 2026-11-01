@@ -1,4 +1,5 @@
 use super::*;
+use crate::InterfaceLanguage;
 use serde_json::json;
 
 fn read(stored: serde_json::Value) -> Settings {
@@ -49,6 +50,7 @@ fn reads_the_stored_values() {
                 workspace: Some("Blog".to_owned()),
                 article: Some("zen-of-writing.md".to_owned()),
             },
+            interface_language: None,
         }
     );
 }
@@ -199,4 +201,50 @@ fn writes_a_toggle_shortcut_only_when_there_is_one() {
         written["previewPanel"]["toggleShortcut"],
         json!("Mod+Alt+K")
     );
+}
+
+#[test]
+fn has_no_interface_language_until_one_is_chosen() {
+    assert_eq!(Settings::default().interface_language, None);
+    assert_eq!(read(json!({})).interface_language, None);
+}
+
+#[rstest::rstest]
+#[case(json!("zh"), InterfaceLanguage::Chinese)]
+#[case(json!("en"), InterfaceLanguage::English)]
+fn reads_the_chosen_interface_language(
+    #[case] stored: serde_json::Value,
+    #[case] expected: InterfaceLanguage,
+) {
+    let settings = read(json!({ "interfaceLanguage": stored }));
+
+    assert_eq!(settings.interface_language, Some(expected));
+}
+
+#[rstest::rstest]
+#[case(json!("klingon"))]
+#[case(json!("ZH"))]
+#[case(json!(42))]
+#[case(json!(null))]
+#[case(json!({ "language": "en" }))]
+fn reads_an_unusable_interface_language_as_never_chosen(#[case] stored: serde_json::Value) {
+    let settings = read(json!({
+        "interfaceLanguage": stored,
+        "indentation": { "style": "tab", "width": 4 }
+    }));
+
+    assert_eq!(settings.interface_language, None);
+    assert_eq!(settings.indentation.style, IndentationStyle::Tab);
+}
+
+#[test]
+fn writes_the_interface_language_only_once_chosen() {
+    let mut settings = Settings::default();
+    let unchosen = serde_json::to_value(&settings).expect("serializable");
+    settings.interface_language = Some(InterfaceLanguage::English);
+
+    let chosen = serde_json::to_value(&settings).expect("serializable");
+
+    assert!(unchosen.get("interfaceLanguage").is_none());
+    assert_eq!(chosen["interfaceLanguage"], json!("en"));
 }

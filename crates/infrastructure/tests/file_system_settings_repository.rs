@@ -2,8 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use rustle_domain::{
-    IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
-    SettingsError, SettingsRepository, VaultScope,
+    IndentationSettings, IndentationStyle, InterfaceLanguage, LastOpenedSettings,
+    PreviewPanelSettings, Settings, SettingsError, SettingsRepository, VaultScope,
 };
 use rustle_infrastructure::{FileSystemSettingsRepository, ResolvedVaultScope};
 use serde_json::{Value, json};
@@ -126,6 +126,31 @@ fn keeps_an_unusable_toggle_shortcut_when_folding_the_panel() {
 }
 
 #[test]
+fn reads_a_hand_broken_interface_language_as_never_chosen_and_keeps_the_rest() {
+    let vault = Vault::create();
+    vault.write_settings_file(
+        r#"{ "interfaceLanguage": "klingon", "indentation": { "style": "tab", "width": 4 } }"#,
+    );
+
+    let settings = vault.repository().load().expect("readable");
+
+    assert_eq!(settings.interface_language, None);
+    assert_eq!(settings.indentation.width, 4);
+}
+
+#[test]
+fn replaces_a_hand_broken_interface_language_once_one_is_chosen() {
+    let vault = Vault::create();
+    vault.write_settings_file(r#"{ "interfaceLanguage": "klingon" }"#);
+
+    let mut settings = vault.repository().load().expect("readable");
+    settings.interface_language = Some(InterfaceLanguage::Chinese);
+    vault.repository().save(&settings).expect("saved");
+
+    assert_eq!(vault.read_settings_file()["interfaceLanguage"], json!("zh"));
+}
+
+#[test]
 fn refuses_to_overwrite_a_settings_file_it_cannot_read() {
     let vault = Vault::create();
     vault.write_settings_file("{ not json");
@@ -185,6 +210,7 @@ fn remembered_settings() -> Settings {
             workspace: Some("Blog".to_owned()),
             article: Some("zen-of-writing.md".to_owned()),
         },
+        interface_language: Some(InterfaceLanguage::English),
     }
 }
 
