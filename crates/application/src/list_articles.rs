@@ -1,30 +1,37 @@
 use rustle_domain::{
-    ArticleDocument, ArticleFileName, ArticleMetadata, ArticleRepository, VaultEntry,
-    WorkspaceName, WorkspaceRepository, WorkspaceRepositoryError,
+    ArticleDocument, ArticleFileName, ArticleMetadata, ArticleRepository, ArticleStatus,
+    VaultEntry, WorkspaceName, WorkspaceRepository, WorkspaceRepositoryError,
 };
 use serde::Serialize;
 
-/// One row of the article list: what the article says about itself.
+/// One row of the article list: where the article lives and what it says
+/// about itself.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArticleSummary {
+    pub workspace: String,
     pub file_name: String,
     pub title: String,
     pub created_at: String,
     pub updated_at: String,
-    pub category: Vec<String>,
+    pub status: Option<ArticleStatus>,
     pub tags: Vec<String>,
     pub has_incomplete_metadata: bool,
 }
 
 impl ArticleSummary {
-    pub(crate) fn new(file_name: &ArticleFileName, metadata: ArticleMetadata) -> Self {
+    pub(crate) fn new(
+        workspace: &WorkspaceName,
+        file_name: &ArticleFileName,
+        metadata: ArticleMetadata,
+    ) -> Self {
         Self {
+            workspace: workspace.to_string(),
             file_name: file_name.to_string(),
             title: metadata.title,
             created_at: metadata.created_at,
             updated_at: metadata.updated_at,
-            category: metadata.category,
+            status: metadata.status,
             tags: metadata.tags,
             has_incomplete_metadata: metadata.has_incomplete_metadata,
         }
@@ -65,7 +72,7 @@ where
                     Ok(stored) => ArticleDocument::parse(&stored.text).metadata(&file_name),
                     Err(_) => ArticleMetadata::from_file_name(&file_name),
                 };
-                ArticleSummary::new(&file_name, metadata)
+                ArticleSummary::new(workspace, &file_name, metadata)
             })
             .collect())
     }

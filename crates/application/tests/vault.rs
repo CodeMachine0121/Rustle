@@ -241,11 +241,12 @@ fn each_row_carries_what_the_article_says_about_itself() {
     assert_eq!(
         vault.list_articles("Blog"),
         vec![ArticleSummary {
+            workspace: "Blog".to_owned(),
             file_name: "tauri.md".to_owned(),
             title: "Tauri 與 Electron 的取捨".to_owned(),
             created_at: "2026-08-20T14:32:05+08:00".to_owned(),
             updated_at: String::new(),
-            category: vec!["技術筆記".to_owned()],
+            status: None,
             tags: vec!["tauri".to_owned(), "electron".to_owned()],
             has_incomplete_metadata: false,
         }]
@@ -270,7 +271,7 @@ fn an_article_without_a_title_is_titled_by_its_file_name_and_marked(
     assert_eq!(articles[0].title, title);
     assert!(articles[0].has_incomplete_metadata);
     assert!(articles[0].created_at.is_empty());
-    assert!(articles[0].category.is_empty() && articles[0].tags.is_empty());
+    assert!(articles[0].status.is_none() && articles[0].tags.is_empty());
 }
 
 #[cfg(unix)]

@@ -1,6 +1,7 @@
 use rustle_domain::{
     ArticleDocument, ArticleDraft, ArticleDraftError, ArticleRepository, ArticleRepositoryError,
-    Clock, LocalTimestamp, WorkspaceName, WorkspaceRepository, WorkspaceRepositoryError,
+    ArticleStatus, Clock, LocalTimestamp, WorkspaceName, WorkspaceRepository,
+    WorkspaceRepositoryError,
 };
 use thiserror::Error;
 
@@ -47,10 +48,10 @@ where
         &self,
         workspace: &WorkspaceName,
         title: &str,
-        category: &[String],
+        status: Option<ArticleStatus>,
         tags: &[String],
     ) -> Result<ArticleSummary, CreateArticleError> {
-        let draft = ArticleDraft::new(title, category, tags)?;
+        let draft = ArticleDraft::new(title, status, tags)?;
         let file_name = draft.file_name(&self.workspaces.workspace_entries(workspace)?);
         let now = self.clock.now();
         let text = draft.to_text(LocalTimestamp::new(
@@ -59,6 +60,7 @@ where
         ));
         self.articles.create(workspace, &file_name, &text)?;
         Ok(ArticleSummary::new(
+            workspace,
             &file_name,
             ArticleDocument::parse(&text).metadata(&file_name),
         ))

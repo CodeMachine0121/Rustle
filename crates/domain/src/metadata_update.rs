@@ -1,18 +1,27 @@
+use crate::article_status::ArticleStatus;
+
 /// The known front matter fields to write; fields left unset are not touched.
-/// An empty `category` or `tags` removes that key.
+/// Empty `tags` removes that key, and so does `without_status`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MetadataUpdate {
     title: Option<String>,
     created_at: Option<String>,
     updated_at: Option<String>,
-    category: Option<Vec<String>>,
+    status: Option<StatusChange>,
     tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatusChange {
+    Set(ArticleStatus),
+    Remove,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FieldValue<'a> {
     Text(&'a str),
     List(&'a [String]),
+    Removed,
 }
 
 impl MetadataUpdate {
@@ -31,8 +40,13 @@ impl MetadataUpdate {
         self
     }
 
-    pub fn category(mut self, category: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.category = Some(category.into_iter().map(Into::into).collect());
+    pub fn status(mut self, status: ArticleStatus) -> Self {
+        self.status = Some(StatusChange::Set(status));
+        self
+    }
+
+    pub fn without_status(mut self) -> Self {
+        self.status = Some(StatusChange::Remove);
         self
     }
 
@@ -43,6 +57,10 @@ impl MetadataUpdate {
 
     /// The requested fields as `(key, value)` in the order new keys are written.
     pub(crate) fn fields(&self) -> impl Iterator<Item = (&'static str, FieldValue<'_>)> {
+        let status = self.status.map(|change| match change {
+            StatusChange::Set(status) => FieldValue::Text(status.as_front_matter_value()),
+            StatusChange::Remove => FieldValue::Removed,
+        });
         [
             (TITLE_KEY, self.title.as_deref().map(FieldValue::Text)),
             (
@@ -53,7 +71,7 @@ impl MetadataUpdate {
                 UPDATED_AT_KEY,
                 self.updated_at.as_deref().map(FieldValue::Text),
             ),
-            (CATEGORY_KEY, self.category.as_deref().map(FieldValue::List)),
+            (STATUS_KEY, status),
             (TAGS_KEY, self.tags.as_deref().map(FieldValue::List)),
         ]
         .into_iter()
@@ -64,5 +82,5 @@ impl MetadataUpdate {
 pub(crate) const TITLE_KEY: &str = "title";
 pub(crate) const CREATED_AT_KEY: &str = "created_at";
 pub(crate) const UPDATED_AT_KEY: &str = "updated_at";
-pub(crate) const CATEGORY_KEY: &str = "category";
+pub(crate) const STATUS_KEY: &str = "status";
 pub(crate) const TAGS_KEY: &str = "tags";

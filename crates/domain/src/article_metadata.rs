@@ -3,18 +3,20 @@ use std::collections::HashSet;
 use yaml_rust2::Yaml;
 use yaml_rust2::yaml::Hash;
 
-use crate::metadata_update::{CATEGORY_KEY, CREATED_AT_KEY, TAGS_KEY, TITLE_KEY, UPDATED_AT_KEY};
+use crate::article_status::ArticleStatus;
+use crate::metadata_update::{CREATED_AT_KEY, STATUS_KEY, TAGS_KEY, TITLE_KEY, UPDATED_AT_KEY};
 use crate::vault_name::ArticleFileName;
 
 /// What a front matter says about its article, read tolerantly: a missing or
 /// unusable title falls back to the file name and marks the metadata
-/// incomplete.
+/// incomplete, and a status other than the four reads as none. The retired
+/// `category` is not read at all.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ArticleMetadata {
     pub title: String,
     pub created_at: String,
     pub updated_at: String,
-    pub category: Vec<String>,
+    pub status: Option<ArticleStatus>,
     pub tags: Vec<String>,
     pub has_incomplete_metadata: bool,
 }
@@ -60,10 +62,17 @@ impl ArticleMetadata {
             }),
             created_at: text(CREATED_AT_KEY),
             updated_at: text(UPDATED_AT_KEY),
-            category: list(CATEGORY_KEY),
+            status: Self::status_in(mapping),
             tags,
             has_incomplete_metadata: title.is_none(),
         }
+    }
+
+    pub(crate) fn status_in(mapping: Option<&Hash>) -> Option<ArticleStatus> {
+        mapping?
+            .get(&Yaml::String(STATUS_KEY.to_owned()))?
+            .as_str()
+            .and_then(ArticleStatus::parse)
     }
 }
 
