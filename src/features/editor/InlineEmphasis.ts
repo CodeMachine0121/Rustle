@@ -1,4 +1,4 @@
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, language, syntaxTree } from "@codemirror/language";
 import {
   EditorSelection,
   type ChangeSet,
@@ -16,6 +16,7 @@ const PARSE_TIMEOUT_MILLISECONDS = 50;
 const CODE_NODES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
 const EMPHASIS_NODES = new Set(["Emphasis", "StrongEmphasis"]);
 const ONLY_MARKS_OR_SPACE = /^[\s*_]*$/;
+const NAME_CHARACTER = /^[_A-Za-z0-9]$/;
 
 /**
  * Bold or italic as a toggle over the main selection: wraps the selected
@@ -78,14 +79,45 @@ export class InlineEmphasis {
   }
 
   /**
-   * The two mark runs of the emphasis whose content, or whole extent, is
-   * exactly `from`–`to`, as deletions. Content wrapped in one more emphasis
-   * counts too: `***重點***` is italic around bold. The parser decides which
-   * marks open and close. Underscores between letters are no emphasis to the parser,
-   * yet a writer who typed `__重點__` meant bold, so an exact underscore run
-   * on both sides counts too.
+   * The two mark runs of the emphasis around exactly `from`–`to`, as
+   * deletions. Underscores between letters are no emphasis to the parser,
+   * yet a writer who typed `這是__重點__的地方` meant bold, so the line is read
+   * once more with its underscores as asterisks, which the parser pairs
+   * between letters too and so still keeps each run with its own partner.
+   * Next to a Latin letter or digit an underscore stays part of a name such
+   * as `my_var_name`.
    */
   #marksAround(state: EditorState, tree: SyntaxTree, from: number, to: number): ChangeSpec[] | null {
+    const marks = this.#emphasisMarks(tree, from, to);
+    if (marks !== null) {
+      return marks;
+    }
+    const underscores = "_".repeat(this.#marker.length);
+    const before = state.sliceDoc(from - underscores.length - 1, from);
+    const after = state.sliceDoc(to, to + underscores.length + 1);
+    const isOpened = before.endsWith(underscores) && !NAME_CHARACTER.test(before.slice(0, -underscores.length));
+    const isClosed = after.startsWith(underscores) && !NAME_CHARACTER.test(after.slice(underscores.length));
+    const parser = state.facet(language)?.parser;
+    if (!isOpened || !isClosed || parser === undefined) {
+      return null;
+    }
+    const line = state.doc.lineAt(from);
+    const asAsterisks = parser.parse(line.text.replace(/_/g, "*"));
+    return (
+      this.#emphasisMarks(asAsterisks, from - line.from, to - line.from)?.map((mark) => ({
+        from: mark.from + line.from,
+        to: mark.to + line.from,
+      })) ?? null
+    );
+  }
+
+  /**
+   * The two mark runs of the emphasis whose content, or whole extent, is
+   * exactly `from`–`to`. Content wrapped in one more emphasis counts too:
+   * `***重點***` is italic around bold. The parser decides which marks open
+   * and close.
+   */
+  #emphasisMarks(tree: SyntaxTree, from: number, to: number): { from: number; to: number }[] | null {
     for (let node: SyntaxNode | null = tree.resolveInner(from, 1); node !== null; node = node.parent) {
       const opening = node.firstChild;
       const closing = node.lastChild;
@@ -108,17 +140,6 @@ export class InlineEmphasis {
           { from: closing.from, to: closing.to },
         ];
       }
-    }
-    const underscores = "_".repeat(this.#marker.length);
-    const before = state.sliceDoc(from - underscores.length - 1, from);
-    const after = state.sliceDoc(to, to + underscores.length + 1);
-    const isOpened = before.endsWith(underscores) && !before.endsWith(`_${underscores}`);
-    const isClosed = after.startsWith(underscores) && !after.startsWith(`${underscores}_`);
-    if (isOpened && isClosed) {
-      return [
-        { from: from - underscores.length, to: from },
-        { from: to, to: to + underscores.length },
-      ];
     }
     return null;
   }
