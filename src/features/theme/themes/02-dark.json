@@ -1,0 +1,45 @@
+{
+  "id": "dark",
+  "name": {
+    "zh": "暗色",
+    "en": "Dark"
+  },
+  "base": {
+    "appearance": "dark",
+    "editorBackground": "#1f1f24",
+    "sidebarBackground": "#232325",
+    "articleListBackground": "#1c1c1e",
+    "panelBackground": "#1c1c1e",
+    "primaryText": "#e8e8e6",
+    "secondaryText": "#9a9a98",
+    "divider": "#3a3a3c",
+    "accent": "#8ab4f8",
+    "red": "#f28b82",
+    "orange": "#e3a35c",
+    "green": "#30d158",
+    "blue": "#61afef",
+    "purple": "#c678dd"
+  },
+  "overrides": {
+    "background": "#1c1c1e",
+    "editor-text": "#dfdfe0",
+    "link": "#8ab4f8",
+    "selected": "#2f3d52",
+    "cursor-line": "#262628",
+    "warning": "#e3a35c",
+    "error": "#f28b82",
+    "success": "#30d158",
+    "code-background": "#262628",
+    "code-keyword": "#c678dd",
+    "code-string": "#98c379",
+    "code-number": "#d19a66",
+    "code-comment": "#7f848e",
+    "code-title": "#61afef",
+    "code-type": "#e5c07b",
+    "editor-heading": "#fc5fa3",
+    "editor-link": "#5482ff",
+    "editor-code": "#fc6a5d",
+    "editor-quote": "#6c7986",
+    "editor-mark": "#fd8f3f"
+  }
+}
