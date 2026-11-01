@@ -25,7 +25,10 @@ export function MarkdownEditor({ initialBody }: MarkdownEditorProps) {
       parent: host,
       state: EditorState.create({ doc: initialBody, extensions: editorExtensions(composition) }),
     });
-    return () => view.destroy();
+    return () => {
+      view.destroy();
+      composition.end();
+    };
   }, [composition, initialBody]);
 
   return <div className="markdown-editor" ref={hostRef} />;

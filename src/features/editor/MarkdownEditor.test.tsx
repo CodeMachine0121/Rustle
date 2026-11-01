@@ -15,7 +15,7 @@ function renderEditor(state = new CompositionState(), body = "# Zen of writing")
   if (!(content instanceof HTMLElement)) {
     throw new Error("the editor did not render its content area");
   }
-  return { content, state };
+  return { content, state, view };
 }
 
 describe("MarkdownEditor", () => {
@@ -54,6 +54,28 @@ describe("MarkdownEditor", () => {
     fireEvent.compositionEnd(content);
 
     expect(notifications).toEqual([true, false]);
+  });
+
+  it("ends a composition still in progress when the editor is removed", () => {
+    const { content, state, view } = renderEditor();
+
+    fireEvent.compositionStart(content);
+    view.unmount();
+
+    expect(state.isComposing).toBe(false);
+  });
+
+  it("ends a composition still in progress when another article is opened", () => {
+    const { content, state, view } = renderEditor(new CompositionState(), "# First article");
+
+    fireEvent.compositionStart(content);
+    view.rerender(
+      <CompositionProvider state={state}>
+        <MarkdownEditor initialBody="# Second article" />
+      </CompositionProvider>,
+    );
+
+    expect(state.isComposing).toBe(false);
   });
 
   it("refuses to mount without a shared composition state", () => {
