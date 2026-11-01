@@ -42,7 +42,7 @@ Key-handling decision table inside the listener (`Tab` with or without Shift onl
 | Situation | Indent? | Key eaten (`preventDefault`) |
 | :--- | :--- | :--- |
 | Composing (`CompositionState`, `event.isComposing`, or keyCode 229) | no | yes — focus must not leave mid-composition |
-| Escape armed (Esc was the last non-modifier key) | no | no — default focus move happens; the escape is consumed |
+| Escape armed (Esc was the last non-modifier key, with no mouse press in the editor or focus loss since) | no | no — default focus move happens; the escape is consumed |
 | Read-only | no | yes |
 | Otherwise | Tab → `indent`, Shift+Tab → `outdent` | yes |
 
@@ -78,10 +78,10 @@ flowchart LR
 - **Most likely next requirement:** the vault/settings slice reads the indent style from `.rustle/settings.json` and changes it live.
 - **Where it lands:** `MarkdownEditor`'s `indentation` prop. The settings slice passes `{ style, width }` straight through; normalisation already happens in `IndentUnit.from`, so a hand-edited bad value is harmless.
 - **How to add it:** add the fields to `rustle_domain::Settings`, return them from `readSettings`, pass them as the prop. No change to `TabIndentation` or `IndentUnit`.
-- **Toolbar / menu "indent" buttons:** call `indent(view)` / `outdent(view)` on the editor's `TabIndentation`; the composition guard is inside these methods, not in the key listener, so every path is protected (FR-8.1).
+- **Toolbar / menu "indent" buttons:** today the `TabIndentation` instance is created privately inside `MarkdownEditor` (`editorExtensions`), so nothing outside the editor can reach it. A toolbar slice would lift the instance into the component (one per editor) and expose `indent()` / `outdent()` through a `MarkdownEditor` handle (React `ref`) that calls them with the editor's view. The composition guard is inside these methods, not in the key listener, so every path is protected (FR-8.1).
 - **Autocomplete / snippets later:** they must not bind Tab. Even if they do, the capture listener wins — covered by a test that installs a competing Tab binding.
 - **Do not hardcode:** the width `2` lives only in `IndentUnit`'s default; every column computation goes through the unit.
-- **Known debt / deferred:** the escape route is "the next Tab after Esc", without a timeout. A timeout was not asked for; if users find a stale escape surprising, add a time window inside the listener only.
+- **Known debt / deferred:** the escape route is "the next Tab after Esc", without a timeout. A mouse press inside the editor or the editor losing focus disarms it, so a click elsewhere in the text followed by Tab indents again. A timeout was not asked for; if users still find a stale escape surprising, add a time window inside the listener only.
 
 ---
 
@@ -113,6 +113,7 @@ flowchart LR
   - Interception is a native capture-phase `keydown` listener on `view.dom`, not a CodeMirror keymap: CodeMirror ignores key events while composing, so a keymap could never keep focus in place during composition (TC-40), and capture ordering guarantees no later extension can steal Tab (TC-25).
   - "Any ordinary key" disarms the escape route; bare modifier keys (Shift, Control, Alt, Meta) do not, otherwise Esc → Shift+Tab could never escape.
   - Esc while composing does not arm the escape route (the input method uses it to cancel).
+  - A mouse press inside the editor or the editor losing focus also disarms the escape route: the user has moved on from the Esc, so the next Tab is ordinary editing again.
   - Tab with Ctrl, Alt or Meta is not indentation and is left to the system (e.g. Ctrl+Tab); only plain Tab and Shift+Tab are owned.
   - A selection position at the line start of an indented line moves forward with the inserted unit (TC-01, TC-08 say the cursor stays glued to the text).
   - Outdent rewrites the whole leading whitespace of a moved line in the configured style (BRIEF A-5); lines that do not move are not touched.

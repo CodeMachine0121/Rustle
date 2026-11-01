@@ -67,7 +67,7 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 
 **Composition-aware timing**: get the shared state with `useCompositionState()` and create a `CompositionAwareDebouncer(state, delayMilliseconds)`; call `schedule`, `cancel`, `dispose`. Do not read composition from props or a second source.
 
-**Editor indentation**: `MarkdownEditor` takes `indentation?: { style: "spaces" | "tab"; width }` (`src/features/editor/IndentUnit.ts`); missing or unreasonable values fall back to 2 spaces. The settings slice passes the stored value straight through. Tab / Shift+Tab are owned by `TabIndentation` (capture-phase listener on the editor root): do not bind Tab in another extension; toolbar actions call `indent(view)` / `outdent(view)` on it.
+**Editor indentation**: `MarkdownEditor` takes `indentation?: { style: "spaces" | "tab"; width }` (`src/features/editor/IndentUnit.ts`); missing or unreasonable values fall back to 2 spaces. The settings slice passes the stored value straight through. Tab / Shift+Tab are owned by `TabIndentation` (capture-phase listener on the editor root): do not bind Tab in another extension; the instance is private to `MarkdownEditor` today, so a future toolbar must first expose `indent()` / `outdent()` through a `MarkdownEditor` handle (React `ref`) rather than build its own.
 
 **Frontend features**: put them in `src/features/<feature>/`; call the backend only through `channels`.
 
