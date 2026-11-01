@@ -13,8 +13,9 @@ import type { CompositionState } from "../../shared/composition/CompositionState
 import type { IndentUnit } from "./IndentUnit";
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
+const ESCAPE_ROUTE_MILLISECONDS = 2000;
 
-/** Owns the Tab key of one editor: Tab indents, Shift+Tab outdents, Esc then Tab lets focus leave. */
+/** Owns the Tab key of one editor: Tab indents, Shift+Tab outdents, Esc then Tab (within two seconds) lets focus leave. */
 export class TabIndentation {
   readonly #composition: CompositionState;
   readonly #unit: IndentUnit;
@@ -92,7 +93,7 @@ class TabKeyListener {
   readonly #view: EditorView;
   readonly #indentation: TabIndentation;
   readonly #composition: CompositionState;
-  #escapeArmed = false;
+  #escapeArmedAt: number | null = null;
 
   constructor(view: EditorView, indentation: TabIndentation, composition: CompositionState) {
     this.#view = view;
@@ -110,20 +111,25 @@ class TabKeyListener {
   }
 
   readonly #disarmEscape = (): void => {
-    this.#escapeArmed = false;
+    this.#escapeArmedAt = null;
   };
+
+  #isEscapeArmed(): boolean {
+    return this.#escapeArmedAt !== null && Date.now() - this.#escapeArmedAt <= ESCAPE_ROUTE_MILLISECONDS;
+  }
 
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
     const composing = this.#composition.ownsKey(event);
     if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) {
       if (!MODIFIER_KEYS.has(event.key)) {
-        this.#escapeArmed = event.key === "Escape" && !composing;
+        const arms = event.key === "Escape" && !composing;
+        this.#escapeArmedAt = arms ? Date.now() : null;
       }
       return;
     }
     event.stopPropagation();
-    if (this.#escapeArmed && !composing) {
-      this.#escapeArmed = false;
+    if (this.#isEscapeArmed() && !composing) {
+      this.#escapeArmedAt = null;
       return;
     }
     event.preventDefault();

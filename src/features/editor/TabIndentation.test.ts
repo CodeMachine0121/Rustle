@@ -2,7 +2,7 @@ import { history, undo } from "@codemirror/commands";
 import { EditorSelection, EditorState, Prec, type SelectionRange } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
@@ -21,6 +21,7 @@ const openViews: EditorView[] = [];
 
 afterEach(() => {
   openViews.splice(0).forEach((view) => view.destroy());
+  vi.useRealTimers();
 });
 
 function openEditor({
@@ -368,6 +369,30 @@ describe("Tab does nothing but indent", () => {
 });
 
 describe("keyboard escape route", () => {
+  it("still lets the focus leave on a Tab within two seconds of Esc", () => {
+    vi.useFakeTimers();
+    const { view } = openEditor({ doc: "字" });
+
+    press(view, "Escape");
+    vi.advanceTimersByTime(2000);
+    const event = pressTab(view);
+
+    expect(textOf(view)).toBe("字");
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("goes back to indenting when no Tab came within two seconds of Esc", () => {
+    vi.useFakeTimers();
+    const { view } = openEditor({ doc: "字" });
+
+    press(view, "Escape");
+    vi.advanceTimersByTime(2001);
+    const event = pressTab(view);
+
+    expect(textOf(view)).toBe("  字");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("lets the Tab right after Esc move the focus instead of indenting", () => {
     const { view } = openEditor({ doc: "字" });
 
