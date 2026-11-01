@@ -133,7 +133,7 @@ export class ImagePaste {
 
   #holdsPastableImage(data: DataTransfer): boolean {
     const types = [
-      ...Array.from(data.items ?? [], (item) => (item.kind === "file" ? item.type : "")),
+      ...Array.from(data.items ?? [], (item) => item.type),
       ...Array.from(data.files ?? [], (file) => file.type),
     ];
     return types.some((type) => PASTABLE_IMAGE_TYPES.includes(type));
