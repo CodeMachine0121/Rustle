@@ -1,9 +1,12 @@
+import { EditorView } from "@codemirror/view";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PreviewWidth } from "../features/preview/PreviewWidth";
 import type { ViewMode, WritingLayoutSnapshot } from "../features/writingLayout/WritingLayout";
+import { MarkdownEditor } from "../features/editor/MarkdownEditor";
 import { CompositionProvider } from "../shared/composition/CompositionContext";
+import { CompositionState } from "../shared/composition/CompositionState";
 import { AppLayout, type PreviewSlot } from "./AppLayout";
 
 function previewSlot(ratio = 0.5): PreviewSlot {
@@ -111,5 +114,37 @@ describe("AppLayout", () => {
     expect(region("文章")).toHaveTextContent("文章按鈕");
     expect(screen.queryByRole("button", { name: "側欄按鈕" })).not.toBeInTheDocument();
     expect(within(region("編輯區")).getByRole("button", { name: "zen" })).toBeVisible();
+  });
+
+  it("leaves a composition running in the editor alone through every view mode and Zen Mode", () => {
+    const composition = new CompositionState();
+    const layoutIn = (layout: WritingLayoutSnapshot) => (
+      <CompositionProvider state={composition}>
+        <AppLayout
+          sidebar="s"
+          articles="a"
+          editor={<MarkdownEditor documentKey="Blog/zen.md" body="正文" />}
+          preview={previewSlot()}
+          writing={layout}
+          controls={{ zenButton: null, viewModeButtons: null }}
+        />
+      </CompositionProvider>
+    );
+    const view = render(layoutIn(writing("sideBySide")));
+    const content = document.querySelector<HTMLElement>(".cm-content");
+    if (content === null) {
+      throw new Error("the editor did not render its content area");
+    }
+    const editor = EditorView.findFromDOM(content);
+    content.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    expect(composition.isComposing).toBe(true);
+
+    for (const layout of [writing("editorOnly"), writing("previewOnly"), writing("previewOnly", true), writing("sideBySide")]) {
+      view.rerender(layoutIn(layout));
+    }
+
+    expect(composition.isComposing).toBe(true);
+    expect(EditorView.findFromDOM(content)).toBe(editor);
+    expect(content.isConnected).toBe(true);
   });
 });
