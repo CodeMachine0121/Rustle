@@ -22,7 +22,7 @@ export function TitleFinder({ snapshot, order, onChoose, onDismiss }: TitleFinde
   const ordered = useMemo(() => orderArticles(articles, order), [articles, order]);
   const matched = useMemo(() => {
     const findingText = new FindingText(text);
-    return findingText.isBlank ? ordered : ordered.filter(({ title }) => findingText.matches(title));
+    return ordered.filter(({ title }) => findingText.matches(title));
   }, [ordered, text]);
   const rows = useMemo(
     () =>
