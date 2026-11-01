@@ -1728,6 +1728,64 @@ describe("App", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
+    it("keeps the same editor, its text, cursor and composition through a change of theme", async () => {
+      answerWithTheme(undefined);
+      render(<App />);
+      await waitFor(() => expect(editorContent()?.textContent).toBe("正文的第一行。"));
+      const editor = document.querySelector<HTMLElement>(".cm-editor");
+      const view = editor === null ? null : EditorView.findFromDOM(editor);
+      if (view === null) {
+        throw new Error("the editor did not render");
+      }
+      act(() => view.dispatch({ selection: { anchor: 3 } }));
+      const content = editorContent();
+      if (content === null) {
+        throw new Error("no editor content");
+      }
+      fireEvent.compositionStart(content);
+      const select = await openThemeMenu();
+
+      fireEvent.change(select, { target: { value: "forest" } });
+
+      expect(document.querySelector(".cm-editor")).toBe(editor);
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+      expect(view.state.selection.main.head).toBe(3);
+      expect(view.composing || view.compositionStarted).toBe(true);
+    });
+
+    it("still remembers Forest when the vault could not be listed and another setting is changed", async () => {
+      answerWithTheme("forest");
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation((command, args) =>
+        command === "list_workspaces"
+          ? Promise.reject({ reason: "unexpected", message: "permission denied" })
+          : (answer?.(command, args) ?? Promise.resolve(null)),
+      );
+      render(<App />);
+      await screen.findByRole("alert");
+      await waitFor(() => expect(paintedColour("text")).toBe("#d3c6aa"));
+
+      fireEvent.click(await screen.findByRole("button", { name: "設定" }));
+      fireEvent.click(screen.getByRole("radio", { name: "English" }));
+
+      await waitFor(() => expect(writtenThemes()).toEqual(["forest"]));
+    });
+
+    it("has no gear in Zen Mode and puts it back at the bottom of the sidebar afterwards", async () => {
+      answerWithTheme(undefined);
+      render(<App />);
+      await screen.findByRole("button", { name: /^Zen of Writing/ });
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      expect(screen.queryByRole("button", { name: "設定" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      const sidebar = screen.getByRole("navigation", { name: "側邊欄" });
+      expect(within(sidebar).getAllByRole("button").at(-1)).toBe(within(sidebar).getByRole("button", { name: "設定" }));
+    });
+
     it("leaves the theme alone when the settings are closed with Esc", async () => {
       answerWithTheme("forest");
       render(<App />);
