@@ -157,6 +157,56 @@ mod symlinks {
     }
 
     #[test]
+    fn rejects_a_workspace_that_is_a_broken_link_outside_the_vault() {
+        let vault = Vault::create();
+        let missing = outside_folder(&vault).join("not-there");
+        symlink(missing, vault.root.join("Escape")).expect("symlink");
+
+        assert_eq!(
+            vault.scope().workspace_path(&workspace("Escape")),
+            Err(VaultPathError::OutsideVault {
+                rejected: "Escape".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_an_article_that_is_a_broken_link_outside_the_vault() {
+        let vault = Vault::create();
+        let missing = outside_folder(&vault).join("not-there.md");
+        fs::create_dir_all(vault.root.join("Blog")).expect("workspace");
+        symlink(&missing, vault.root.join("Blog/linked.md")).expect("symlink");
+
+        let path = vault
+            .scope()
+            .article_path(&workspace("Blog"), &article("linked.md"));
+
+        assert_eq!(
+            path,
+            Err(VaultPathError::OutsideVault {
+                rejected: "Blog/linked.md".to_owned()
+            })
+        );
+        assert!(!missing.exists());
+    }
+
+    #[test]
+    fn rejects_a_new_article_inside_a_workspace_that_is_a_broken_link() {
+        let vault = Vault::create();
+        symlink(
+            outside_folder(&vault).join("not-there"),
+            vault.root.join("Escape"),
+        )
+        .expect("symlink");
+
+        let path = vault
+            .scope()
+            .article_path(&workspace("Escape"), &article("new.md"));
+
+        assert!(path.is_err());
+    }
+
+    #[test]
     fn accepts_a_link_that_stays_inside_the_vault() {
         let vault = Vault::create();
         fs::create_dir_all(vault.root.join("Blog")).expect("workspace");

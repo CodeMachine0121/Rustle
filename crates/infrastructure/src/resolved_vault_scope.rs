@@ -5,7 +5,8 @@ use rustle_domain::{ArticleFileName, ImageFileName, VaultPathError, VaultScope, 
 
 /// [`VaultScope`] plus symlink resolution: the real location of every
 /// returned path is inside the real vault root. Paths that do not exist
-/// yet are judged by their nearest existing ancestor.
+/// yet are judged by their nearest existing ancestor; a link whose target
+/// cannot be resolved is rejected.
 #[derive(Debug, Clone)]
 pub struct ResolvedVaultScope {
     scope: VaultScope,
@@ -49,29 +50,36 @@ impl ResolvedVaultScope {
     }
 
     fn confine(&self, path: PathBuf, requested: &str) -> Result<PathBuf, VaultPathError> {
-        let real_root = Self::resolve_existing_ancestor(self.scope.root());
-        let real_path = Self::resolve_existing_ancestor(&path);
+        let outside_vault = || VaultPathError::OutsideVault {
+            rejected: requested.to_owned(),
+        };
+        let real_root =
+            Self::resolve_existing_ancestor(self.scope.root()).ok_or_else(outside_vault)?;
+        let real_path = Self::resolve_existing_ancestor(&path).ok_or_else(outside_vault)?;
         if real_path.starts_with(&real_root) {
             Ok(real_path)
         } else {
-            Err(VaultPathError::OutsideVault {
-                rejected: requested.to_owned(),
-            })
+            Err(outside_vault())
         }
     }
 
-    fn resolve_existing_ancestor(path: &Path) -> PathBuf {
-        path.ancestors()
-            .find_map(|ancestor| {
-                let real_ancestor = fs::canonicalize(ancestor).ok()?;
-                let missing_tail = path.strip_prefix(ancestor).ok()?;
-                Some(
-                    real_ancestor
-                        .components()
-                        .chain(missing_tail.components())
-                        .collect(),
-                )
-            })
-            .unwrap_or_else(|| path.to_path_buf())
+    /// Resolves the nearest ancestor that exists on disk, a dangling link
+    /// included, and appends the missing tail. `None` when that ancestor
+    /// cannot be resolved, so a broken link can never pass as inside.
+    fn resolve_existing_ancestor(path: &Path) -> Option<PathBuf> {
+        let Some(ancestor) = path
+            .ancestors()
+            .find(|ancestor| fs::symlink_metadata(ancestor).is_ok())
+        else {
+            return Some(path.to_path_buf());
+        };
+        let real_ancestor = fs::canonicalize(ancestor).ok()?;
+        let missing_tail = path.strip_prefix(ancestor).ok()?;
+        Some(
+            real_ancestor
+                .components()
+                .chain(missing_tail.components())
+                .collect(),
+        )
     }
 }
