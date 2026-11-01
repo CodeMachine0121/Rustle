@@ -34,10 +34,19 @@ impl ArticleDraft {
         if title.is_empty() {
             return Err(ArticleDraftError::BlankTitle);
         }
+        let distinct_values = |values: &[String]| {
+            let mut seen = HashSet::new();
+            values
+                .iter()
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty() && seen.insert(*value))
+                .map(str::to_owned)
+                .collect()
+        };
         Ok(Self {
             title: title.to_owned(),
-            category: Self::distinct_values(category),
-            tags: Self::distinct_values(tags),
+            category: distinct_values(category),
+            tags: distinct_values(tags),
         })
     }
 
@@ -71,16 +80,6 @@ impl ArticleDraft {
             .category(self.category.iter().cloned())
             .tags(self.tags.iter().cloned());
         ArticleDocument::parse("").with_metadata(&update).to_text()
-    }
-
-    fn distinct_values(values: &[String]) -> Vec<String> {
-        let mut seen = HashSet::new();
-        values
-            .iter()
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty() && seen.insert(*value))
-            .map(str::to_owned)
-            .collect()
     }
 }
 

@@ -1,6 +1,5 @@
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
-use std::path::Path;
 
 use rustle_domain::{
     ArticleFileName, ArticleRepository, ArticleRepositoryError, ArticleWrite, StoredArticle,
@@ -21,32 +20,6 @@ pub struct FileSystemArticleRepository {
 impl FileSystemArticleRepository {
     pub fn in_vault(vault: ResolvedVaultScope) -> Self {
         Self { vault }
-    }
-}
-
-impl FileSystemArticleRepository {
-    fn write_new_file(path: &Path, text: &str) -> io::Result<()> {
-        let mut file = File::options().write(true).create_new(true).open(path)?;
-        let written = file
-            .write_all(text.as_bytes())
-            .and_then(|()| file.sync_all())
-            .and_then(|()| Self::sync_folder_of(path));
-        if written.is_err() {
-            drop(file);
-            let _ = fs::remove_file(path);
-        }
-        written
-    }
-
-    #[cfg(unix)]
-    fn sync_folder_of(path: &Path) -> io::Result<()> {
-        path.parent()
-            .map_or(Ok(()), |folder| File::open(folder)?.sync_all())
-    }
-
-    #[cfg(not(unix))]
-    fn sync_folder_of(_path: &Path) -> io::Result<()> {
-        Ok(())
     }
 }
 
@@ -97,7 +70,29 @@ impl ArticleRepository for FileSystemArticleRepository {
         text: &str,
     ) -> Result<(), ArticleRepositoryError> {
         let path = self.vault.article_path(workspace, article)?;
-        Self::write_new_file(&path, text).map_err(|error| {
+        #[cfg(unix)]
+        let sync_folder = || {
+            path.parent()
+                .map_or(Ok(()), |folder| File::open(folder)?.sync_all())
+        };
+        #[cfg(not(unix))]
+        let sync_folder = || io::Result::Ok(());
+        let created = File::options()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .and_then(|mut file| {
+                let written = file
+                    .write_all(text.as_bytes())
+                    .and_then(|()| file.sync_all())
+                    .and_then(|()| sync_folder());
+                if written.is_err() {
+                    drop(file);
+                    let _ = fs::remove_file(&path);
+                }
+                written
+            });
+        created.map_err(|error| {
             let article = format!("{workspace}/{article}");
             if error.kind() == io::ErrorKind::AlreadyExists {
                 ArticleRepositoryError::AlreadyExists { article }
