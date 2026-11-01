@@ -100,11 +100,19 @@ class TabKeyListener {
     this.#indentation = indentation;
     this.#composition = composition;
     view.dom.addEventListener("keydown", this.#handleKeyDown, { capture: true });
+    view.dom.addEventListener("mousedown", this.#disarmEscape, { capture: true });
+    view.dom.addEventListener("focusout", this.#disarmEscape, { capture: true });
   }
 
   destroy(): void {
     this.#view.dom.removeEventListener("keydown", this.#handleKeyDown, { capture: true });
+    this.#view.dom.removeEventListener("mousedown", this.#disarmEscape, { capture: true });
+    this.#view.dom.removeEventListener("focusout", this.#disarmEscape, { capture: true });
   }
+
+  readonly #disarmEscape = (): void => {
+    this.#escapeArmed = false;
+  };
 
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
     const composing =

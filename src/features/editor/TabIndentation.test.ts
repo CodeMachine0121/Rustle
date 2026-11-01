@@ -397,6 +397,28 @@ describe("keyboard escape route", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it("goes back to indenting once the mouse was pressed in the editor after Esc", () => {
+    const { view } = openEditor({ doc: "字" });
+
+    press(view, "Escape");
+    fireEvent.mouseDown(view.dom);
+    const event = pressTab(view);
+
+    expect(textOf(view)).toBe("  字");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("goes back to indenting once the editor lost focus after Esc", () => {
+    const { view } = openEditor({ doc: "字" });
+
+    press(view, "Escape");
+    fireEvent.focusOut(view.contentDOM);
+    const event = pressTab(view);
+
+    expect(textOf(view)).toBe("  字");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("is used up by the one Tab that escaped", () => {
     const { view } = openEditor({ doc: "字" });
 
