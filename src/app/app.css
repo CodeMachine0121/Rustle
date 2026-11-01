@@ -717,3 +717,84 @@ body {
   border-color: var(--color-link);
   background: var(--color-selected);
 }
+
+.finder-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.finder {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 90vw);
+  max-height: 60vh;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.finder-field {
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  outline: none;
+}
+
+.finder-rows {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.finder-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.finder-row[aria-selected="true"] {
+  background: var(--color-selected);
+}
+
+.finder-row-title {
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finder-row-workspace,
+.finder-row-line-number,
+.finder-row-count {
+  flex-shrink: 0;
+  color: var(--color-muted-text);
+  font-size: 0.85em;
+}
+
+.finder-row-line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-muted-text);
+}
+
+.finder-status {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--color-muted-text);
+}

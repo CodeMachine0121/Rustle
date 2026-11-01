@@ -134,6 +134,20 @@ export const CHINESE_MESSAGES = {
     blockedByFailedSave: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
   } satisfies Record<LeavingRefusal, string> as Record<LeavingRefusal, string>,
   dismiss: "關閉提示",
+
+  findingShortcutGroup: "尋找",
+  findArticlesByTitle: "用標題找文章",
+  findArticlesByBody: "用內文找文章",
+  switchWorkspace: "切換 workspace",
+  findingResults: "結果",
+  noArticlesInWorkspace: "這個 workspace 還沒有文章",
+  typeToSearchBodies: "打字開始搜尋正文",
+  noMatchingBodies: "沒有符合的內容",
+  tooManyBodyMatches: "符合的內容太多，請再多打幾個字",
+  searchFailed: "這次找不動，請再試一次",
+  noMatchingWorkspaces: "沒有符合的 workspace",
+  noWorkspacesYet: "還沒有 workspace",
+  lineNumber: (line: number) => `第 ${line} 行`,
 };
 
 export type Messages = typeof CHINESE_MESSAGES;
@@ -265,6 +279,20 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
     blockedByFailedSave: "The last save failed. Press again to discard the unsaved changes and continue.",
   },
   dismiss: "Dismiss",
+
+  findingShortcutGroup: "Finding",
+  findArticlesByTitle: "Find articles by title",
+  findArticlesByBody: "Find articles by body text",
+  switchWorkspace: "Switch workspace",
+  findingResults: "Results",
+  noArticlesInWorkspace: "No articles in this workspace yet",
+  typeToSearchBodies: "Type to search the body text",
+  noMatchingBodies: "Nothing matches",
+  tooManyBodyMatches: "Too many matches. Type a few more characters.",
+  searchFailed: "The search did not get through. Try again.",
+  noMatchingWorkspaces: "No matching workspaces",
+  noWorkspacesYet: "No workspaces yet",
+  lineNumber: (line) => `Line ${line}`,
 };
 
 /** A sentence missing from `primary` is said with `fallback`'s: never a blank, never a key. */
