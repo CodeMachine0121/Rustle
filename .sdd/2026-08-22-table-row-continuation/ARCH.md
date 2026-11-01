@@ -8,7 +8,7 @@
 
 ## 1. Design Goal & Guiding Principle
 
-- **In one sentence:** a plain Enter at the end of a Markdown table row inserts the next empty row (same column count, same indentation / quote prefix, cursor in the first cell) as one undo step, and the same Enter on a row whose every cell is blank clears that row and leaves the table — never while composing, never above a higher-priority Enter owner (the snippet menu), and never changing any other Enter.
+- **In one sentence:** a plain Enter at the end of a Markdown table row inserts the next empty row (same column count, same indentation / quote prefix, cursor in the first cell) as one undo step, and the same Enter on the table's last row, when its every cell is blank, clears that row and leaves the table — never while composing, never above a higher-priority Enter owner (the snippet menu), and never changing any other Enter.
 - **Guiding principle:** *the line knows what it is; one owner decides what Enter does with it.* `TableRow` is a value object over one line's text and holds every rule about table rows (recognition, column count, blankness, the shape of the next row). `TableRowContinuation` only owns the key: it asks `TableRow` and dispatches. The next feature that needs "is this a table row?" (the snippet menu's "no menu inside a table") reuses `TableRow.parse`, so R-2's "same judgement as the snippet menu" holds by construction.
 
 ---
@@ -34,7 +34,7 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `TableRow` | Value object (`TableRow.parse(lineText): TableRow \| null`, `enterAt(column): TableRowEdit \| null`) | Decide whether a line is a table row — after a prefix of spaces, tabs and `>` the first character is `\|` — and, for one that is, what Enter does at a column: at the line end, insert `\n` + the next empty row (same prefix; one cell per column, cells split on unescaped pipes, a trailing pipe closes the last cell, a lone `\|` is one column; one space per cell like `/table`) with the cursor just after its `\| `; on a blank row (at least one closed cell, every cell whitespace) anywhere after the first pipe, clear the row down to its prefix; anywhere else `null`. `TableRowEdit` is `{ from, to, insert, cursor }` in offsets from the line start | — | US-01 all; US-02 all |
+| `TableRow` | Value object (`TableRow.parse(lineText): TableRow \| null`, `enterAt(column, lineBelow): TableRowEdit \| null`) | Decide whether a line is a table row — after a prefix of spaces, tabs and `>` the first character is `\|` — and, for one that is, what Enter does at a column: at the line end, insert `\n` + the next empty row (same prefix; one cell per column, cells split on unescaped pipes, a trailing pipe closes the last cell, a lone `\|` is one column; one space per cell like `/table`) with the cursor just after its `\| `; on a blank row (at least one closed cell, every cell whitespace) that is the table's last row (the line below is not a table row, or there is none) anywhere after the first pipe, clear the row down to its prefix; anywhere else `null`. `TableRowEdit` is `{ from, to, insert, cursor }` in offsets from the line start | — | US-01 all; US-02 all |
 | `TableRowContinuation` | Key owner (one per editor) | `continueRow(view)`: for one empty selection in an editable, non-composing editor, asks `TableRow.parse(line)?.enterAt(column)` and dispatches the returned edit (shifted by the line start) as one isolated history event (`isolateHistory "full"`, `userEvent "input"`). Returns `false` otherwise so the default Enter runs. `extension()`: `Prec.high(keymap.of([{ any }]))` whose handler claims only a plain `Enter` (no Shift/Ctrl/Alt/Meta) and first asks `CompositionState.ownsKey(event)` | `TableRow`, `CompositionState`, `EditorView` | US-01, US-02, US-03 |
 
 Enter decision table (`TableRowContinuation`):
@@ -45,7 +45,8 @@ Enter decision table (`TableRowContinuation`):
 | Modifier held (Shift / Ctrl / Alt / Meta) | not claimed — default behaviour |
 | Read-only, several selection ranges, or a non-empty selection | not claimed — default Enter (replaces the selection) |
 | Line is not a `TableRow` | not claimed — default Enter |
-| Line is a blank `TableRow`, cursor anywhere after its first pipe | row cleared to its prefix, cursor at line end — one undo step |
+| Line is a blank `TableRow` with no table row below it, cursor anywhere after its first pipe | row cleared to its prefix, cursor at line end — one undo step |
+| Line is a blank `TableRow` with a table row below it | treated like a non-blank row: the table is not split |
 | Line is a non-blank `TableRow`, cursor not at the end of the line | not claimed — default Enter splits the line |
 | Line is a non-blank `TableRow`, cursor at the end of the line | `\n` + next row inserted, cursor in its first cell — one undo step |
 
@@ -121,7 +122,7 @@ Decisions taken without the user (also listed in the PR under "Assumptions"):
 5. **Several cursors** (multiple selection ranges) → default Enter; the PRD only speaks of "the cursor".
 6. **Escaped pipes** (`\|`) inside a cell do not split cells; the column count follows GFM.
 7. **Trailing whitespace after the last pipe** still counts as "at the end of the row".
-8. **On a blank row, Enter leaves the table from anywhere after its first pipe**, not only from the line end. R-1 says "only at the end of the row", but B-2 ("補一列，不填，再按一次就出來了") presses Enter right after a row was added, when the cursor sits in that row's first cell (PRD §5). A blank row has nothing to split, so this reading satisfies both; on a non-blank row R-1 holds strictly (cursor at the line end).
+8. **On a blank last row, Enter leaves the table from anywhere after its first pipe**, not only from the line end. A blank row with table rows below it (for example an unfilled `/table` template) is never cleared, so Enter cannot split a table and strand the rows below without a header. R-1 says "only at the end of the row", but B-2 ("補一列，不填，再按一次就出來了") presses Enter right after a row was added, when the cursor sits in that row's first cell (PRD §5). A blank row has nothing to split, so this reading satisfies both; on a non-blank row R-1 holds strictly (cursor at the line end).
 9. **Enter while composing**: CodeMirror itself does not run key bindings during a composition, and this slice additionally refuses through `CompositionState.ownsKey(event)` and `isComposing` in `continueRow`. The tests assert that this slice neither changes the document nor claims the key; the real candidate-window behaviour is the manual IME checklist item T-6 (extended with a table row step).
 10. **Markdown's own Enter** (`insertNewlineContinueMarkup`, also `Prec.high`, from `markdown()`) continues quotes and lists. `TableRowContinuation` is listed before `markdown()` so it wins on a table row inside a quote; a test through `MarkdownEditor` pins this.
 
