@@ -1,5 +1,6 @@
 import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
 import type { SidebarFilter } from "../sidebar/SidebarFilter";
+import { isSameArticle } from "./articleLocation";
 
 export type ArticleOrder = "createdNewestFirst" | "title" | "updatedNewestFirst";
 
@@ -56,14 +57,12 @@ export function arrangeArticles(
   { filterText, sidebarFilter, order, openArticle }: ArticleArrangement,
 ): ArrangedArticle[] {
   const filter = new ArticleFilter(filterText);
-  const isOpen = (article: ArticleSummary) =>
-    article.workspace === openArticle?.workspace && article.fileName === openArticle.fileName;
   const shown = articles
     .map((article) => ({
       article,
       isOutsideFilter: !sidebarFilter.matches(article) || !filter.matches(article),
     }))
-    .filter(({ article, isOutsideFilter }) => !isOutsideFilter || isOpen(article));
+    .filter(({ article, isOutsideFilter }) => !isOutsideFilter || isSameArticle(openArticle, article));
   const instantToOrderBy = ORDER_INSTANTS[order];
   const keyed = shown.map((row) => ({ row, instant: instantToOrderBy(row.article) }));
   keyed.sort(

@@ -9,6 +9,7 @@ import type { AutosaveSession } from "../autosave/AutosaveSession";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
 import type { StatusChoice } from "../sidebar/statusChoice";
+import { isSameArticle } from "./articleLocation";
 import {
   LEAVING_REFUSAL_MESSAGES,
   MODIFIED_ELSEWHERE_MESSAGE,
@@ -520,10 +521,6 @@ export class VaultSession {
 
 function documentOf({ workspace, fileName }: ArticleLocation): string {
   return `${workspace}/${fileName}`;
-}
-
-function isSameArticle(first: ArticleLocation | null, second: ArticleLocation): boolean {
-  return first?.workspace === second.workspace && first.fileName === second.fileName;
 }
 
 function isSameScope(first: Scope | null, second: Scope): boolean {

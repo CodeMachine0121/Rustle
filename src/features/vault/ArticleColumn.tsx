@@ -10,6 +10,7 @@ import {
   type ArticleOrder,
 } from "./articleArrangement";
 import { ArticleFilterField } from "./ArticleFilterField";
+import { isSameArticle } from "./articleLocation";
 import { CHOOSE_A_WORKSPACE_FIRST, type VaultSnapshot } from "./VaultSession";
 
 const LEADING_DATE = /^\d{4}-\d{2}-\d{2}/;
@@ -114,10 +115,7 @@ function ArticleList({
         <li key={`${article.workspace}/${article.fileName}`} className="column-item">
           <ArticleRow
             article={article}
-            isSelected={
-              article.workspace === selectedArticle?.workspace &&
-              article.fileName === selectedArticle.fileName
-            }
+            isSelected={isSameArticle(selectedArticle, article)}
             isOutsideFilter={isOutsideFilter}
             showsWorkspace={showsAllNotes}
             onSelect={onSelect}
