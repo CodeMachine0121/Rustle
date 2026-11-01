@@ -64,6 +64,14 @@ pub fn channel_handlers<R: Runtime>() -> Vec<ChannelHandler<R>> {
             tauri::generate_handler![commands::save_clipboard_image::save_clipboard_image],
         ),
         ChannelHandler::new(
+            Channel::ReadClipboardText,
+            tauri::generate_handler![commands::read_clipboard_text::read_clipboard_text],
+        ),
+        ChannelHandler::new(
+            Channel::WriteClipboardText,
+            tauri::generate_handler![commands::write_clipboard_text::write_clipboard_text],
+        ),
+        ChannelHandler::new(
             Channel::ReadSettings,
             tauri::generate_handler![commands::read_settings::read_settings],
         ),

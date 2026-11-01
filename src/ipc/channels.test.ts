@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 type ArgumentlessChannelName = Extract<
   ChannelName,
-  "listWorkspaces" | "listAllArticles" | "readSettings" | "readPreferredLocales"
+  "listWorkspaces" | "listAllArticles" | "readSettings" | "readPreferredLocales" | "readClipboardText"
 >;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
@@ -21,6 +21,7 @@ const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listAllArticles: "list_all_articles",
   readSettings: "read_settings",
   readPreferredLocales: "read_preferred_locales",
+  readClipboardText: "read_clipboard_text",
 };
 
 const CHANNELS_WITH_ARGUMENTS = [
@@ -36,6 +37,7 @@ const CHANNELS_WITH_ARGUMENTS = [
   "searchBodies",
   "saveBody",
   "saveClipboardImage",
+  "writeClipboardText",
   "writeSettings",
   "watchCloseRequests",
   "answerCloseRequest",
@@ -58,6 +60,15 @@ describe("channels", () => {
 
     expect(invoke).toHaveBeenLastCalledWith("save_clipboard_image", { workspace: "Blog" });
     expect(result).toEqual({ ok: true, payload: saved });
+  });
+
+  it("hands the system clipboard a text to hold", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    const result = await channels.writeClipboardText("今日盤後觀察\n");
+
+    expect(invoke).toHaveBeenLastCalledWith("write_clipboard_text", { text: "今日盤後觀察\n" });
+    expect(result).toEqual({ ok: true, payload: null });
   });
 
   it("asks for one article's body by workspace and file name", async () => {

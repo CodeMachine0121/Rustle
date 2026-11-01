@@ -43,6 +43,8 @@ channels! {
     CountWorkspaceContents => "countWorkspaceContents", "count_workspace_contents";
     DeleteWorkspace => "deleteWorkspace", "delete_workspace";
     SaveClipboardImage => "saveClipboardImage", "save_clipboard_image";
+    ReadClipboardText => "readClipboardText", "read_clipboard_text";
+    WriteClipboardText => "writeClipboardText", "write_clipboard_text";
     ReadSettings => "readSettings", "read_settings";
     WriteSettings => "writeSettings", "write_settings";
     ReadPreferredLocales => "readPreferredLocales", "read_preferred_locales";
