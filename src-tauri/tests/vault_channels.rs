@@ -115,6 +115,21 @@ fn refuses_to_list_a_workspace_that_escapes_the_vault() {
     assert_eq!(failure["reason"], json!("outsideVault"));
 }
 
+#[test]
+fn refuses_a_workspace_name_that_climbs_out_without_listing_what_is_there() {
+    let app = RunningApp::start();
+    let outside = app.vault_directory.path().join("outside");
+    fs::create_dir_all(&outside).expect("folder outside the vault");
+    fs::write(outside.join("secret.md"), "---\ntitle: 秘密\n---\n").expect("file outside");
+
+    let failure = app
+        .call("list_articles", json!({ "workspace": "../outside" }))
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+    assert!(!failure.to_string().contains("秘密"));
+}
+
 #[cfg(unix)]
 #[test]
 fn refuses_to_list_a_workspace_linked_outside_the_vault() {

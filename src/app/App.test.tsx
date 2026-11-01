@@ -24,7 +24,8 @@ function answerFromAVault(lastOpened: { workspace: string | null; article: strin
       case "list_workspaces":
         return Promise.resolve([
           { name: "Blog", articleCount: 2 },
-          { name: "Work", articleCount: 0 },
+          { name: "Empty", articleCount: 0 },
+          { name: "Work", articleCount: 1 },
         ]);
       case "list_articles":
         return Promise.resolve(
@@ -33,7 +34,9 @@ function answerFromAVault(lastOpened: { workspace: string | null; article: strin
                 { fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", category: [], tags: [], hasIncompleteMetadata: false },
                 { fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", category: [], tags: [], hasIncompleteMetadata: false },
               ]
-            : [],
+            : request.workspace === "Work"
+              ? [{ fileName: "q3.md", title: "Q3 回顧", createdAt: "", category: [], tags: [], hasIncompleteMetadata: false }]
+              : [],
         );
       case "read_body":
         return Promise.resolve({
@@ -91,9 +94,33 @@ describe("App", () => {
     expect(editorContent()).toBe(firstEditor);
 
     fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
-    await screen.findByText("建立第一篇文章");
+    await screen.findByRole("button", { name: /Q3 回顧/ });
+    expect(screen.queryByRole("button", { name: /Zen of Writing/ })).not.toBeInTheDocument();
     expect(editorContent()).toBeNull();
+    expect(screen.getByRole("button", { name: /^Work/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("shows the first-article invitation for a workspace without articles", async () => {
+    answerFromAVault({ workspace: null, article: null });
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Empty/ }));
+
+    expect(await screen.findByText("建立第一篇文章")).toBeInTheDocument();
+  });
+
+  it("moves the article selection to the one clicked last", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+    fireEvent.click(screen.getByRole("button", { name: /Tauri 與 Electron/ }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Tauri 與 Electron/ })).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("remembers the article the user opened", async () => {
