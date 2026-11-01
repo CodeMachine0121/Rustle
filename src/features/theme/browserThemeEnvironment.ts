@@ -1,4 +1,5 @@
-import type { SystemAppearance, ThemeCache } from "./ThemeSession";
+import { ThemeCatalog } from "./ThemeCatalog";
+import type { SystemAppearance, ThemeCache, ThemeEnvironment } from "./ThemeSession";
 
 const CACHE_KEY = "rustle.theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
@@ -31,5 +32,15 @@ export function browserSystemAppearance(): SystemAppearance {
       query.addEventListener("change", listener);
       return () => query.removeEventListener("change", listener);
     },
+  };
+}
+
+/** The shipped themes painted on the whole page, remembered in this webview, following this system. */
+export function browserThemeEnvironment(): ThemeEnvironment {
+  return {
+    catalog: ThemeCatalog.shipped(),
+    cache: browserThemeCache(),
+    system: browserSystemAppearance(),
+    root: document.documentElement,
   };
 }

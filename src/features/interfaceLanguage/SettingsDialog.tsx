@@ -1,20 +1,24 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type MouseEvent } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import type { ThemeMenu } from "../theme/ThemeSession";
+import { ThemeSetting } from "../theme/ThemeSetting";
 import { LANGUAGE_OPTIONS, documentLanguageOf, type InterfaceLanguage } from "./interfaceLanguage";
 import { useMessages } from "./InterfaceLanguageContext";
 
 type SettingsDialogProps = {
   language: InterfaceLanguage;
   onChoose: (language: InterfaceLanguage) => void;
+  theme: ThemeMenu;
   onClose: () => void;
 };
 
 /**
  * The settings, over a dimmed screen like every other dialog. Choosing a
- * language closes it; Esc or a click on the dimmed backdrop only closes it.
+ * language closes it; a theme repaints the screen behind it and leaves it
+ * open; Esc or a click on the dimmed backdrop only closes it.
  */
-export function SettingsDialog({ language, onChoose, onClose }: SettingsDialogProps) {
+export function SettingsDialog({ language, onChoose, theme, onClose }: SettingsDialogProps) {
   const messages = useMessages();
   const composition = useCompositionState();
   const headingId = useId();
@@ -69,6 +73,7 @@ export function SettingsDialog({ language, onChoose, onClose }: SettingsDialogPr
             ))}
           </div>
         </section>
+        <ThemeSetting menu={theme} language={language} />
       </div>
     </div>
   );
