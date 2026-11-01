@@ -27,7 +27,7 @@ function editorState(marked: string, composition: CompositionState, catalog: Sni
     selection: EditorSelection.single(Math.max(marked.indexOf(CURSOR), 0)),
     extensions: [
       new TabIndentation(composition, IndentUnit.from()).extension(),
-      new SnippetExpansion(composition, catalog, "片段").extension(),
+      new SnippetExpansion(composition, catalog, () => "片段").extension(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       markdown(),

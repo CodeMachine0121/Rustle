@@ -16,7 +16,8 @@ export class SnippetExpansion {
   readonly #fields: SnippetFields;
   readonly #menu: SnippetMenu;
 
-  constructor(composition: CompositionState, catalog: SnippetCatalog, menuLabel: string) {
+  /** `menuLabel` names the menu each time it opens, so it follows the interface language. */
+  constructor(composition: CompositionState, catalog: SnippetCatalog, menuLabel: () => string) {
     this.#fields = new SnippetFields(composition);
     this.#menu = new SnippetMenu(composition, catalog, this.#fields, menuLabel);
   }

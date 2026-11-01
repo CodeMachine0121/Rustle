@@ -42,6 +42,7 @@ export const CHINESE_MESSAGES = {
   language: "語言",
   theme: "主題",
   followSystem: "跟隨系統",
+  snippetMenu: "片段",
 
   vaultUnreadable: (reason: string) => `讀不到 vault：${reason}`,
   firstWorkspace: "建立你的第一個 workspace",
@@ -189,6 +190,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   language: "Language",
   theme: "Theme",
   followSystem: "Follow System",
+  snippetMenu: "Snippets",
 
   vaultUnreadable: (reason) => `Cannot read the vault: ${reason}`,
   firstWorkspace: "Create your first workspace",

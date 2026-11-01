@@ -32,10 +32,10 @@ export class SnippetMenu {
   readonly #composition: CompositionState;
   readonly #catalog: SnippetCatalog;
   readonly #fields: SnippetFields;
-  readonly #label: string;
+  readonly #label: () => string;
   readonly #menu: StateField<OpenMenu | null>;
 
-  constructor(composition: CompositionState, catalog: SnippetCatalog, fields: SnippetFields, label: string) {
+  constructor(composition: CompositionState, catalog: SnippetCatalog, fields: SnippetFields, label: () => string) {
     this.#composition = composition;
     this.#catalog = catalog;
     this.#fields = fields;
@@ -175,7 +175,7 @@ export class SnippetMenu {
     const list = document.createElement("ul");
     list.className = "snippet-menu";
     list.setAttribute("role", "listbox");
-    list.setAttribute("aria-label", this.#label);
+    list.setAttribute("aria-label", this.#label());
     list.addEventListener("mousedown", (event) => {
       event.preventDefault();
       const row = event.target instanceof Element ? event.target.closest("[data-snippet-row]") : null;
