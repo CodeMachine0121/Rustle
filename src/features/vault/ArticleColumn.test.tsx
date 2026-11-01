@@ -258,6 +258,7 @@ describe("ArticleColumn ordering and filtering", () => {
     const notCancelled = fireEvent.keyDown(filterField(), { key: "Enter", keyCode: 13 });
 
     expect(notCancelled).toBe(false);
+    expect(filterField().closest("form")).toBeNull();
     expect(rowTitles()).toEqual(["Zen of Writing"]);
   });
 
