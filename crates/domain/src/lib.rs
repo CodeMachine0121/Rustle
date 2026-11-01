@@ -5,9 +5,14 @@ mod article_draft;
 mod article_file_name_slug;
 mod article_metadata;
 mod article_repository;
+mod clipboard;
 mod clock;
+mod identifier_generator;
+mod image_asset_repository;
+mod image_converter;
 mod local_timestamp;
 mod metadata_update;
+mod pasted_image;
 mod settings;
 mod utc_timestamp;
 mod vault_entry;
@@ -23,11 +28,22 @@ pub use article_metadata::ArticleMetadata;
 pub use article_repository::{
     ArticleRepository, ArticleRepositoryError, ArticleWrite, StoredArticle,
 };
+#[cfg(any(test, feature = "mocks"))]
+pub use clipboard::MockClipboard;
+pub use clipboard::{Clipboard, ClipboardError};
 pub use clock::Clock;
 #[cfg(any(test, feature = "mocks"))]
 pub use clock::MockClock;
+pub use identifier_generator::IdentifierGenerator;
+#[cfg(any(test, feature = "mocks"))]
+pub use identifier_generator::MockIdentifierGenerator;
+pub use image_asset_repository::{ImageAssetRepository, ImageAssetRepositoryError};
+#[cfg(any(test, feature = "mocks"))]
+pub use image_converter::MockImageConverter;
+pub use image_converter::{ImageConversionError, ImageConverter};
 pub use local_timestamp::LocalTimestamp;
 pub use metadata_update::MetadataUpdate;
+pub use pasted_image::{ImageStorage, PNG_EXTENSION, PastedImage};
 pub use settings::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
     SettingsError, SettingsRepository,
