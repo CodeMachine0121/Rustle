@@ -74,8 +74,10 @@
 | :--- | :--- | :--- | :--- |
 | `operationFailure.ts` | module | `Operation` names, `OperationFailure`, `describeOperationFailure`, `refusalMessage(outcome)` for the two `ArticleHolder` refusals | TC-50~TC-53 |
 | `OperationFailureNotice` | component | shows `describeOperationFailure(snapshot.operationFailure)` with a 關閉提示 button | TC-54 |
-| `EditArticleMetadataDialog` | component | form-less, IME-safe dialog prefilled from the row; read-only 建立於 / 更新於 as written in the file (its own offset, never converted); 儲存 disabled for a blank title | TC-01~TC-09 |
+| `ArticleMetadataForm` | component | the form-less, IME-safe title + chip dialog shared by creating and editing (Enter in the title submits, Esc closes, busy while submitting); added during improve-codebase | TC-04~TC-09 |
+| `EditArticleMetadataDialog` | component | `ArticleMetadataForm` prefilled from the row; read-only 建立於 / 更新於 as written in the file (its own offset, never converted) | TC-01~TC-09 |
 | `ConfirmDeletionDialog` | component | `role="alertdialog"`, initial focus on 取消, `Esc` (not owned by the input method) cancels, no implicit `Enter` confirm | TC-22~TC-24, TC-39, TC-44 |
+| `ArticleDeletionDialog` / `WorkspaceDeletionDialog` | components | what each confirmation says (trash, images untouched, the counts) on top of `ConfirmDeletionDialog` | TC-22, TC-39 |
 | `RenameWorkspaceField` | component | inline field prefilled with the current name; `Enter` (not composing) submits, `Esc` cancels | TC-10, TC-33, TC-34 |
 | `workspaceNameRejection.ts` | module | the one explanation table for a rejected workspace name | TC-34 |
 
@@ -128,7 +130,7 @@ Order inside `VaultSession` for an operation that may touch the open article:
 3. `renameWorkspace(workspace, typed)`: if it is the selected workspace → `closeArticle()` (refused → stop) → `renameWorkspace` → reload workspaces → re-select it under the new name (editor empty) when it was selected.
 4. `countWorkspaceContents(workspace)` before the confirmation (failure → notice, no confirmation); `deleteWorkspace(workspace)`: if selected → `closeArticle()` → `deleteWorkspace` → reload workspaces → clear the selection when it was selected.
 
-Every success clears `operationFailure`; every failure replaces it.
+Every success clears `operationFailure`; every failure replaces it. Only an operation on what is selected starts a new selection (`#selectionFor`); one on anything else leaves an in-flight click alone (found by `/contract`).
 
 ---
 
