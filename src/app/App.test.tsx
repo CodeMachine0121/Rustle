@@ -771,6 +771,18 @@ describe("App", () => {
       expect(section("文章")).not.toBeVisible();
     });
 
+    it("keeps the editor, its unsaved text, cursor and undo history through the sidebar fold and the settings key", async () => {
+      await startWithZenOpen();
+      const view = typeUnsavedText();
+
+      fireEvent.click(screen.getByRole("button", { name: "收起側邊欄" }));
+      fireEvent.keyDown(view.contentDOM, { key: ",", code: "Comma", metaKey: true });
+      fireEvent.keyDown(screen.getByRole("dialog", { name: "設定" }), { key: ",", code: "Comma", metaKey: true });
+      fireEvent.click(screen.getByRole("button", { name: "打開側邊欄" }));
+
+      expectUntouched(view);
+    });
+
     it("never writes Zen Mode or preview only into the settings", async () => {
       await startWithZenOpen();
 
@@ -1930,6 +1942,8 @@ describe("App", () => {
       expect(isZen()).toBe(false);
       expect(screen.getByRole("region", { name: "文章" })).toBeVisible();
       expect(view.state.doc.toString()).toBe("正文的第一行。");
+      expect(EditorView.findFromDOM(content)).toBe(view);
+      expect(editorContent()).toBe(content);
     });
 
     it("keeps Zen Mode as it is on zz in Insert mode", async () => {

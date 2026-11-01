@@ -432,15 +432,15 @@ describe("an app command on a Normal mode key", () => {
     expect(text()).toBe("hello");
   });
 
-  it("does not run in Insert mode", () => {
+  it("does not run in Insert mode, where both letters go on to be typed", () => {
     const { press, run, mode } = openWithCommand("hello");
     press("i");
 
-    press("z");
-    press("z");
+    const presses = [press("z"), press("z")];
 
     expect(run).not.toHaveBeenCalled();
     expect(mode()).toBe("insert");
+    expect(presses.map((event) => event.defaultPrevented)).toEqual([false, false]);
   });
 
   it("does not run in Visual mode, where the selection stays", () => {
@@ -455,13 +455,13 @@ describe("an app command on a Normal mode key", () => {
     expect(editor.state.selection.main.empty).toBe(false);
   });
 
-  it("does not run with Vim off", () => {
+  it("does not run with Vim off, where both letters go on to be typed", () => {
     const { press, run } = openWithCommand("hello", false);
 
-    press("z");
-    press("z");
+    const presses = [press("z"), press("z")];
 
     expect(run).not.toHaveBeenCalled();
+    expect(presses.map((event) => event.defaultPrevented)).toEqual([false, false]);
   });
 
   it("does not run while an input method composes", () => {
