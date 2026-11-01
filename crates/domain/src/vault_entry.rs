@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::vault_name::{ArticleFileName, WorkspaceName};
 use crate::vault_scope::IMAGES_FOLDER_NAME;
 
@@ -50,6 +52,15 @@ impl VaultEntry {
         is_listable
             .then(|| ArticleFileName::parse(&self.name).ok())
             .flatten()
+    }
+
+    /// Alphabetical ignoring case, so `a`, `b`, `C` stay in that order; names
+    /// equal but for case are ordered exactly so the order never changes.
+    pub fn compare_names(&self, other: &Self) -> Ordering {
+        self.name
+            .to_lowercase()
+            .cmp(&other.name.to_lowercase())
+            .then_with(|| self.name.cmp(&other.name))
     }
 
     /// The file system would treat the two names as the same entry.
@@ -142,6 +153,16 @@ mod tests {
     #[case(VaultEntry::new("link-outside.md", VaultEntryKind::Unreachable))]
     fn anything_else_is_not_an_article(#[case] entry: VaultEntry) {
         assert_eq!(entry.as_article(), None);
+    }
+
+    #[test]
+    fn orders_names_alphabetically_ignoring_case() {
+        let mut entries = [file("b.md"), file("C.md"), file("a.md"), file("A.md")];
+
+        entries.sort_by(VaultEntry::compare_names);
+
+        let names: Vec<&str> = entries.iter().map(VaultEntry::name).collect();
+        assert_eq!(names, ["A.md", "a.md", "b.md", "C.md"]);
     }
 
     #[rstest]

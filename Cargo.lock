@@ -2889,6 +2889,7 @@ dependencies = [
 name = "rustle-application"
 version = "0.1.0"
 dependencies = [
+ "rstest",
  "rustle-domain",
  "rustle-infrastructure",
  "serde",
