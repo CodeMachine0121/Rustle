@@ -161,3 +161,6 @@ flowchart LR
 | D10 | React `StrictMode` is not used | BRIEF A-7: no double-mounting the editor |
 | D11 | Settings read/write is implemented as an infrastructure seam, but `readSettings` / `writeSettings` still answer `notImplemented` | TC-13 requires it; the vault slice wires them |
 | D12 | `src-tauri/build.rs` creates `../dist` when missing | `generate_context!` needs `frontendDist` to exist, so `cargo clippy/test` work without a frontend build |
+| D13 | `write_atomically` lives in `rustle-infrastructure` now (used by the settings seam) | The autosave slice owns atomic article writes; it should reuse this primitive instead of adding a second one |
+| D14 | The 12 IME checklist items were reconstructed from how the other slices cite T-1 ~ T-12 (the requirements document's §6.3 text is not in the repository) | T-5, T-7, T-8, T-9, T-11 match their citations exactly; T-1 ~ T-4, T-6, T-10, T-12 follow the BRIEF (built-in Zhuyin/Pinyin plus a third-party IME, candidate window at the caret, wrap boundary) |
+| D15 | Rust has no coverage tool installed; the coverage gate for Rust was a manual audit. Frontend coverage (v8, measured once, not committed as a dependency) was 100% except `main.tsx` (entry point) and the editor's unreachable `ref` null guard | Honest reporting instead of an invented percentage |
