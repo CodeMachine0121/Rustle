@@ -29,16 +29,12 @@ export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) 
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const area = event.currentTarget.parentElement;
-    if (area === null) {
-      return;
-    }
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      areaWidth: area.getBoundingClientRect().width,
+      areaWidth: event.currentTarget.parentElement?.getBoundingClientRect().width ?? 0,
       startWidth: width,
     };
   };

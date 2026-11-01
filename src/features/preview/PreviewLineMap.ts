@@ -82,12 +82,13 @@ function interpolate(
   if (value <= first[from]) {
     return first[to];
   }
-  const nextIndex = anchors.findIndex((anchor) => anchor[from] > value);
-  const start = anchors[nextIndex - 1];
-  const end = anchors[nextIndex];
-  if (nextIndex === -1 || start === undefined || end === undefined) {
-    return anchors[anchors.length - 1]?.[to] ?? null;
+  let start = first;
+  for (const end of anchors) {
+    if (end[from] > value) {
+      const share = (value - start[from]) / (end[from] - start[from]);
+      return start[to] + share * (end[to] - start[to]);
+    }
+    start = end;
   }
-  const share = (value - start[from]) / (end[from] - start[from]);
-  return start[to] + share * (end[to] - start[to]);
+  return start[to];
 }
