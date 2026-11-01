@@ -21,9 +21,9 @@ Upgrading Tauri or CodeMirror requires re-running `docs/ime-regression-checklist
 
 ```
 Cargo.toml                    workspace + [workspace.dependencies] (versions pinned with =)
-crates/domain/                rustle-domain: names, VaultScope, Settings, ArticleDocument, ArticleFileNameSlug, repository traits. No I/O
-crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody
-crates/infrastructure/        rustle-infrastructure: ResolvedVaultScope, FileSystemSettingsRepository, FileSystemArticleRepository, write_atomically
+crates/domain/                rustle-domain: names, VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleFileNameSlug, repository traits. No I/O
+crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody, ListWorkspaces, ListArticles, CreateWorkspace, ReadSettings
+crates/infrastructure/        rustle-infrastructure: ResolvedVaultScope, FileSystemSettingsRepository, FileSystemArticleRepository, FileSystemWorkspaceRepository, write_atomically
 src-tauri/                    assembly root: channels, commands, CSP, navigation guard, custom schemes, window
   src/channel.rs              the channel contract (one line per channel)
   src/channels.rs             the channel registration list (one line per channel)
@@ -32,10 +32,10 @@ src-tauri/                    assembly root: channels, commands, CSP, navigation
   tauri.conf.json             CSP (pinned by a test), no windows (created in code)
   capabilities/main-window.json  no permissions at all
 src/                          webview (React + CodeMirror)
-  app/                        App shell and global CSS
+  app/                        App shell (AppLayout: four columns) and global CSS with light/dark color tokens
   ipc/                        callChannel (the only invoke), channels (typed wrappers), ChannelResult
   shared/composition/         CompositionState, CompositionProvider/useCompositionState, CompositionAwareDebouncer
-  features/<feature>/         one folder per feature (editor/ today)
+  features/<feature>/         one folder per feature (editor/, vault/)
 docs/ime-regression-checklist.md  manual IME runbook + release checklist
 ```
 
@@ -63,13 +63,21 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 
 **Articles on disk**: `rustle_domain::ArticleRepository` (today `read`; autosave adds `write` with `write_atomically`). `FileSystemArticleRepository` is managed Tauri state built in `configure(builder, vault_scope)`; a command takes it as `State<'_, FileSystemArticleRepository>` and hands it to its use case. `readBody` is implemented: `channels.readBody(workspace, fileName)` → `ArticleBody { workspace, fileName, body, lastKnownModifiedAt }` (ISO 8601 UTC).
 
-**Settings**: add fields to `rustle_domain::Settings` (serde, camelCase, defaulted). `FileSystemSettingsRepository` keeps unknown keys and writes atomically. `readSettings` / `writeSettings` are wired by the vault slice.
+**Settings**: `rustle_domain::Settings` has `indentation`, `previewPanel { isOpen, widthRatio }`, `lastOpened { workspace, article }` and no vault path. A new field = one field on `Settings` + one on the private tolerant shape in `settings/stored_settings.rs` (a wrong type or out-of-range value falls back to that field's default). `FileSystemSettingsRepository` keeps unknown keys, writes atomically and checks the location against the vault on every call. `readSettings` (a broken file reads as defaults) and `writeSettings(settings)` are wired; the webview type is `src/ipc/settings.ts`.
+
+**Vault listing**: `WorkspaceRepository` (`vault_entries`, `workspace_entries`, `create`) answers raw `VaultEntry { name, kind: Folder | File | Unreachable }` lists, links already resolved and confined. What counts is decided only on `VaultEntry` (`as_workspace`, `as_article`, `compare_names`, `clashes_with`) and `WorkspaceNameRequest::judge`. A new listing rule is one method there. Channels: `listWorkspaces()`, `listArticles(workspace)`, `createWorkspace(name)` → `{ outcome: "created", workspace } | { outcome: "rejected", reason }` (a rejection is a value, not a failure).
+
+**Selection (webview)**: `src/features/vault/VaultSession.ts` is the single owner of the selected workspace/article, the lists, the body and the per-column failure lines; every click goes through `selectWorkspace` / `selectArticle`, a late answer to an older click is dropped, and each selection is written to `lastOpened`. Autosave's "may I leave?" check, create-article and filtering plug in there. Bind with `useVaultSnapshot(session)`.
+
+**Layout**: `AppLayout({ workspaces, articles, editor, preview? })`; the preview slice passes `preview` and the region appears on the right.
+
+**Editor body**: `MarkdownEditor` takes `body` and keeps one `EditorView` for the app's lifetime: a new body replaces the state in place (fresh undo history), waits while composing (latest wins), and the same body again is ignored. Leaving the editor ends a composition whose end event never came.
 
 **Atomic writes**: use `rustle_infrastructure::write_atomically` (temp file in the same folder → fsync → rename).
 
 **Custom scheme `rustle:`**: implement `VaultAssetScheme::respond` in `src-tauri/src/vault_asset_scheme.rs`. It is already registered and allowed in `img-src`. Another scheme = one `SchemeHandler` + one line in `src-tauri/src/protocols.rs`.
 
-**Composition-aware timing**: get the shared state with `useCompositionState()` and create a `CompositionAwareDebouncer(state, delayMilliseconds)`; call `schedule`, `cancel`, `dispose`. Do not read composition from props or a second source.
+**Composition-aware timing**: get the shared state with `useCompositionState()` and create a `CompositionAwareDebouncer(state, delayMilliseconds)`; call `schedule`, `cancel`, `dispose`. Do not read composition from props or a second source. A text field reports its own composition to the shared state (`start` / `end`, and `end` on blur) and asks `state.ownsKey(event)` before acting on Enter or Tab — see `NewWorkspaceField`.
 
 **Editor indentation**: `MarkdownEditor` takes `indentation?: { style: "spaces" | "tab"; width }` (`src/features/editor/IndentUnit.ts`); missing or unreasonable values fall back to 2 spaces. The settings slice passes the stored value straight through. Tab / Shift+Tab are owned by `TabIndentation` (capture-phase listener on the editor root): do not bind Tab in another extension; the instance is private to `MarkdownEditor` today, so a future toolbar must first expose `indent()` / `outdent()` through a `MarkdownEditor` handle (React `ref`) rather than build its own.
 
