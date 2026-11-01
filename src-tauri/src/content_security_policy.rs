@@ -1,6 +1,3 @@
-/// Tauri 2 carries IPC over an in-process scheme, so `connect-src` lists
-/// it; nothing on the network is reachable.
-const IPC_SOURCES: [&str; 2] = ["ipc:", "http://ipc.localhost"];
 /// The vault asset scheme as macOS/Linux (`rustle:`) and Windows
 /// (`http://rustle.localhost`) webviews spell it.
 const VAULT_ASSET_SOURCES: [&str; 2] = ["rustle:", "http://rustle.localhost"];
@@ -23,7 +20,9 @@ impl ContentSecurityPolicy {
                 ("style-src", vec!["'self'", "'unsafe-inline'"]),
                 ("img-src", image_sources),
                 ("font-src", vec!["'self'", "data:"]),
-                ("connect-src", IPC_SOURCES.to_vec()),
+                // Tauri falls back from its fetch-based IPC to postMessage
+                // when this blocks it, so channels keep working fully offline.
+                ("connect-src", vec!["'none'"]),
                 ("object-src", vec!["'none'"]),
                 ("base-uri", vec!["'none'"]),
                 ("form-action", vec!["'none'"]),
@@ -52,6 +51,7 @@ impl ContentSecurityPolicy {
             .iter_mut()
             .find(|(name, _)| *name == directive)
         {
+            sources.retain(|source| *source != "'none'");
             sources.extend_from_slice(extra_sources);
         }
     }
@@ -87,11 +87,7 @@ mod tests {
         assert_eq!(sources(&production, "object-src"), ["'none'"]);
         assert_eq!(sources(&production, "base-uri"), ["'none'"]);
         assert_eq!(sources(&production, "form-action"), ["'none'"]);
-        assert!(
-            sources(&production, "connect-src")
-                .iter()
-                .all(|source| source == "ipc:" || source == "http://ipc.localhost")
-        );
+        assert_eq!(sources(&production, "connect-src"), ["'none'"]);
     }
 
     #[test]
@@ -120,12 +116,10 @@ mod tests {
         let production = directives(&ContentSecurityPolicy::production());
         let development = directives(&ContentSecurityPolicy::development());
 
-        let added: Vec<&String> = sources(&development, "connect-src")
-            .iter()
-            .filter(|source| !sources(&production, "connect-src").contains(source))
-            .collect();
-        assert_eq!(added, ["ws://localhost:1420", "http://localhost:1420"]);
-        assert!(added.iter().all(|source| source.contains("localhost")));
+        assert_eq!(
+            sources(&development, "connect-src"),
+            ["ws://localhost:1420", "http://localhost:1420"]
+        );
         for (directive, production_sources) in &production {
             if directive != "connect-src" {
                 assert_eq!(
