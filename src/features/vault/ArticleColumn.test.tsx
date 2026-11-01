@@ -331,10 +331,14 @@ describe("ArticleColumn ordering and filtering", () => {
   it("filters and orders together", () => {
     renderControlledColumn(THREE);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
-    typeIntoFilter("e");
+    typeIntoFilter("i");
     act(() => vi.advanceTimersByTime(150));
-
     expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing"]);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "排序" }), {
+      target: { value: "updatedNewestFirst" },
+    });
+
+    expect(rowTitles()).toEqual(["Zen of Writing", "Tauri 與 Electron 的取捨"]);
   });
 });

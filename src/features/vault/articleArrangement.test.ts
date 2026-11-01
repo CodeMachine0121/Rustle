@@ -155,7 +155,9 @@ describe("arrangeArticles filtering", () => {
   });
 
   it("orders what is left", () => {
-    expect(filtered("e")).toEqual(["Tauri 與 Electron", "Zen of Writing"]);
+    const rows = arrangeArticles(FOUR, { filterText: "a", order: "title", openArticle: null });
+
+    expect(rows.map(({ article: { title } }) => title)).toEqual(["Alpha", "Beta", "Tauri 與 Electron"]);
   });
 
   it("orders and filters five hundred articles without a visible pause", () => {
