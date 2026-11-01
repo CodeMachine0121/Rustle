@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod content_security_policy;
 
+pub mod application_menu;
 pub mod channel;
 pub mod channel_registry;
 pub mod channels;
@@ -29,12 +30,15 @@ use crate::protocol_registry::ProtocolRegistry;
 use crate::protocols::scheme_handlers;
 use crate::window_close_guard::{CloseRequestDecision, WindowCloseGuard};
 
-const MAIN_WINDOW_LABEL: &str = "main";
+pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
 const APP_PAGE: &str = "index.html";
 
 pub fn run() {
     let home = std::env::home_dir().expect("Rustle keeps its vault in the home directory");
-    configure(Builder::default(), VaultScope::at_default_location(&home))
+    let builder = configure(Builder::default(), VaultScope::at_default_location(&home));
+    #[cfg(target_os = "macos")]
+    let builder = application_menu::install(builder);
+    builder
         .setup(|app| {
             open_main_window(app)?;
             Ok(())

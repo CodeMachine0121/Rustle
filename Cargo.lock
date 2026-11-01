@@ -3103,6 +3103,7 @@ dependencies = [
 name = "rustle"
 version = "0.1.0"
 dependencies = [
+ "muda",
  "percent-encoding",
  "rstest",
  "rustle-application",
