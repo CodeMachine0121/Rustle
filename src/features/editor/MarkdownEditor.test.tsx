@@ -3,12 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
+import type { IndentationSettings } from "./IndentUnit";
 import { MarkdownEditor } from "./MarkdownEditor";
 
-function renderEditor(state = new CompositionState(), body = "# Zen of writing") {
+function renderEditor(
+  state = new CompositionState(),
+  body = "# Zen of writing",
+  indentation?: IndentationSettings,
+) {
   const view = render(
     <CompositionProvider state={state}>
-      <MarkdownEditor initialBody={body} />
+      <MarkdownEditor initialBody={body} indentation={indentation} />
     </CompositionProvider>,
   );
   const content = view.container.querySelector(".cm-content");
@@ -82,5 +87,30 @@ describe("MarkdownEditor", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     expect(() => render(<MarkdownEditor initialBody="# Zen" />)).toThrow(/CompositionProvider/);
+  });
+
+  it("indents the cursor line by two spaces when no indentation settings are given", () => {
+    const { content } = renderEditor(new CompositionState(), "字");
+
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(content.textContent).toBe("  字");
+  });
+
+  it("indents by the indentation settings it was given", () => {
+    const { content } = renderEditor(new CompositionState(), "字", { style: "spaces", width: 4 });
+
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(content.textContent).toBe("    字");
+  });
+
+  it("does not indent while the shared state says a composition is in progress", () => {
+    const { content } = renderEditor(new CompositionState(), "字");
+
+    fireEvent.compositionStart(content);
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(content.textContent).toBe("字");
   });
 });
