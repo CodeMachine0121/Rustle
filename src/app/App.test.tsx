@@ -283,6 +283,8 @@ describe("App", () => {
     await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
+    expect(screen.getByLabelText("2 篇文章")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
     const dialog = screen.getByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Title"), { target: { value: "New Article" } });
@@ -301,6 +303,16 @@ describe("App", () => {
     expect(screen.getByLabelText("3 篇文章")).toBeInTheDocument();
     await waitFor(() => expect(editorContent()).toHaveFocus());
     expect(editorContent()?.textContent).toBe("");
+  });
+
+  it("opens the dialog from an empty workspace's invitation", async () => {
+    answerFromAVault({ workspace: null, article: null });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Empty/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "建立第一篇文章" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("closes the dialog on Esc without creating anything", async () => {

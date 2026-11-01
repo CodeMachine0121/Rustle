@@ -52,9 +52,14 @@ describe("CreateArticleDialog", () => {
     renderDialog();
 
     expect(field("Title")).toHaveAttribute("type", "text");
-    expect(field("Category")).toBeInTheDocument();
-    expect(field("Tags")).toBeInTheDocument();
     expect(screen.getAllByRole("textbox")).toHaveLength(3);
+    for (const label of ["Category", "Tags"]) {
+      for (const value of ["一", "二"]) {
+        type(label, value);
+        fireEvent.keyDown(field(label), { key: "Enter" });
+      }
+    }
+    expect(screen.getAllByRole("button", { name: /^移除/ })).toHaveLength(4);
   });
 
   it("shows when the article is created as text, with no field to fill in", () => {
