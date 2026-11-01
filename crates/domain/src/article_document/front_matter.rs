@@ -21,9 +21,7 @@ impl FrontMatter {
     /// text has no front matter.
     pub(super) fn split_from(text: &str) -> Option<(Self, &str)> {
         let mut lines = text.split_inclusive('\n');
-        let opening = lines
-            .next()
-            .filter(|line| line.ends_with('\n') && Self::is_delimiter(line))?;
+        let opening = lines.next().filter(|line| Self::is_delimiter(line))?;
         let mut content_end = opening.len();
         for line in lines {
             if Self::is_delimiter(line) {

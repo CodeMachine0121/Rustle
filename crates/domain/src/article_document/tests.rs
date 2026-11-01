@@ -521,6 +521,15 @@ mod line_endings_and_broken_blocks {
     }
 
     #[test]
+    fn keeps_a_block_whose_edit_would_land_in_the_wrong_yaml_document() {
+        let block = "---\ntitle: Zen\n...\ntags: old\n---\n";
+
+        let text = rewritten(block, &MetadataUpdate::default().tags(["new"]));
+
+        assert_eq!(text, block);
+    }
+
+    #[test]
     fn edits_a_block_that_uses_explicit_keys() {
         let text = rewritten(
             "---\n? title\n: Zen\n---\n",
