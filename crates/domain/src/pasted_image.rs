@@ -34,6 +34,15 @@ const TIFF_SIGNATURES: [&[u8]; 2] = [b"II*\0", b"MM\0*"];
 const SVG_SNIFF_LENGTH: usize = 4096;
 
 impl PastedImage {
+    /// How many leading bytes decide whether bytes are a recognised image.
+    pub const HEADER_LENGTH: usize = SVG_SNIFF_LENGTH;
+
+    /// Whether bytes starting with this header would be recognised, so a
+    /// file that is not an image need not be read in full.
+    pub fn has_image_header(header: &[u8]) -> bool {
+        ImageFormat::of(header).is_some()
+    }
+
     /// `None` for anything that is not one of the recognised image formats.
     pub fn recognize(bytes: Vec<u8>) -> Option<Self> {
         let format = ImageFormat::of(&bytes)?;
@@ -292,6 +301,29 @@ mod tests {
     #[case::riff_that_is_not_webp(b"RIFF\0\0\0\0WAVE".to_vec())]
     #[case::empty(Vec::new())]
     fn does_not_recognize_anything_else(#[case] bytes: Vec<u8>) {
+        assert!(!PastedImage::has_image_header(&bytes));
+        assert_eq!(PastedImage::recognize(bytes), None);
+    }
+
+    #[rstest]
+    #[case::png(b"\x89PNG\r\n\x1a\n rest of the picture".to_vec())]
+    #[case::jpeg(b"\xff\xd8\xff\xe0 jfif".to_vec())]
+    #[case::webp(webp(b"VP8X", 0b0000_0010))]
+    #[case::gif(gif(2))]
+    #[case::svg(format!("{}<svg/>", " ".repeat(100)).into_bytes())]
+    fn the_header_alone_tells_a_recognised_image(#[case] bytes: Vec<u8>) {
+        let header = &bytes[..bytes.len().min(PastedImage::HEADER_LENGTH)];
+
+        assert!(PastedImage::has_image_header(header));
+    }
+
+    #[test]
+    fn an_svg_tag_past_the_header_is_not_recognised_by_either_check() {
+        let bytes =
+            format!("<!--{}-->\n<svg/>", " ".repeat(PastedImage::HEADER_LENGTH)).into_bytes();
+        let header = &bytes[..PastedImage::HEADER_LENGTH];
+
+        assert!(!PastedImage::has_image_header(header));
         assert_eq!(PastedImage::recognize(bytes), None);
     }
 }

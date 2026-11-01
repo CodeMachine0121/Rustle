@@ -8,7 +8,8 @@ pub enum ClipboardError {
 
 #[cfg_attr(any(test, feature = "mocks"), mockall::automock)]
 pub trait Clipboard {
-    /// The contents of every file the clipboard refers to, in order, or else
-    /// the picture it holds; empty when it holds neither.
+    /// The contents of every file the clipboard refers to that may be an
+    /// image, in order, or else the picture it holds; empty when it holds
+    /// neither.
     fn image_candidates(&self) -> Result<Vec<Vec<u8>>, ClipboardError>;
 }
