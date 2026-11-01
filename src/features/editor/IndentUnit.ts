@@ -36,20 +36,15 @@ export class IndentUnit {
 
   /** The leading whitespace one level out, or `null` when the line is already at the outermost level. */
   outdent(leadingWhitespace: string): string | null {
-    const columns = this.#columnsOf(leadingWhitespace);
+    let columns = 0;
+    for (const character of leadingWhitespace) {
+      columns = character === "\t" ? (Math.floor(columns / this.width) + 1) * this.width : columns + 1;
+    }
     if (columns === 0) {
       return null;
     }
     const levelBelow = Math.floor((columns - 1) / this.width);
     return this.#render(levelBelow * this.width);
-  }
-
-  #columnsOf(leadingWhitespace: string): number {
-    let columns = 0;
-    for (const character of leadingWhitespace) {
-      columns = character === "\t" ? (Math.floor(columns / this.width) + 1) * this.width : columns + 1;
-    }
-    return columns;
   }
 
   #render(columns: number): string {
