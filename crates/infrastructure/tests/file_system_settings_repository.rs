@@ -94,6 +94,38 @@ fn keeps_keys_it_does_not_understand_when_saving() {
 }
 
 #[test]
+fn keeps_keys_it_does_not_understand_inside_a_section_when_saving() {
+    let vault = Vault::create();
+    vault.write_settings_file(
+        r#"{ "previewPanel": { "isOpen": true, "widthRatio": 0.5, "fromTheFuture": "kept" } }"#,
+    );
+
+    let mut settings = vault.repository().load().expect("readable");
+    settings.preview_panel.is_open = false;
+    vault.repository().save(&settings).expect("saved");
+
+    assert_eq!(
+        vault.read_settings_file()["previewPanel"],
+        json!({ "isOpen": false, "widthRatio": 0.5, "fromTheFuture": "kept" })
+    );
+}
+
+#[test]
+fn keeps_an_unusable_toggle_shortcut_when_folding_the_panel() {
+    let vault = Vault::create();
+    vault.write_settings_file(r#"{ "previewPanel": { "isOpen": true, "toggleShortcut": 42 } }"#);
+
+    let mut settings = vault.repository().load().expect("readable");
+    settings.preview_panel.is_open = false;
+    vault.repository().save(&settings).expect("saved");
+
+    assert_eq!(
+        vault.read_settings_file()["previewPanel"]["toggleShortcut"],
+        json!(42)
+    );
+}
+
+#[test]
 fn refuses_to_overwrite_a_settings_file_it_cannot_read() {
     let vault = Vault::create();
     vault.write_settings_file("{ not json");
@@ -147,6 +179,7 @@ fn remembered_settings() -> Settings {
         preview_panel: PreviewPanelSettings {
             is_open: false,
             width_ratio: 0.3,
+            toggle_shortcut: Some("Mod+Alt+K".to_owned()),
         },
         last_opened: LastOpenedSettings {
             workspace: Some("Blog".to_owned()),

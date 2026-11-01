@@ -4,6 +4,10 @@ import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
 import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
+import { PreviewedBody } from "../features/preview/PreviewedBody";
+import { PreviewPanel } from "../features/preview/PreviewPanel";
+import { usePreviewPanel } from "../features/preview/usePreviewPanel";
+import { SettingsSession } from "../features/settings/SettingsSession";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
@@ -26,8 +30,11 @@ function VaultView() {
   const [autosave] = useState(
     () => new AutosaveSession(composition, channels, { releaseFocus: blurFocusedElement }),
   );
-  const [session] = useState(() => new VaultSession(channels, autosave));
+  const [settings] = useState(() => new SettingsSession(channels));
+  const [session] = useState(() => new VaultSession(channels, autosave, settings));
+  const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
   const snapshot = useVaultSnapshot(session);
+  const previewPanel = usePreviewPanel(settings);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -38,6 +45,8 @@ function VaultView() {
     void watchWindowCloseRequests(autosave, channels);
     return () => autosave.dispose();
   }, [autosave]);
+
+  useEffect(() => () => previewedBody.dispose(), [previewedBody]);
 
   return (
     <>
@@ -57,6 +66,12 @@ function VaultView() {
           />
         }
         editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+        preview={{
+          isOpen: previewPanel.isOpen,
+          content: <PreviewPanel previewedBody={previewedBody} />,
+          onOpen: previewPanel.open,
+          onClose: previewPanel.close,
+        }}
       />
       {articleDialogOpenedAt !== null && (
         <CreateArticleDialog

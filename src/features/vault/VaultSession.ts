@@ -4,6 +4,7 @@ import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import type { Settings } from "../../ipc/settings";
 import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
 import type { AutosaveSession } from "../autosave/AutosaveSession";
+import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 
 export type VaultChannels = Pick<
   Channels,
@@ -44,12 +45,6 @@ export type VaultSnapshot = {
   creationFailure: string | null;
 };
 
-const DEFAULT_SETTINGS: Settings = {
-  indentation: { style: "spaces", width: 2 },
-  previewPanel: { isOpen: true, widthRatio: 0.5 },
-  lastOpened: { workspace: null, article: null },
-};
-
 /** What the session shows before it has read anything. */
 export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   workspaces: [],
@@ -77,12 +72,17 @@ export class VaultSession {
   readonly #articleHolder: ArticleHolder;
   readonly #listeners = new Set<() => void>();
   #snapshot = INITIAL_VAULT_SNAPSHOT;
-  #settings: Settings | null = null;
+  readonly #settings: SettingsSession;
   #latestSelection = 0;
 
-  constructor(channels: VaultChannels, articleHolder: ArticleHolder = LETS_EVERY_ARTICLE_GO) {
+  constructor(
+    channels: VaultChannels,
+    articleHolder: ArticleHolder = LETS_EVERY_ARTICLE_GO,
+    settings: SettingsSession = new SettingsSession(channels),
+  ) {
     this.#channels = channels;
     this.#articleHolder = articleHolder;
+    this.#settings = settings;
   }
 
   get snapshot(): VaultSnapshot {
@@ -95,15 +95,12 @@ export class VaultSession {
   };
 
   async start(): Promise<void> {
-    const settings = await this.#channels.readSettings();
-    if (settings.ok) {
-      this.#settings = settings.payload;
-      this.#update({ indentation: settings.payload.indentation });
-    }
+    await this.#settings.load();
+    this.#update({ indentation: this.#settings.settings.indentation });
     if (!(await this.#loadWorkspaces())) {
       return;
     }
-    const { workspace, article } = (this.#settings ?? DEFAULT_SETTINGS).lastOpened;
+    const { workspace, article } = this.#settings.settings.lastOpened;
     if (workspace === null || !this.#snapshot.workspaces.some(({ name }) => name === workspace)) {
       return;
     }
@@ -254,15 +251,7 @@ export class VaultSession {
   }
 
   #remember(workspace: string, article: string | null): void {
-    // Settings that were never read are not written: that would replace
-    // the user's other settings with defaults.
-    if (this.#settings === null) {
-      return;
-    }
-    this.#settings = { ...this.#settings, lastOpened: { workspace, article } };
-    // Remembering where the user was is a convenience, not their writing: a
-    // settings file that cannot be written must not get in the way.
-    void this.#channels.writeSettings(this.#settings);
+    this.#settings.change((settings) => ({ ...settings, lastOpened: { workspace, article } }));
   }
 
   #update(change: Partial<VaultSnapshot>): void {

@@ -94,6 +94,11 @@ export class AutosaveSession {
     return this.#document;
   }
 
+  /** The body as the editor last reported it; `null` while no article is open. */
+  get body(): string | null {
+    return this.#article === null ? null : this.#body;
+  }
+
   subscribe(listener: () => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);

@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
+import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -13,17 +15,23 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 const BODIES: Record<string, string> = {
   "zen-of-writing.md": "正文的第一行。",
+  "q3.md": "# Q3 回顧",
   "tauri.md": "最近在選桌面框架。",
 };
 
-function answerFromAVault(lastOpened: { workspace: string | null; article: string | null }) {
+type StoredPreviewPanel = { isOpen: boolean; widthRatio: number; toggleShortcut?: string };
+
+function answerFromAVault(
+  lastOpened: { workspace: string | null; article: string | null },
+  previewPanel: StoredPreviewPanel = { isOpen: true, widthRatio: 0.5 },
+) {
   vi.mocked(invoke).mockImplementation((command, args) => {
     const request = (args ?? {}) as Record<string, string>;
     switch (command) {
       case "read_settings":
         return Promise.resolve({
           indentation: { style: "spaces", width: 2 },
-          previewPanel: { isOpen: true, widthRatio: 0.5 },
+          previewPanel,
           lastOpened,
         });
       case "list_workspaces":
@@ -124,7 +132,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByRole("button", { name: /^Blog/ });
-    expect(screen.getByText("選一篇文章開始寫作")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "EDITOR" })).getByText("選一篇文章開始寫作")).toBeInTheDocument();
     expect(editorContent()).toBeNull();
   });
 
@@ -275,6 +283,126 @@ describe("App", () => {
     render(<App />);
 
     expect(invoke).toHaveBeenCalledWith("watch_close_requests", expect.anything());
+  });
+
+  describe("preview panel", () => {
+    function previewRegion(): HTMLElement {
+      return screen.getByRole("region", { name: "PREVIEW" });
+    }
+
+    function typeAtTheEnd(text: string) {
+      const editor = document.querySelector<HTMLElement>(".cm-editor");
+      const view = editor === null ? null : EditorView.findFromDOM(editor);
+      if (view === null) {
+        throw new Error("the editor did not render");
+      }
+      act(() => view.dispatch({ changes: { from: view.state.doc.length, insert: text } }));
+    }
+
+    it("shows the open article rendered in the fourth column with a close button", async () => {
+      answerFromAVault({ workspace: "Work", article: "q3.md" });
+      render(<App />);
+
+      expect(
+        await within(previewRegion()).findByRole("heading", { level: 1, name: "Q3 回顧" }),
+      ).toBeInTheDocument();
+      expect(within(previewRegion()).getByRole("button", { name: "關閉預覽" })).toBeInTheDocument();
+      expect(within(previewRegion()).queryByText(/title:/)).not.toBeInTheDocument();
+    });
+
+    it("says the same as the editor while no article is open, with nothing to type into", async () => {
+      answerFromAVault({ workspace: null, article: null });
+      render(<App />);
+      await screen.findByRole("button", { name: /^Blog/ });
+
+      expect(screen.getAllByText("選一篇文章開始寫作")).toHaveLength(2);
+      expect(within(previewRegion()).getByText("選一篇文章開始寫作")).toBeInTheDocument();
+      expect(previewRegion().querySelector("[contenteditable], input, textarea")).toBeNull();
+    });
+
+    it("replaces the empty state with the article clicked, and returns to it on another workspace", async () => {
+      answerFromAVault({ workspace: "Work", article: null });
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: /Q3 回顧/ }));
+
+      expect(
+        await within(previewRegion()).findByRole("heading", { name: "Q3 回顧" }),
+      ).toBeInTheDocument();
+      expect(within(previewRegion()).queryByText("選一篇文章開始寫作")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /^Blog/ }));
+
+      expect(await within(previewRegion()).findByText("選一篇文章開始寫作")).toBeInTheDocument();
+    });
+
+    it("follows what is typed in the editor, not what is on disk", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(previewRegion()).toHaveTextContent("正文的第一行。"));
+
+      typeAtTheEnd("\n\n## 新的一節");
+
+      expect(within(previewRegion()).queryByRole("heading", { name: "新的一節" })).not.toBeInTheDocument();
+      expect(
+        await within(previewRegion()).findByRole("heading", { level: 2, name: "新的一節" }),
+      ).toBeInTheDocument();
+    });
+
+    it("folds into a handle, remembers it, and comes back showing the current body", async () => {
+      answerFromAVault({ workspace: "Work", article: "q3.md" });
+      render(<App />);
+      await within(previewRegion()).findByRole("heading", { name: "Q3 回顧" });
+
+      fireEvent.click(screen.getByRole("button", { name: "關閉預覽" }));
+
+      expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole("heading", { name: "Q3 回顧" })).toHaveLength(0);
+      expect(invoke).toHaveBeenLastCalledWith("write_settings", {
+        settings: {
+          indentation: { style: "spaces", width: 2 },
+          previewPanel: { isOpen: false, widthRatio: 0.5 },
+          lastOpened: { workspace: "Work", article: "q3.md" },
+        },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "開啟預覽" }));
+
+      expect(within(previewRegion()).getByRole("heading", { name: "Q3 回顧" })).toBeInTheDocument();
+    });
+
+    it("starts folded when the settings say it was closed", async () => {
+      answerFromAVault({ workspace: null, article: null }, { isOpen: false, widthRatio: 0.5 });
+      render(<App />);
+
+      expect(await screen.findByRole("button", { name: "開啟預覽" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+    });
+
+    it("toggles with the shortcut written in the settings", async () => {
+      answerFromAVault({ workspace: null, article: null }, { isOpen: true, widthRatio: 0.5, toggleShortcut: "Mod+Alt+K" });
+      render(<App />);
+      await screen.findByRole("button", { name: /^Blog/ });
+
+      fireEvent.keyDown(window, { ctrlKey: true, altKey: true, key: "k", code: "KeyK" });
+
+      expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+    });
+
+    it("stays usable when the settings cannot be read, without writing any", async () => {
+      vi.mocked(invoke).mockImplementation((command) =>
+        command === "read_settings"
+          ? Promise.reject({ reason: "unexpected", message: "permission denied" })
+          : Promise.resolve([]),
+      );
+      render(<App />);
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith("list_workspaces", undefined));
+
+      expect(previewRegion()).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "關閉預覽" }));
+
+      expect(screen.getByRole("button", { name: "開啟預覽" })).toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
+    });
   });
 
   it("creates an article from the dialog and leaves the cursor in the editor", async () => {
