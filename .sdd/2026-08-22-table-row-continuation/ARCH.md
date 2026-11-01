@@ -17,7 +17,7 @@
 
 | Area | Action | What / Why |
 | :--- | :--- | :--- |
-| `src/features/editor/TableRow.ts` | **Add** | Value object: recognises a table row from one line's text and answers `isBlank`, `nextRow`, `firstCellOffset` |
+| `src/features/editor/TableRow.ts` | **Add** | Value object: recognises a table row from one line's text and decides what Enter does at a column (`enterAt`) |
 | `src/features/editor/TableRowContinuation.ts` | **Add** | Owner of the table Enter: `continueRow(view)` and the `extension()` (a `Prec.high` keymap binding) |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | Installs `TableRowContinuation(composition).extension()` next to the other editor extensions (app integration) |
 | `docs/ime-regression-checklist.md` | **Modify** | T-6 (組字中的 Enter) gains the table-row step: the Enter that confirms a candidate at the end of a table row adds no row. The item count stays 12 (pinned by a test) |
@@ -34,8 +34,8 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `TableRow` | Value object (`TableRow.parse(lineText): TableRow \| null`) | Decide whether a line is a table row — after a prefix of spaces, tabs and `>` the first character is `\|` — and, for one that is: the prefix (`prefix`), the column count (cells between unescaped pipes; a trailing pipe closes the last cell; a lone `\|` is one column), `isBlank` (at least one closed cell, and every cell is whitespace only), `nextRow` (prefix + `\|` + `  \|` × columns, i.e. one space per cell like `/table`), `firstCellOffset` (prefix length + 2: just after `\| `) | — | US-01 all; US-02 「空的表格列」「只有一格空著不算寫完」 |
-| `TableRowContinuation` | Key owner (one per editor) | `continueRow(view)`: acts only for one empty selection in an editable, non-composing editor, at the end of a `TableRow` line (or anywhere after the first pipe of a blank row); a blank row → replace the row with its prefix (the row disappears, the cursor stays on that now-empty line below the table); otherwise → insert `\n` + `nextRow` and put the cursor at its first cell. Each is one isolated history event (`isolateHistory "full"`, `userEvent "input"`). Returns `false` otherwise so the default Enter runs. `extension()`: `Prec.high(keymap.of([{ any }]))` whose handler claims only a plain `Enter` (no Shift/Ctrl/Alt/Meta) and first asks `CompositionState.ownsKey(event)` | `TableRow`, `CompositionState`, `EditorView` | US-01, US-02, US-03 |
+| `TableRow` | Value object (`TableRow.parse(lineText): TableRow \| null`, `enterAt(column): TableRowEdit \| null`) | Decide whether a line is a table row — after a prefix of spaces, tabs and `>` the first character is `\|` — and, for one that is, what Enter does at a column: at the line end, insert `\n` + the next empty row (same prefix; one cell per column, cells split on unescaped pipes, a trailing pipe closes the last cell, a lone `\|` is one column; one space per cell like `/table`) with the cursor just after its `\| `; on a blank row (at least one closed cell, every cell whitespace) anywhere after the first pipe, clear the row down to its prefix; anywhere else `null`. `TableRowEdit` is `{ from, to, insert, cursor }` in offsets from the line start | — | US-01 all; US-02 all |
+| `TableRowContinuation` | Key owner (one per editor) | `continueRow(view)`: for one empty selection in an editable, non-composing editor, asks `TableRow.parse(line)?.enterAt(column)` and dispatches the returned edit (shifted by the line start) as one isolated history event (`isolateHistory "full"`, `userEvent "input"`). Returns `false` otherwise so the default Enter runs. `extension()`: `Prec.high(keymap.of([{ any }]))` whose handler claims only a plain `Enter` (no Shift/Ctrl/Alt/Meta) and first asks `CompositionState.ownsKey(event)` | `TableRow`, `CompositionState`, `EditorView` | US-01, US-02, US-03 |
 
 Enter decision table (`TableRowContinuation`):
 
@@ -81,9 +81,9 @@ flowchart LR
 - **Most likely next requirement:** the snippet menu (already specified) must refuse to open inside a table row, and own Enter while it is open.
 - **Where it lands:** `TableRow.parse(line.text) !== null` is the "inside a table" judgement — the menu imports it, no copy of the regex. The menu's keymap goes at `Prec.highest`; this slice's binding is `Prec.high`, the default Enter is `Prec.default` — the order PRD §7 asks for.
 - **Next most likely:** continuation for lists / quotes (out of scope today). **How to add it:** another small value object beside `TableRow` (e.g. `ListItem.parse`) and either a second key owner at the same precedence or `TableRowContinuation` generalised into a list of "line continuations"; do not grow `TableRow` into a general line classifier.
-- **Column alignment** (out of scope) would be one more method on `TableRow` — the cell texts are already split there.
+- **Column alignment** (out of scope) would live in `TableRow` — the cell texts are already split there.
 - **Patterns applied & why:** value object + single key owner, the same split as `IndentUnit` / `TabIndentation`.
-- **Do not hardcode:** the cell filler lives only in `TableRow.nextRow`; the precedence only in `TableRowContinuation.extension`.
+- **Do not hardcode:** the cell filler and the cursor placement live only in `TableRow.enterAt`; the precedence only in `TableRowContinuation.extension`.
 - **Known debt / deferred:** recognition is textual (CommonMark parser in the editor has no table node; PRD §7 accepts this).
 
 ---
@@ -92,16 +92,16 @@ flowchart LR
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| US-01 兩欄的表格續下一列 | `TableRowContinuation.continueRow` + `TableRow.nextRow` / `firstCellOffset` |
-| US-01 三欄的表格續下一列 | `TableRow` column count |
-| US-01 破折號那一列也是表格列 | `TableRow.parse` (any cell content), `isBlank` false for `---` |
-| US-01 整列縮排的表格，下一列跟著縮排 | `TableRow.prefix` |
-| US-01 引言裡的表格，下一列保留引言符號 | `TableRow.prefix` (accepts `>`) |
-| US-01 游標在列中間時 Enter 沒有變 | `TableRowContinuation` "cursor at line end" guard → default Enter |
+| US-01 兩欄的表格續下一列 | `TableRowContinuation.continueRow` + `TableRow.enterAt` |
+| US-01 三欄的表格續下一列 | `TableRow.enterAt` (column count) |
+| US-01 破折號那一列也是表格列 | `TableRow.parse` (any cell content); a `---` row is not blank |
+| US-01 整列縮排的表格，下一列跟著縮排 | `TableRow.enterAt` (keeps the prefix) |
+| US-01 引言裡的表格，下一列保留引言符號 | `TableRow.enterAt` (the prefix accepts `>`) |
+| US-01 游標在列中間時 Enter 沒有變 | `TableRow.enterAt` → `null` off the line end → default Enter |
 | US-01 一行普通文字的 Enter 沒有變 | `TableRow.parse` → `null` → default Enter |
-| US-02 空的表格列上按 Enter 就離開 | `TableRow.isBlank` + `TableRowContinuation` clear branch |
+| US-02 空的表格列上按 Enter 就離開 | `TableRow.enterAt` clear branch |
 | US-02 補一列，不填，再按一次就出來了 | both branches in sequence |
-| US-02 只有一格空著不算寫完 | `TableRow.isBlank` (every cell) |
+| US-02 只有一格空著不算寫完 | `TableRow.enterAt` (blank = every cell) |
 | US-03 組字中的 Enter 屬於輸入法 | `CompositionState.ownsKey` guard in the `any` handler (+ IME checklist T-6) |
 | US-03 片段選單與表格續列不可能同時發生 | `TableRow.parse` exposed as the shared judgement; enforced by the snippet-menu slice (§8) |
 | US-03 片段選單開著時 Enter 仍然屬於選單 | `Prec.high` below a `Prec.highest` menu keymap (§8) |
