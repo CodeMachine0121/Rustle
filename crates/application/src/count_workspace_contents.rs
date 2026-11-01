@@ -24,16 +24,11 @@ impl<'a, Workspaces: WorkspaceRepository> CountWorkspaceContents<'a, Workspaces>
         &self,
         workspace: &WorkspaceName,
     ) -> Result<WorkspaceContents, WorkspaceRepositoryError> {
-        let count = |entries: Vec<VaultEntry>, counts: fn(&VaultEntry) -> bool| {
-            entries.iter().filter(|entry| counts(entry)).count()
-        };
+        let articles = self.workspaces.workspace_entries(workspace)?;
+        let images = self.workspaces.image_entries(workspace)?;
         Ok(WorkspaceContents {
-            article_count: count(self.workspaces.workspace_entries(workspace)?, |entry| {
-                entry.as_article().is_some()
-            }),
-            image_count: count(self.workspaces.image_entries(workspace)?, |entry| {
-                entry.as_image().is_some()
-            }),
+            article_count: articles.iter().filter_map(VaultEntry::as_article).count(),
+            image_count: images.iter().filter_map(VaultEntry::as_image).count(),
         })
     }
 }
