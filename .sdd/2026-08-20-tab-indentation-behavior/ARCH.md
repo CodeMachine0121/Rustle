@@ -113,6 +113,7 @@ flowchart LR
   - Interception is a native capture-phase `keydown` listener on `view.dom`, not a CodeMirror keymap: CodeMirror ignores key events while composing, so a keymap could never keep focus in place during composition (TC-40), and capture ordering guarantees no later extension can steal Tab (TC-25).
   - "Any ordinary key" disarms the escape route; bare modifier keys (Shift, Control, Alt, Meta) do not, otherwise Esc → Shift+Tab could never escape.
   - Esc while composing does not arm the escape route (the input method uses it to cancel).
+  - Tab with Ctrl, Alt or Meta is not indentation and is left to the system (e.g. Ctrl+Tab); only plain Tab and Shift+Tab are owned.
   - A selection position at the line start of an indented line moves forward with the inserted unit (TC-01, TC-08 say the cursor stays glued to the text).
   - Outdent rewrites the whole leading whitespace of a moved line in the configured style (BRIEF A-5); lines that do not move are not touched.
   - Tab-stop measurement: a tab advances to the next multiple of the unit width; the editor's `tabSize` is set to the same width so what is drawn matches what is measured.
