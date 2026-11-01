@@ -13,12 +13,13 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 type ArgumentlessChannelName = Extract<
   ChannelName,
-  "listWorkspaces" | "readSettings"
+  "listWorkspaces" | "readSettings" | "readPreferredLocales"
 >;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
   readSettings: "read_settings",
+  readPreferredLocales: "read_preferred_locales",
 };
 
 const CHANNELS_WITH_ARGUMENTS = [
