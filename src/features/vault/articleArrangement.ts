@@ -53,18 +53,19 @@ export function arrangeArticles(
   const shown = articles
     .map((article) => ({ article, isOutsideFilter: !filter.matches(article) }))
     .filter(({ article, isOutsideFilter }) => !isOutsideFilter || article.fileName === openArticle);
-  const compareKeys = ORDER_KEYS[order];
-  const keyed = shown.map((row) => ({ row, key: compareKeys(row.article) }));
+  const instantToOrderBy = ORDER_INSTANTS[order];
+  const keyed = shown.map((row) => ({ row, instant: instantToOrderBy(row.article) }));
   keyed.sort(
     (first, second) =>
-      compareNewestFirst(first.key, second.key) ||
+      compareNewestFirst(first.instant, second.instant) ||
       first.row.article.title.localeCompare(second.row.article.title) ||
       first.row.article.fileName.localeCompare(second.row.article.fileName),
   );
   return keyed.map(({ row }) => row);
 }
 
-const ORDER_KEYS: Record<ArticleOrder, (article: ArticleSummary) => number | null> = {
+/** The time each order puts newest first. Ordering by title has none, so the title decides. */
+const ORDER_INSTANTS: Record<ArticleOrder, (article: ArticleSummary) => number | null> = {
   createdNewestFirst: (article) => instantOf(article.createdAt),
   updatedNewestFirst: (article) => instantOf(article.updatedAt),
   title: () => null,
