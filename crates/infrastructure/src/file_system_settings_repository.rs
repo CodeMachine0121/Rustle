@@ -9,7 +9,8 @@ use crate::atomic_file::write_atomically;
 use crate::resolved_vault_scope::ResolvedVaultScope;
 
 /// Stores settings in `<vault>/.rustle/settings.json`. Keys written by a
-/// newer or older Rustle are carried over untouched on save. The location
+/// newer or older Rustle, at the top level or inside a section, and values
+/// it cannot use are carried over untouched on save. The location
 /// is checked against the vault on every call, so a settings folder that
 /// links out of the vault is refused whenever it appears.
 #[derive(Debug, Clone)]
@@ -58,7 +59,16 @@ impl SettingsRepository for FileSystemSettingsRepository {
         if let Value::Object(known_fields) = serde_json::to_value(settings)
             .map_err(|error| SettingsError::Unwritable(error.to_string()))?
         {
-            document.extend(known_fields);
+            for (key, known_value) in known_fields {
+                match (document.get_mut(&key), known_value) {
+                    (Some(Value::Object(stored_section)), Value::Object(known_section)) => {
+                        stored_section.extend(known_section);
+                    }
+                    (_, known_value) => {
+                        document.insert(key, known_value);
+                    }
+                }
+            }
         }
         Self::write_document(&settings_file, &document)
             .map_err(|error| SettingsError::Unwritable(error.to_string()))
