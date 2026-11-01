@@ -131,7 +131,7 @@ export class AutosaveSession {
 
   overwrite(): Promise<void> {
     this.#debouncer.cancel();
-    return this.#enqueue(() => this.#save("overwriteOutsideChanges"));
+    return this.#enqueueSave("overwriteOutsideChanges");
   }
 
   reload(): Promise<void> {
@@ -192,7 +192,7 @@ export class AutosaveSession {
   async #saveEverything(): Promise<void> {
     while (this.#hasUnsavedChanges() && !this.#modifiedElsewhere) {
       this.#debouncer.cancel();
-      await this.#enqueue(() => this.#save("refuseOutsideChanges"));
+      await this.#enqueueSave("refuseOutsideChanges");
       if (this.#failureMessage !== null) {
         return;
       }
@@ -201,8 +201,12 @@ export class AutosaveSession {
 
   #scheduleSave(): void {
     this.#debouncer.schedule(() => {
-      void this.#enqueue(() => this.#save("refuseOutsideChanges"));
+      void this.#enqueueSave("refuseOutsideChanges");
     });
+  }
+
+  #enqueueSave(mode: SaveMode): Promise<void> {
+    return this.#enqueue(() => this.#save(mode));
   }
 
   async #save(mode: SaveMode): Promise<void> {
