@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { InterfaceLanguage } from "../interfaceLanguage/interfaceLanguage";
+import { CHINESE_MESSAGES } from "../interfaceLanguage/messages";
 import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import { KeyboardShortcut } from "../preview/KeyboardShortcut";
 import { KeymapOverview } from "./KeymapOverview";
@@ -54,6 +55,16 @@ describe("KeymapOverview", () => {
     renderOverview("zh", KeyboardShortcut.fromSetting("Cmd+Alt+K"));
 
     expect(keyFor("開關預覽")).toBe("Option+Cmd+K");
+  });
+
+  it("says nothing of its own outside the interface copy, apart from the key names", () => {
+    renderOverview("zh");
+    const sentences = new Set<unknown>(Object.values(CHINESE_MESSAGES));
+    const words = Array.from(document.querySelectorAll("h2, h3, dt")).map((element) => element.textContent);
+    const keyNames = Array.from(document.querySelectorAll("kbd")).map((element) => element.textContent);
+
+    expect(words.filter((word) => !sentences.has(word))).toEqual([]);
+    expect(keyNames.every((keyName) => /^(?:[A-Z][a-z]*\+)*(?:[A-Z][a-z]*|[A-Z0-9/])$/.test(keyName ?? ""))).toBe(true);
   });
 
   it("has no rows for undo or redo", () => {
