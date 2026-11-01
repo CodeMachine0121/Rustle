@@ -57,6 +57,10 @@
   }
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body,
 #root {
@@ -203,35 +207,21 @@ body {
 .region-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
-.region-action,
-.preview-handle {
-  border: none;
-  background: transparent;
-  color: var(--color-muted-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+.region-header .zen-button {
+  margin-left: 8px;
 }
 
-.region-action {
+.region-header .region-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.view-mode-buttons {
+  display: flex;
+  gap: 2px;
   margin-right: 8px;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.region-action:hover,
-.preview-handle:hover {
-  color: var(--color-text);
-}
-
-.preview-handle {
-  flex: 0 0 auto;
-  writing-mode: vertical-rl;
-  padding: 12px 6px;
-  border-left: 1px solid var(--color-border);
 }
 
 .region-title {
