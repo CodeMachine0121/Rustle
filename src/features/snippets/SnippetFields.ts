@@ -2,6 +2,7 @@ import { EditorSelection, StateEffect, StateField, type ChangeDesc, type EditorS
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
+import type { SnippetExpansionText } from "./Snippet";
 
 type DocumentRange = { readonly from: number; readonly to: number };
 
@@ -98,7 +99,7 @@ export class SnippetFields {
   }
 
   /** The effect that makes these fields (offsets from `at`) the waiting group, cursor on the first. */
-  start(at: number, expansion: { text: string; fields: readonly DocumentRange[] }): StateEffect<WaitingFields> {
+  start(at: number, expansion: SnippetExpansionText): StateEffect<WaitingFields> {
     const fields = expansion.fields.map((field) => ({ from: at + field.from, to: at + field.to }));
     return startFields.of(new WaitingFields(fields, 0, { from: at, to: at + expansion.text.length }));
   }
