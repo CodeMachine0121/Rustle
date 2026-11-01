@@ -63,7 +63,9 @@ export function CreateArticleDialog({ openedAt, vocabulary, onCreate, onClose }:
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape" && !composition.ownsKey(event.nativeEvent)) {
       event.preventDefault();
-      onClose();
+      if (!isCreatingRef.current) {
+        onClose();
+      }
     }
   };
 
@@ -131,7 +133,7 @@ export function CreateArticleDialog({ openedAt, vocabulary, onCreate, onClose }:
           </p>
         )}
         <div className="dialog-actions">
-          <button type="button" onClick={onClose}>
+          <button type="button" disabled={isCreating} onClick={onClose}>
             取消
           </button>
           <button type="button" disabled={isTitleBlank || isCreating} onClick={() => void create()}>

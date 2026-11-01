@@ -275,4 +275,17 @@ describe("CreateArticleDialog", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("磁碟已滿");
     expect(createButton()).toBeEnabled();
   });
+
+  it("cannot be cancelled while the article is being created", () => {
+    const { onClose } = renderDialog({
+      onCreate: vi.fn(() => new Promise<ArticleCreation>(() => undefined)),
+    });
+    type("Title", "Zen of Writing");
+
+    fireEvent.click(createButton());
+    fireEvent.keyDown(field("Title"), { key: "Escape" });
+
+    expect(screen.getByRole("button", { name: "取消" })).toBeDisabled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
