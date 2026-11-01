@@ -198,20 +198,20 @@ describe("ArticleColumn", () => {
     expect(metaOf(/^Tauri/)[0]).toBe("未標記");
   });
 
+  it("lines up Active, 2026-08-21, #go and #api from the left, in that order", () => {
+    renderInEnglish({
+      ...TAURI,
+      status: "active",
+      createdAt: "2026-08-21T09:00:00+08:00",
+      tags: ["go", "api"],
+    });
+
+    expect(metaOf(/^Tauri/)).toEqual(["Active", "2026-08-21", "go", "api"]);
+    expect(screen.getByRole("button", { name: /^Tauri/ }).querySelectorAll(".row-meta .row-tag")).toHaveLength(2);
+  });
+
   it("says No Status in English, as the sidebar does", () => {
-    render(
-      <InterfaceLanguageProvider language="en">
-        <CompositionProvider>
-          <ArticleColumn
-            snapshot={{ ...BLOG, articles: [{ ...TAURI, status: null }] }}
-            onSelect={vi.fn()}
-            onCreateArticle={vi.fn()}
-            onEditMetadata={vi.fn()}
-            onDelete={vi.fn()}
-          />
-        </CompositionProvider>
-      </InterfaceLanguageProvider>,
-    );
+    renderInEnglish({ ...TAURI, status: null });
 
     expect(metaOf(/^Tauri/)).toEqual(["No Status", "2026-08-20", "tauri", "electron", "技術筆記"]);
   });
@@ -251,6 +251,22 @@ describe("ArticleColumn", () => {
     expect(document.body.textContent).not.toMatch(/🔍|＋|篩選…/u);
   });
 });
+
+function renderInEnglish(article: ArticleSummary) {
+  render(
+    <InterfaceLanguageProvider language="en">
+      <CompositionProvider>
+        <ArticleColumn
+          snapshot={{ ...BLOG, articles: [article] }}
+          onSelect={vi.fn()}
+          onCreateArticle={vi.fn()}
+          onEditMetadata={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </CompositionProvider>
+    </InterfaceLanguageProvider>,
+  );
+}
 
 function metaOf(title: RegExp): string[] {
   const meta = screen.getByRole("button", { name: title }).querySelector(".row-meta");

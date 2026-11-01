@@ -677,6 +677,8 @@ describe("App", () => {
       expect(screen.queryByRole("button", { name: "所有文章" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
+      expect(saveStatusLine()).toHaveTextContent("Blog❯zen-of-writing.md");
+      expect(saveIndicator()).toBe("saved");
       expect(section("編輯區")).toBeVisible();
       expect(section("預覽區")).toBeVisible();
       expect(Array.from(document.querySelectorAll("main > :not([hidden])"))).toEqual([

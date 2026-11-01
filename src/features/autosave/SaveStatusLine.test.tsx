@@ -65,6 +65,21 @@ describe("SaveStatusLine", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("reads Blog ❯ my-first-post.md with a green check for a saved article", async () => {
+    render(<SaveStatusLine session={session} />);
+
+    await act(() =>
+      session
+        .openArticle({ article: { ...ARTICLE, fileName: "my-first-post.md" }, title: "My first post" })
+        .then(() => undefined),
+    );
+
+    expect(statusLine().querySelector(".article-path")?.textContent).toBe("Blog❯my-first-post.md");
+    expect(statusLine().querySelector(".article-path__separator")).toHaveTextContent("❯");
+    expect(statusLine().textContent).toBe("Blog❯my-first-post.md");
+    expect(document.querySelector(".save-indicator--saved svg")).toHaveClass("lucide-check");
+  });
+
   it("shows the workspace and the file name with an arrow and a saved check, and no words", async () => {
     render(<SaveStatusLine session={session} />);
     await openArticle();
