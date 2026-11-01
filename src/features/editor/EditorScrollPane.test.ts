@@ -55,6 +55,13 @@ describe("EditorScrollPane", () => {
     expect(pane.positionForLine(999)).toBe(PADDING + 49 * LINE_HEIGHT + LINE_HEIGHT);
   });
 
+  it("counts a line without height as its start", () => {
+    const geometry = editorGeometry(PADDING + 7 * LINE_HEIGHT + 10);
+    const flat = { ...geometry, lineBlockAtHeight: (height: number) => ({ ...geometry.lineBlockAtHeight(height), height: 0 }) };
+
+    expect(new EditorScrollPane(flat).lineAtTop()).toBe(7);
+  });
+
   it("is at line zero in the top padding", () => {
     expect(new EditorScrollPane(editorGeometry(0)).lineAtTop()).toBe(0);
   });

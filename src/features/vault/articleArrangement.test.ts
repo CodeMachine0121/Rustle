@@ -87,6 +87,15 @@ describe("arrangeArticles ordering", () => {
     expect(ordered([...pair].reverse(), "createdNewestFirst")).toEqual(["alpha.md", "beta.md"]);
   });
 
+  it("orders articles with the same time and title by file name", () => {
+    const pair = [
+      article({ fileName: "b.md", title: "Same" }),
+      article({ fileName: "a.md", title: "Same" }),
+    ];
+
+    expect(ordered(pair, "createdNewestFirst")).toEqual(["a.md", "b.md"]);
+  });
+
   it("compares times written in different zones as instants", () => {
     const pair = [
       article({ fileName: "taipei.md", createdAt: "2026-08-20T00:30:00+08:00" }),

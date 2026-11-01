@@ -261,6 +261,16 @@ describe("ArticleColumn ordering and filtering", () => {
     expect(rowTitles()).toEqual(["Zen of Writing"]);
   });
 
+  it("does nothing on other keys", () => {
+    renderControlledColumn(THREE);
+    typeIntoFilter("zen");
+
+    const notCancelled = fireEvent.keyDown(filterField(), { key: "a", keyCode: 65 });
+
+    expect(notCancelled).toBe(true);
+    expect(rowTitles()).toHaveLength(3);
+  });
+
   it("clears the filter on Escape", () => {
     renderControlledColumn(THREE);
     typeIntoFilter("zen");
