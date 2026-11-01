@@ -277,6 +277,48 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("pastes an image into the open article, saves the relative path and previews it", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+    vi.mocked(invoke).mockImplementation((command, args) =>
+      command === "save_clipboard_image"
+        ? Promise.resolve({ images: [{ relativePath: "images/8f3c.png" }] })
+        : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
+    );
+    // jsdom has no layout; the editor measures text ranges to scroll the pasted line into view.
+    Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
+    Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+    const { container } = render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    const content = editorContent();
+    if (content === null) {
+      throw new Error("the editor did not render its content area");
+    }
+
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", {
+      value: { items: [{ kind: "file", type: "image/png" }], files: [], getData: () => "" },
+    });
+    act(() => {
+      content.dispatchEvent(paste);
+    });
+
+    expect(invoke).toHaveBeenCalledWith("save_clipboard_image", { workspace: "Blog" });
+    await waitFor(
+      () =>
+        expect(invoke).toHaveBeenCalledWith(
+          "save_body",
+          expect.objectContaining({ body: "![](images/8f3c.png)正文的第一行。" }),
+        ),
+      { timeout: 2000 },
+    );
+    await waitFor(() =>
+      expect(container.querySelector(".preview-content img")?.getAttribute("src")).toBe(
+        "rustle://vault/Blog/images/8f3c.png",
+      ),
+    );
+  });
+
   it("starts watching window close requests", () => {
     answerFromAVault({ workspace: null, article: null });
 

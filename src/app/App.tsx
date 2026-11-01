@@ -4,6 +4,7 @@ import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
 import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
+import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
@@ -33,6 +34,7 @@ function VaultView() {
   const [settings] = useState(() => new SettingsSession(channels));
   const [session] = useState(() => new VaultSession(channels, autosave, settings));
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
+  const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
@@ -47,6 +49,8 @@ function VaultView() {
   }, [autosave]);
 
   useEffect(() => () => previewedBody.dispose(), [previewedBody]);
+
+  useEffect(() => () => imagePaste.dispose(), [imagePaste]);
 
   return (
     <>
@@ -65,7 +69,7 @@ function VaultView() {
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
           />
         }
-        editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+        editor={<EditorColumn snapshot={snapshot} autosave={autosave} imagePaste={imagePaste} />}
         preview={{
           isOpen: previewPanel.isOpen,
           content: <PreviewPanel previewedBody={previewedBody} />,
