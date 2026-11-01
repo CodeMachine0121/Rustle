@@ -115,6 +115,22 @@ describe("EditArticleMetadataDialog", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["while the composition is going on", { key: "Enter" }, true],
+    ["that the input method reports with its own key code", { key: "Enter", keyCode: 229 }, false],
+  ])("does not save on an Enter %s", (_case, enter, composing) => {
+    const { onSave } = renderDialog();
+    if (composing) {
+      fireEvent.compositionStart(field("Title"));
+    }
+    fireEvent.change(field("Title"), { target: { value: "新標題" } });
+
+    fireEvent.keyDown(field("Title"), enter);
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("neither saves on Enter nor closes on Escape while composing", () => {
     const { onSave, onClose } = renderDialog();
 

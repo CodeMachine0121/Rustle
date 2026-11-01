@@ -59,3 +59,28 @@ fn reports_why_the_trash_refused() {
             .contains("Permission denied")
     );
 }
+
+#[test]
+fn removes_nothing_itself_and_leaves_the_images_where_they_are() {
+    let directory = tempfile::TempDir::new().expect("temporary directory");
+    let blog = directory.path().join("Rustle/Blog");
+    std::fs::create_dir_all(blog.join("images")).expect("folders");
+    for file in ["tauri.md", "images/1.png", "images/2.png"] {
+        std::fs::write(blog.join(file), "contents").expect("file");
+    }
+    let mut trash = MockTrash::new();
+    trash
+        .expect_move_article_to_trash()
+        .returning(|_, _| Ok(()));
+
+    DeleteArticle::new(&trash)
+        .execute(&workspace("Blog"), &article("tauri.md"))
+        .expect("handed to the trash");
+
+    for file in ["tauri.md", "images/1.png", "images/2.png"] {
+        assert!(
+            blog.join(file).exists(),
+            "{file} was removed outside the trash"
+        );
+    }
+}

@@ -513,6 +513,19 @@ describe("App", () => {
       expect(invoke).toHaveBeenCalledWith("delete_article", { workspace: "Blog", fileName: "tauri.md" });
     });
 
+    it("deletes no article when its confirmation is cancelled or dismissed with Esc", async () => {
+      answerFromAVaultWith({ delete_article: () => null });
+      await startInBlog();
+
+      fireEvent.click(screen.getByRole("button", { name: "刪除 Tauri 與 Electron" }));
+      fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "取消" }));
+      fireEvent.click(screen.getByRole("button", { name: "刪除 Tauri 與 Electron" }));
+      fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
+
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalledWith("delete_article", expect.anything());
+    });
+
     it("says how many articles and images deleting a workspace takes, counted when asked", async () => {
       answerFromAVaultWith({
         count_workspace_contents: () => ({ articleCount: 2, imageCount: 2 }),

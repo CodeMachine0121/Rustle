@@ -637,10 +637,9 @@ describe("VaultSession", () => {
       const session = new VaultSession(channels, holder);
       await session.start();
       holder.openArticle.mockClear();
-      const readBody = channels.readBody.getMockImplementation();
       channels.readBody.mockImplementation((workspace: string, fileName: string) => {
         steps.push("read");
-        return readBody?.(workspace, fileName) ?? failed("no body");
+        return ok({ workspace, fileName, body: "正文", lastKnownModifiedAt: "2026-08-20T09:00:00.000Z" });
       });
 
       const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
@@ -658,7 +657,7 @@ describe("VaultSession", () => {
           title: "新標題",
           article: expect.objectContaining({
             fileName: "zen-of-writing.md",
-            lastKnownModifiedAt: "2026-08-20T08:04:11.123Z",
+            lastKnownModifiedAt: "2026-08-20T09:00:00.000Z",
           }),
         }),
       );
