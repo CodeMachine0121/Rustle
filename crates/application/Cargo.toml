@@ -7,6 +7,12 @@ license.workspace = true
 
 [dependencies]
 rustle-domain.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+rustle-infrastructure.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true
