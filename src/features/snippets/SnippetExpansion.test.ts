@@ -219,6 +219,16 @@ describe("the menu for assistive technology", () => {
     expect(controlled === null ? null : document.getElementById(controlled)?.getAttribute("role")).toBe("listbox");
   });
 
+  it("tells assistive technology a list of suggestions is open while the menu is open", () => {
+    const { view } = openEditor();
+
+    type(view, "/");
+
+    expect(view.contentDOM.getAttribute("aria-expanded")).toBe("true");
+    expect(view.contentDOM.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(view.contentDOM.getAttribute("aria-autocomplete")).toBe("list");
+  });
+
   it("points at nothing once the menu is closed", () => {
     const { view } = openEditor();
     type(view, "/");
@@ -227,6 +237,7 @@ describe("the menu for assistive technology", () => {
 
     expect(view.contentDOM.getAttribute("aria-activedescendant")).toBeNull();
     expect(view.contentDOM.getAttribute("aria-controls")).toBeNull();
+    expect(view.contentDOM.getAttribute("aria-expanded")).toBeNull();
   });
 });
 

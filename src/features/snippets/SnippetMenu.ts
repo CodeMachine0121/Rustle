@@ -138,7 +138,13 @@ export class SnippetMenu {
         EditorView.contentAttributes.from(field, (menu): Record<string, string> =>
           menu === null
             ? {}
-            : { "aria-controls": this.#listId, "aria-activedescendant": this.#rowId(menu.highlighted) },
+            : {
+                "aria-autocomplete": "list",
+                "aria-haspopup": "listbox",
+                "aria-expanded": "true",
+                "aria-controls": this.#listId,
+                "aria-activedescendant": this.#rowId(menu.highlighted),
+              },
         ),
       ],
     });
