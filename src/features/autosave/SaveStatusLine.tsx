@@ -1,4 +1,5 @@
 import { Check, CircleAlert, LoaderCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { AutosaveSession, SaveIndicator } from "./AutosaveSession";
@@ -6,14 +7,16 @@ import { useAutosaveStatus } from "./useAutosaveSession";
 
 type SaveStatusLineProps = {
   session: AutosaveSession;
+  modeLabel?: ReactNode;
 };
 
 /**
  * The line under the editor: `workspace ❯ file name` on the left, a save
- * indicator with no words on the right, and a failed save or an outside
- * change spelled out between them. Nothing while no article is open.
+ * indicator with no words on the right, and between them the `modeLabel`
+ * (when given) and a failed save or an outside change spelled out. Nothing
+ * while no article is open.
  */
-export function SaveStatusLine({ session }: SaveStatusLineProps) {
+export function SaveStatusLine({ session, modeLabel }: SaveStatusLineProps) {
   const status = useAutosaveStatus(session);
   const messages = useMessages();
 
@@ -30,6 +33,7 @@ export function SaveStatusLine({ session }: SaveStatusLineProps) {
         </span>
         <span className="article-path__file">{status.fileName}</span>
       </span>
+      {modeLabel}
       {status.failureMessage !== null && (
         <span className="save-status-line__failure" role="alert">
           {messages.saveFailed(status.failureMessage)}

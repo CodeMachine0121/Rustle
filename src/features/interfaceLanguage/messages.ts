@@ -42,6 +42,7 @@ export const CHINESE_MESSAGES = {
   language: "語言",
   theme: "主題",
   followSystem: "跟隨系統",
+  vimMode: "Vim 模式",
   snippetMenu: "片段",
 
   vaultUnreadable: (reason: string) => `讀不到 vault：${reason}`,
@@ -190,6 +191,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   language: "Language",
   theme: "Theme",
   followSystem: "Follow System",
+  vimMode: "Vim Mode",
   snippetMenu: "Snippets",
 
   vaultUnreadable: (reason) => `Cannot read the vault: ${reason}`,
