@@ -1921,6 +1921,18 @@ describe("App", () => {
       expect([modeLabel(), isZen()]).toEqual(["NORMAL", false]);
     });
 
+    it("cancels a pending operator and leaves Zen Mode with the same Esc, the text untouched", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      press(content, "d");
+      press(content, "Escape");
+      press(content, "w");
+
+      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", false, "正文的第一行。"]);
+    });
+
     it("leaves Zen Mode on Esc with Vim off only after the menu is closed", async () => {
       answerWithVimMode(undefined);
       const { content, view } = await startEditing();
