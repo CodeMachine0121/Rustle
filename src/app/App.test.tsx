@@ -1505,6 +1505,21 @@ describe("App", () => {
       );
     });
 
+    it("zooms only the preview article, never the sidebar, the article list or the page", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(previewArticle()).toHaveTextContent("正文的第一行。"));
+      const sizedElements = () => Array.from(document.querySelectorAll<HTMLElement>("[style*='font-size']"));
+
+      const wheel = fireEvent.wheel(previewArticle(), { deltaY: -100, metaKey: true });
+
+      expect(wheel).toBe(false);
+      expect(Number.parseFloat(previewArticle().style.fontSize)).toBeGreaterThan(15);
+      expect(sizedElements()).toEqual([editorRoot(), previewArticle()]);
+      expect(document.documentElement.getAttribute("style")).toBeNull();
+      expect(document.body.getAttribute("style")).toBeNull();
+    });
+
     it("opens the preview at its remembered size and puts it back with Cmd+0 over it", async () => {
       answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
       const answer = vi.mocked(invoke).getMockImplementation();
