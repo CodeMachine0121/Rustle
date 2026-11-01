@@ -220,9 +220,7 @@ export class VaultSession {
     }
     const result = await this.#channels.updateMetadata({ workspace, fileName, ...draft });
     await this.#reloadArticles(workspace, selection);
-    if (wasOpen && selection === this.#latestSelection) {
-      await this.#openArticle(workspace, fileName, selection);
-    }
+    await this.#openAgain(workspace, wasOpen ? fileName : null, selection);
     if (!result.ok) {
       this.#fail("updateMetadata", result.message);
       return this.#failedEdit();
@@ -249,9 +247,7 @@ export class VaultSession {
     const result = await this.#channels.deleteArticle(workspace, fileName);
     if (!result.ok) {
       this.#fail("deleteArticle", result.message);
-      if (wasSelected && selection === this.#latestSelection) {
-        await this.#openArticle(workspace, fileName, selection);
-      }
+      await this.#openAgain(workspace, wasSelected ? fileName : null, selection);
       return;
     }
     this.dismissOperationFailure();
@@ -273,19 +269,14 @@ export class VaultSession {
       return false;
     }
     const result = await this.#channels.renameWorkspace(workspace, typedName);
-    const reopenLeftArticle = async () => {
-      if (openArticle !== null && selection === this.#latestSelection) {
-        await this.#openArticle(workspace, openArticle, selection);
-      }
-    };
     if (!result.ok) {
       this.#fail("renameWorkspace", result.message);
-      await reopenLeftArticle();
+      await this.#openAgain(workspace, openArticle, selection);
       return false;
     }
     if (result.payload.outcome === "rejected") {
       this.#update({ renameRejection: { workspace, reason: result.payload.reason } });
-      await reopenLeftArticle();
+      await this.#openAgain(workspace, openArticle, selection);
       return false;
     }
     this.dismissOperationFailure();
@@ -320,9 +311,7 @@ export class VaultSession {
     const result = await this.#channels.deleteWorkspace(workspace);
     if (!result.ok) {
       this.#fail("deleteWorkspace", result.message);
-      if (openArticle !== null && selection === this.#latestSelection) {
-        await this.#openArticle(workspace, openArticle, selection);
-      }
+      await this.#openAgain(workspace, openArticle, selection);
       return;
     }
     this.dismissOperationFailure();
@@ -353,6 +342,13 @@ export class VaultSession {
     }
     this.#update({ body: null, openedDocument: null, bodyFailure: null });
     return true;
+  }
+
+  /** Opens the article an operation let go of, unless nothing was open or the user clicked elsewhere since. */
+  async #openAgain(workspace: string, fileName: string | null, selection: number): Promise<void> {
+    if (fileName !== null && selection === this.#latestSelection) {
+      await this.#openArticle(workspace, fileName, selection);
+    }
   }
 
   async #reloadArticles(workspace: string, selection: number): Promise<void> {
