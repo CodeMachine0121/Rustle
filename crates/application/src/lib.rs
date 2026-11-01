@@ -9,6 +9,7 @@ mod list_all_articles;
 mod list_articles;
 mod list_workspaces;
 mod read_article_body;
+mod read_clipboard_text;
 mod read_preferred_locales;
 mod read_settings;
 mod rename_workspace;
@@ -16,6 +17,7 @@ mod save_article_body;
 mod save_clipboard_images;
 mod search_article_bodies;
 mod update_article_metadata;
+mod write_clipboard_text;
 mod write_settings;
 
 pub use count_workspace_contents::{CountWorkspaceContents, WorkspaceContents};
@@ -27,6 +29,7 @@ pub use list_all_articles::ListAllArticles;
 pub use list_articles::{ArticleSummary, ListArticles};
 pub use list_workspaces::{ListWorkspaces, WorkspaceSummary};
 pub use read_article_body::{ArticleBody, ReadArticleBody};
+pub use read_clipboard_text::{ClipboardText, ReadClipboardText};
 pub use read_preferred_locales::{PreferredLocales, ReadPreferredLocales};
 pub use read_settings::ReadSettings;
 pub use rename_workspace::{RenameWorkspace, RenameWorkspaceOutcome};
@@ -40,4 +43,5 @@ pub use search_article_bodies::{
 pub use update_article_metadata::{
     MetadataUpdateOutcome, UpdateArticleMetadata, UpdateArticleMetadataError,
 };
+pub use write_clipboard_text::WriteClipboardText;
 pub use write_settings::WriteSettings;
