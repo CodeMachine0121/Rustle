@@ -16,6 +16,7 @@ type MarkdownEditorProps = {
   documentKey: string;
   body: string;
   indentation?: IndentationSettings;
+  focusOnShow?: boolean;
   onBodyChange?: BodyChangeListener;
 };
 
@@ -25,9 +26,17 @@ type MarkdownEditorProps = {
  * element, and never while an input method is composing: it waits for the
  * composition to end. The key, not the body, decides: two articles with the
  * same text are still two documents. Only typing is reported as a change,
- * not a document being shown.
+ * not a document being shown. With `focusOnShow` the editor takes the
+ * keyboard when the document appears, cursor at its start; otherwise focus
+ * stays where it is, so opening an article from the list keeps the list.
  */
-export function MarkdownEditor({ documentKey, body, indentation, onBodyChange }: MarkdownEditorProps) {
+export function MarkdownEditor({
+  documentKey,
+  body,
+  indentation,
+  focusOnShow = false,
+  onBodyChange,
+}: MarkdownEditorProps) {
   const composition = useCompositionState();
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -85,6 +94,9 @@ export function MarkdownEditor({ documentKey, body, indentation, onBodyChange }:
           ],
         }),
       );
+      if (focusOnShow) {
+        view.focus();
+      }
     };
     if (!composition.isComposing) {
       show();
@@ -97,7 +109,15 @@ export function MarkdownEditor({ documentKey, body, indentation, onBodyChange }:
       }
     });
     return unsubscribe;
-  }, [composition, documentKey, body, indentationStyle, indentationWidth, indentationCompartment]);
+  }, [
+    composition,
+    documentKey,
+    body,
+    focusOnShow,
+    indentationStyle,
+    indentationWidth,
+    indentationCompartment,
+  ]);
 
   return <div className="markdown-editor" ref={hostRef} />;
 }

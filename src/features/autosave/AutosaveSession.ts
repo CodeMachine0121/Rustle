@@ -11,7 +11,8 @@ export type AutosaveSwitchOutcome =
 
 export type WindowCloseDecision = "close" | "stay";
 
-export type OpenedArticle = { article: ArticleBody; title: string };
+/** `focusEditor` hands the keyboard to the editor once the article is shown. */
+export type OpenedArticle = { article: ArticleBody; title: string; focusEditor?: boolean };
 
 export type AutosaveStatus =
   | { kind: "noArticle" }
@@ -23,8 +24,11 @@ export type AutosaveStatus =
       failureMessage: string | null;
     };
 
-/** The body the editor should show; `version` changes whenever it is replaced. */
-export type EditorDocument = { version: number; body: string | null };
+/**
+ * The body the editor should show; `version` changes whenever it is
+ * replaced, and `takesFocus` says whether showing it moves the keyboard there.
+ */
+export type EditorDocument = { version: number; body: string | null; takesFocus: boolean };
 
 export type AutosaveBackend = {
   saveBody: (request: SaveBodyRequest) => Promise<ChannelResult<SavedBody>>;
@@ -66,7 +70,7 @@ export class AutosaveSession {
   #closingRefused = false;
   #queue: Promise<unknown> = Promise.resolve();
   #status: AutosaveStatus = { kind: "noArticle" };
-  #document: EditorDocument = { version: 0, body: null };
+  #document: EditorDocument = { version: 0, body: null, takesFocus: false };
 
   constructor(
     composition: CompositionState,
@@ -110,7 +114,11 @@ export class AutosaveSession {
     this.#publish();
   }
 
-  async openArticle({ article, title }: OpenedArticle): Promise<AutosaveSwitchOutcome> {
+  async openArticle({
+    article,
+    title,
+    focusEditor = false,
+  }: OpenedArticle): Promise<AutosaveSwitchOutcome> {
     const outcome = await this.#leave();
     if (outcome === "switched") {
       this.#show(
@@ -121,6 +129,7 @@ export class AutosaveSession {
           lastKnownModifiedAt: article.lastKnownModifiedAt,
         },
         article.body,
+        focusEditor,
       );
     }
     return outcome;
@@ -257,7 +266,7 @@ export class AutosaveSession {
     this.#publish();
   }
 
-  #show(article: CurrentArticle | null, body: string | null): void {
+  #show(article: CurrentArticle | null, body: string | null, takesFocus = false): void {
     this.#debouncer.cancel();
     this.#article = article;
     this.#body = body ?? "";
@@ -266,7 +275,7 @@ export class AutosaveSession {
     this.#failureMessage = null;
     this.#leavingRefusedAfterFailure = false;
     this.#closingRefused = false;
-    this.#document = { version: this.#document.version + 1, body };
+    this.#document = { version: this.#document.version + 1, body, takesFocus };
     this.#publish();
   }
 

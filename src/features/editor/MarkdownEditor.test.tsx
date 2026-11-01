@@ -1,3 +1,5 @@
+import { undo } from "@codemirror/commands";
+import { EditorView } from "@codemirror/view";
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -238,5 +240,90 @@ describe("MarkdownEditor", () => {
     fireEvent.keyDown(content, { key: "Tab" });
 
     expect(content.textContent).toBe("字");
+  });
+
+  describe("handing the keyboard to a new document", () => {
+    function renderSwitchingEditor(firstKey: string, firstBody: string) {
+      const state = new CompositionState();
+      const view = render(
+        <>
+          <button type="button">elsewhere</button>
+          <CompositionProvider state={state}>
+            <MarkdownEditor documentKey={firstKey} body={firstBody} />
+          </CompositionProvider>
+        </>,
+      );
+      const content = view.container.querySelector(".cm-content");
+      if (!(content instanceof HTMLElement)) {
+        throw new Error("the editor did not render its content area");
+      }
+      const elsewhere = view.getByRole("button", { name: "elsewhere" });
+      const show = (documentKey: string, body: string, focusOnShow: boolean) =>
+        view.rerender(
+          <>
+            <button type="button">elsewhere</button>
+            <CompositionProvider state={state}>
+              <MarkdownEditor documentKey={documentKey} body={body} focusOnShow={focusOnShow} />
+            </CompositionProvider>
+          </>,
+        );
+      return { content, elsewhere, show };
+    }
+
+    function cursorPosition(content: HTMLElement): number | undefined {
+      return EditorView.findFromDOM(content)?.state.selection.main.head;
+    }
+
+    it("takes the keyboard with the cursor at the start when asked to", () => {
+      const { content, elsewhere, show } = renderSwitchingEditor("Blog/old.md", "舊文章");
+      elsewhere.focus();
+
+      show("Blog/new.md", "第一行\n第二行", true);
+
+      expect(content).toHaveFocus();
+      expect(cursorPosition(content)).toBe(0);
+    });
+
+    it("takes the keyboard for a new empty article after another empty one", () => {
+      const { content, elsewhere, show } = renderSwitchingEditor("Blog/empty.md", "");
+      elsewhere.focus();
+
+      show("Blog/new.md", "", true);
+
+      expect(content).toHaveFocus();
+    });
+
+    it("leaves the keyboard where it is when not asked to", () => {
+      const { elsewhere, show } = renderSwitchingEditor("Blog/old.md", "舊文章");
+      elsewhere.focus();
+
+      show("Blog/next.md", "下一篇", false);
+
+      expect(elsewhere).toHaveFocus();
+    });
+
+    it("does not take the keyboard again when the same document is shown again", () => {
+      const { elsewhere, show } = renderSwitchingEditor("Blog/old.md", "舊文章");
+      show("Blog/new.md", "", true);
+      elsewhere.focus();
+
+      show("Blog/new.md", "", true);
+
+      expect(elsewhere).toHaveFocus();
+    });
+
+    it("does not undo into the previous article", () => {
+      const { content, show } = renderSwitchingEditor("Blog/first.md", "同樣的字");
+      fireEvent.keyDown(content, { key: "Tab" });
+      show("Blog/second.md", "  同樣的字", false);
+      const editor = EditorView.findFromDOM(content);
+      if (editor === null) {
+        throw new Error("no editor behind the content area");
+      }
+
+      undo(editor);
+
+      expect(content.textContent).toBe("  同樣的字");
+    });
   });
 });

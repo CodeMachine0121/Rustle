@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
+import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
+import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
@@ -33,6 +35,7 @@ function VaultView() {
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
+  const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     void session.start();
@@ -46,25 +49,39 @@ function VaultView() {
   useEffect(() => () => previewedBody.dispose(), [previewedBody]);
 
   return (
-    <AppLayout
-      workspaces={
-        <WorkspaceColumn
-          snapshot={snapshot}
-          onSelect={(workspace) => void session.selectWorkspace(workspace)}
-          onCreate={(typedName) => session.createWorkspace(typedName)}
+    <>
+      <AppLayout
+        workspaces={
+          <WorkspaceColumn
+            snapshot={snapshot}
+            onSelect={(workspace) => void session.selectWorkspace(workspace)}
+            onCreate={(typedName) => session.createWorkspace(typedName)}
+          />
+        }
+        articles={
+          <ArticleColumn
+            snapshot={snapshot}
+            onSelect={(fileName) => void session.selectArticle(fileName)}
+            onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
+          />
+        }
+        editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+        preview={{
+          isOpen: previewPanel.isOpen,
+          content: <PreviewPanel previewedBody={previewedBody} />,
+          onOpen: previewPanel.open,
+          onClose: previewPanel.close,
+        }}
+      />
+      {articleDialogOpenedAt !== null && (
+        <CreateArticleDialog
+          openedAt={articleDialogOpenedAt}
+          vocabulary={vocabularyOf(snapshot.articles)}
+          onCreate={(draft) => session.createArticle(draft)}
+          onClose={() => setArticleDialogOpenedAt(null)}
         />
-      }
-      articles={
-        <ArticleColumn snapshot={snapshot} onSelect={(fileName) => void session.selectArticle(fileName)} />
-      }
-      editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
-      preview={{
-        isOpen: previewPanel.isOpen,
-        content: <PreviewPanel previewedBody={previewedBody} />,
-        onOpen: previewPanel.open,
-        onClose: previewPanel.close,
-      }}
-    />
+      )}
+    </>
   );
 }
 

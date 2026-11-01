@@ -13,6 +13,7 @@ rustle-domain = { path = "crates/domain" }
 rustle-application = { path = "crates/application" }
 rustle-infrastructure = { path = "crates/infrastructure" }
 
+chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
 thiserror = "=2.0.21"

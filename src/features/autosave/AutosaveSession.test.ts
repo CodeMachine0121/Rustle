@@ -199,6 +199,24 @@ describe("AutosaveSession", () => {
     });
   });
 
+  describe("handing the keyboard to the editor", () => {
+    it("asks the editor to take the keyboard only for an article opened that way", async () => {
+      await session.openArticle({ article: articleBody("new.md"), title: "新文章", focusEditor: true });
+      expect(session.document.takesFocus).toBe(true);
+
+      await session.openArticle({ article: articleBody("other.md"), title: "另一篇" });
+      expect(session.document.takesFocus).toBe(false);
+    });
+
+    it("does not ask for the keyboard when a reload shows the same article again", async () => {
+      await session.openArticle({ article: articleBody("new.md"), title: "新文章", focusEditor: true });
+
+      await session.reload();
+
+      expect(session.document.takesFocus).toBe(false);
+    });
+  });
+
   describe("leaving the article", () => {
     it("saves the previous article before switching to another", async () => {
       await openZen();
@@ -324,7 +342,7 @@ describe("AutosaveSession", () => {
       await session.reload();
 
       expect(readBody).toHaveBeenCalledWith("Blog", "zen.md");
-      expect(session.document).toEqual({ version: versionBefore + 1, body: "磁碟上的正文" });
+      expect(session.document).toEqual({ version: versionBefore + 1, body: "磁碟上的正文", takesFocus: false });
       expect(session.status).toMatchObject({ modifiedElsewhere: false, hasUnsavedChanges: false });
       await typeAndAutosave("重新載入後打的字");
       expect(saveBody.mock.lastCall?.[0].lastKnownModifiedAt).toBe("2026-08-20T09:00:00.000Z");

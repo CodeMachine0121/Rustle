@@ -73,6 +73,38 @@ function answerFromAVault(
   });
 }
 
+const CREATED_ARTICLE = {
+  fileName: "new-article.md",
+  title: "New Article",
+  createdAt: "2026-08-20T14:32:05+08:00",
+  updatedAt: "2026-08-20T14:32:05+08:00",
+  category: [],
+  tags: [],
+  hasIncompleteMetadata: false,
+};
+
+function answerFromAVaultThatCreatesArticles() {
+  answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+  const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+  let created = false;
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "create_article") {
+      created = true;
+      return CREATED_ARTICLE;
+    }
+    const answer = await answerFromTheVault?.(command, args);
+    if (created && command === "list_articles") {
+      return [...(answer as unknown[]), CREATED_ARTICLE];
+    }
+    if (created && command === "list_workspaces") {
+      return (answer as { name: string; articleCount: number }[]).map((workspace) =>
+        workspace.name === "Blog" ? { ...workspace, articleCount: 3 } : workspace,
+      );
+    }
+    return answer;
+  });
+}
+
 function editorContent(): HTMLElement | null {
   const content = document.querySelector(".cm-content");
   return content instanceof HTMLElement ? content : null;
@@ -371,5 +403,54 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "開啟預覽" })).toBeInTheDocument();
       expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
     });
+  });
+
+  it("creates an article from the dialog and leaves the cursor in the editor", async () => {
+    answerFromAVaultThatCreatesArticles();
+    render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    expect(screen.getByLabelText("2 篇文章")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Title"), { target: { value: "New Article" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "建立" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(invoke).toHaveBeenCalledWith("create_article", {
+      workspace: "Blog",
+      title: "New Article",
+      category: [],
+      tags: [],
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /New Article/ })).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(screen.getByLabelText("3 篇文章")).toBeInTheDocument();
+    await waitFor(() => expect(editorContent()).toHaveFocus());
+    expect(editorContent()?.textContent).toBe("");
+  });
+
+  it("opens the dialog from an empty workspace's invitation", async () => {
+    answerFromAVault({ workspace: null, article: null });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Empty/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "建立第一篇文章" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("closes the dialog on Esc without creating anything", async () => {
+    answerFromAVaultThatCreatesArticles();
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "＋ 新文章" }));
+
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
   });
 });

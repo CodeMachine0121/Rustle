@@ -244,6 +244,7 @@ fn each_row_carries_what_the_article_says_about_itself() {
             file_name: "tauri.md".to_owned(),
             title: "Tauri 與 Electron 的取捨".to_owned(),
             created_at: "2026-08-20T14:32:05+08:00".to_owned(),
+            updated_at: String::new(),
             category: vec!["技術筆記".to_owned()],
             tags: vec!["tauri".to_owned(), "electron".to_owned()],
             has_incomplete_metadata: false,

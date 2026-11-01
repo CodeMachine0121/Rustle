@@ -19,6 +19,27 @@ impl From<SystemTime> for UtcTimestamp {
 }
 
 impl UtcTimestamp {
+    pub(crate) fn since_epoch(&self) -> Duration {
+        self.since_epoch
+    }
+
+    /// Writes `YYYY-MM-DDTHH:MM:SS` for a count of seconds since the epoch,
+    /// read in whatever time zone the count was shifted to.
+    pub(crate) fn write_date_time(
+        formatter: &mut fmt::Formatter<'_>,
+        seconds_since_epoch: u64,
+    ) -> fmt::Result {
+        let (year, month, day) = Self::civil_date(seconds_since_epoch / SECONDS_PER_DAY);
+        let second_of_day = seconds_since_epoch % SECONDS_PER_DAY;
+        write!(
+            formatter,
+            "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}",
+            second_of_day / 3_600,
+            second_of_day % 3_600 / 60,
+            second_of_day % 60,
+        )
+    }
+
     /// Converts days since 1970-01-01 to a proleptic Gregorian date
     /// (Howard Hinnant's `civil_from_days`).
     fn civil_date(days_since_epoch: u64) -> (u64, u64, u64) {
@@ -42,17 +63,8 @@ impl UtcTimestamp {
 
 impl fmt::Display for UtcTimestamp {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let milliseconds = self.since_epoch.subsec_millis();
-        let seconds_since_epoch = self.since_epoch.as_secs();
-        let (year, month, day) = Self::civil_date(seconds_since_epoch / SECONDS_PER_DAY);
-        let second_of_day = seconds_since_epoch % SECONDS_PER_DAY;
-        write!(
-            formatter,
-            "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{milliseconds:03}Z",
-            second_of_day / 3_600,
-            second_of_day % 3_600 / 60,
-            second_of_day % 60,
-        )
+        Self::write_date_time(formatter, self.since_epoch.as_secs())?;
+        write!(formatter, ".{:03}Z", self.since_epoch.subsec_millis())
     }
 }
 
