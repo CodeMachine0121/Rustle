@@ -71,7 +71,7 @@ describe("Sidebar", () => {
     renderSidebar(BLOG, session);
 
     const titles = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(titles).toEqual(["WORKSPACES▾", "狀態▾", "標籤▾"]);
+    expect(titles).toEqual(["WORKSPACES", "狀態", "標籤"]);
     expect(screen.getAllByRole("button")[0]).toHaveTextContent("所有文章");
     expect(section("WORKSPACES")).toHaveTextContent("workspace 清單");
   });
@@ -92,9 +92,9 @@ describe("Sidebar", () => {
     );
 
     expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
-      "WORKSPACES▾",
-      "STATUS▾",
-      "TAGS▾",
+      "WORKSPACES",
+      "STATUS",
+      "TAGS",
     ]);
     expect(screen.getAllByRole("button")[0]).toHaveTextContent("All Notes");
     expect(rowsOf("STATUS").map((row) => row.textContent)).toEqual([

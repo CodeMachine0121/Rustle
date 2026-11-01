@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
+import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { ArticleColumn } from "./ArticleColumn";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
@@ -104,17 +105,24 @@ describe("ArticleColumn", () => {
     expect(screen.getByRole("button", { name: /^no-title/ })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("invites the user to create a first article in an empty workspace and opens the dialog from there", () => {
+  it("keeps the filter and the new article icon above an empty workspace and only guides below it", () => {
     const onCreateArticle = renderColumnForCreating({ ...BLOG, articles: [] });
 
-    fireEvent.click(screen.getByRole("button", { name: "建立第一篇文章" }));
+    expect(screen.getByRole("textbox", { name: "篩選文章" })).toBeInTheDocument();
+    expect(screen.getByText("建立第一篇文章").tagName).toBe("P");
+    expect(screen.queryByRole("button", { name: "建立第一篇文章" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "新文章" }));
 
     expect(onCreateArticle).toHaveBeenCalledTimes(1);
   });
 
-  it("offers a new article button in a selected workspace", () => {
+  it("offers a new article icon in a selected workspace", () => {
     const onCreateArticle = renderColumnForCreating(BLOG);
-    const newArticleButton = screen.getByRole("button", { name: "＋ 新文章" });
+    const newArticleButton = screen.getByRole("button", { name: "新文章" });
+    expect(newArticleButton).toBeVisible();
+    expect(newArticleButton).toHaveTextContent("");
+    expect(newArticleButton.querySelector("svg")).not.toBeNull();
     expect(newArticleButton).toBeVisible();
 
     fireEvent.click(newArticleButton);
@@ -125,7 +133,7 @@ describe("ArticleColumn", () => {
   it("offers no new article button without a selected workspace", () => {
     renderColumn({ ...BLOG, selectedWorkspace: null, articles: [] });
 
-    expect(screen.queryByRole("button", { name: "＋ 新文章" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "新文章" })).not.toBeInTheDocument();
   });
 
   it("asks for a workspace when none is selected", () => {
@@ -150,9 +158,120 @@ describe("ArticleColumn", () => {
 
     expect(onEditMetadata).toHaveBeenCalledWith(TAURI);
     expect(onDelete).toHaveBeenCalledWith(NO_TITLE);
-    expect(screen.getAllByRole("button", { name: /metadata$/ })[0]).toHaveTextContent("編輯 metadata");
+  });
+
+  it("puts a pencil in the top corner and a trash can in the bottom corner of each card, as icons only", () => {
+    renderColumn(BLOG);
+
+    const pencil = screen.getByRole("button", { name: "編輯 Tauri 與 Electron 的取捨 的 metadata" });
+    const trash = screen.getByRole("button", { name: "刪除 Tauri 與 Electron 的取捨" });
+    expect(pencil).toHaveClass("card-action--top");
+    expect(trash).toHaveClass("card-action--bottom");
+    expect(pencil).toHaveTextContent("");
+    expect(trash).toHaveTextContent("");
+    expect(pencil.closest("li")).toBe(trash.closest("li"));
+  });
+
+  it("lets the keyboard reach the card's row, then its pencil, then its trash can", () => {
+    renderColumn({ ...BLOG, articles: [TAURI] });
+
+    const reachable = Array.from(document.querySelectorAll<HTMLElement>(".article-card button")).filter(
+      (button) => button.tabIndex >= 0,
+    );
+
+    expect(reachable.map((button) => button.getAttribute("aria-label") ?? button.className)).toEqual([
+      expect.stringContaining("article-row"),
+      "編輯 Tauri 與 Electron 的取捨 的 metadata",
+      "刪除 Tauri 與 Electron 的取捨",
+    ]);
+  });
+
+  it("starts the card's detail line with the status, then the date, then the tags", () => {
+    renderColumn(BLOG);
+
+    expect(metaOf(/^Tauri/)).toEqual(["進行中", "2026-08-20", "tauri", "electron", "技術筆記"]);
+  });
+
+  it("says No Status for an article without one", () => {
+    renderColumn({ ...BLOG, articles: [{ ...TAURI, status: null }] });
+
+    expect(metaOf(/^Tauri/)[0]).toBe("未標記");
+  });
+
+  it("lines up Active, 2026-08-21, #go and #api from the left, in that order", () => {
+    renderInEnglish({
+      ...TAURI,
+      status: "active",
+      createdAt: "2026-08-21T09:00:00+08:00",
+      tags: ["go", "api"],
+    });
+
+    expect(metaOf(/^Tauri/)).toEqual(["Active", "2026-08-21", "go", "api"]);
+    expect(screen.getByRole("button", { name: /^Tauri/ }).querySelectorAll(".row-meta .row-tag")).toHaveLength(2);
+  });
+
+  it("says No Status in English, as the sidebar does", () => {
+    renderInEnglish({ ...TAURI, status: null });
+
+    expect(metaOf(/^Tauri/)).toEqual(["No Status", "2026-08-20", "tauri", "electron", "技術筆記"]);
+  });
+
+  it("shows only the status for an article with no date and no tags", () => {
+    renderColumn({ ...BLOG, articles: [{ ...NO_TITLE, hasIncompleteMetadata: false }] });
+
+    expect(metaOf(/^no-title/)).toEqual(["未標記"]);
+  });
+
+  it("keeps the status first and the incomplete and open markers last", () => {
+    renderColumn({
+      ...BLOG,
+      articles: [{ ...TAURI, hasIncompleteMetadata: true }, NO_TITLE],
+      sidebarFilter: SidebarFilter.NONE.toggleStatus("noStatus"),
+      selectedArticle: { workspace: "Blog", fileName: "tauri.md" },
+    });
+
+    expect(metaOf(/^Tauri/)).toEqual([
+      "進行中",
+      "2026-08-20",
+      "tauri",
+      "electron",
+      "技術筆記",
+      "metadata 不完整",
+      "開著・不符合篩選",
+    ]);
+  });
+
+  it("offers no sort order and no emoji in the filter", () => {
+    renderColumn(BLOG);
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    const field = screen.getByRole("textbox", { name: "篩選文章" });
+    expect(field).toHaveAttribute("placeholder", "filter");
+    expect(field.closest("label")?.querySelector("svg")).not.toBeNull();
+    expect(document.body.textContent).not.toMatch(/🔍|＋|篩選…/u);
   });
 });
+
+function renderInEnglish(article: ArticleSummary) {
+  render(
+    <InterfaceLanguageProvider language="en">
+      <CompositionProvider>
+        <ArticleColumn
+          snapshot={{ ...BLOG, articles: [article] }}
+          onSelect={vi.fn()}
+          onCreateArticle={vi.fn()}
+          onEditMetadata={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </CompositionProvider>
+    </InterfaceLanguageProvider>,
+  );
+}
+
+function metaOf(title: RegExp): string[] {
+  const meta = screen.getByRole("button", { name: title }).querySelector(".row-meta");
+  return Array.from(meta?.children ?? []).map((detail) => detail.textContent ?? "");
+}
 
 const ZEN: ArticleSummary = {
   workspace: "Blog",
@@ -223,19 +342,6 @@ describe("ArticleColumn ordering and filtering", () => {
     renderControlledColumn(THREE);
 
     expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "日常", "Zen of Writing"]);
-  });
-
-  it("reorders by title without selecting anything and keeps the open article selected", () => {
-    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: { workspace: "Blog", fileName: "zen.md" } });
-
-    fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
-
-    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing", "日常"]);
-    expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("filters once typing has paused for the shared delay", () => {
@@ -365,18 +471,13 @@ describe("ArticleColumn ordering and filtering", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("filters and orders together", () => {
+  it("keeps the newest first among the filtered articles", () => {
     renderControlledColumn(THREE);
 
     typeIntoFilter("i");
     act(() => vi.advanceTimersByTime(150));
+
     expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing"]);
-
-    fireEvent.change(screen.getByRole("combobox", { name: "排序" }), {
-      target: { value: "updatedNewestFirst" },
-    });
-
-    expect(rowTitles()).toEqual(["Zen of Writing", "Tauri 與 Electron 的取捨"]);
   });
 });
 
@@ -438,7 +539,7 @@ describe("ArticleColumn with the sidebar and All Notes", () => {
     const onCreateArticle = vi.fn();
     renderColumn(ALL_NOTES, vi.fn(), onCreateArticle);
 
-    fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+    fireEvent.click(screen.getByRole("button", { name: "新文章" }));
 
     expect(onCreateArticle).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("請先在左邊選一個 workspace");

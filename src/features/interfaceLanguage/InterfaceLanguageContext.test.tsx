@@ -43,7 +43,6 @@ function columns() {
       <WorkspaceColumn
         snapshot={TRAVEL}
         onSelect={vi.fn()}
-        onCreate={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
       />

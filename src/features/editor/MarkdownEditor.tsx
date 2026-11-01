@@ -1,6 +1,5 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
@@ -15,7 +14,7 @@ import { EmphasisShortcuts } from "./EmphasisShortcuts";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TableRowContinuation } from "./TableRowContinuation";
 import { TabIndentation } from "./TabIndentation";
-import { writingSurfaceHighlightStyle } from "./writingSurfaceHighlightStyle";
+import { xcodeTheme } from "./xcodeTheme";
 
 // Mod-I is italic now; selecting the enclosing syntax node is retired.
 const editorDefaultKeymap = defaultKeymap.filter((binding) => binding.key !== "Mod-i");
@@ -155,8 +154,7 @@ function editorExtensions(composition: CompositionState, tabIndentation: Extensi
     history(),
     keymap.of([...editorDefaultKeymap, ...historyKeymap]),
     markdown(),
-    syntaxHighlighting(writingSurfaceHighlightStyle),
-    syntaxHighlighting(defaultHighlightStyle),
+    xcodeTheme(),
     cursorLineHighlight(),
     EditorView.lineWrapping,
     EditorView.domEventHandlers({

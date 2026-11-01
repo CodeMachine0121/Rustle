@@ -1,3 +1,4 @@
+import { Funnel } from "lucide-react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 
 import { CompositionAwareDebouncer } from "../../shared/composition/CompositionAwareDebouncer";
@@ -46,21 +47,24 @@ export function ArticleFilterField({ onApply }: ArticleFilterFieldProps) {
   };
 
   return (
-    <input
-      type="text"
-      className="article-filter-field"
-      aria-label={messages.filterArticles}
-      placeholder={messages.filterPlaceholder}
-      value={typedText}
-      onChange={(event) => {
-        const text = event.target.value;
-        setTypedText(text);
-        debouncer.schedule(() => onApply(text));
-      }}
-      onKeyDown={handleKeyDown}
-      onCompositionStart={() => composition.start()}
-      onCompositionEnd={() => composition.end()}
-      onBlur={() => composition.end()}
-    />
+    <label className="article-filter">
+      <Funnel className="icon" aria-hidden="true" />
+      <input
+        type="text"
+        className="article-filter-field"
+        aria-label={messages.filterArticles}
+        placeholder={messages.filterPlaceholder}
+        value={typedText}
+        onChange={(event) => {
+          const text = event.target.value;
+          setTypedText(text);
+          debouncer.schedule(() => onApply(text));
+        }}
+        onKeyDown={handleKeyDown}
+        onCompositionStart={() => composition.start()}
+        onCompositionEnd={() => composition.end()}
+        onBlur={() => composition.end()}
+      />
+    </label>
   );
 }

@@ -14,6 +14,8 @@ type SidebarProps = {
   snapshot: VaultSnapshot;
   settings: SettingsSession;
   workspaces: ReactNode;
+  /** Beside the WORKSPACES title: what creates a workspace. */
+  workspacesAction?: ReactNode;
   onSelectAllNotes: () => void;
   onToggleStatus: (choice: StatusChoice) => void;
   onToggleTag: (tag: string) => void;
@@ -27,6 +29,7 @@ export function Sidebar({
   snapshot,
   settings,
   workspaces,
+  workspacesAction,
   onSelectAllNotes,
   onToggleStatus,
   onToggleTag,
@@ -49,6 +52,7 @@ export function Sidebar({
         title={messages.workspacesTitle}
         isCollapsed={sections.isCollapsed("workspaces")}
         onToggle={() => sections.toggle("workspaces")}
+        action={workspacesAction}
       >
         {workspaces}
       </CollapsibleSection>
