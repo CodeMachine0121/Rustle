@@ -4,6 +4,10 @@ use crate::metadata_update::{FieldValue, MetadataUpdate};
 
 const DEFAULT_ITEM_INDENT: &str = "  ";
 
+/// YAML 1.2 reads these as text, but YAML 1.1 tools (Jekyll, PyYAML) read
+/// them as booleans, so they are quoted for anyone else reading the vault.
+const YAML_1_1_BOOLEAN_WORDS: [&str; 6] = ["y", "yes", "n", "no", "on", "off"];
+
 /// The text of a block mapping seen as top-level entries. An entry is its key
 /// line plus the indented lines (or column-zero list items) that follow it;
 /// blank and comment lines between entries belong to no entry, so they stay
@@ -176,9 +180,13 @@ impl<'a> MappingText<'a> {
             .map(|before| &after_colon[before.trim_end().len()..])
     }
 
-    /// Plain when YAML reads it back as the same string, else double-quoted.
+    /// Plain when every YAML version reads it back as the same string, else
+    /// double-quoted.
     fn scalar(text: &str) -> String {
         let reads_back_unchanged = !text.chars().any(char::is_control)
+            && !YAML_1_1_BOOLEAN_WORDS
+                .iter()
+                .any(|word| text.eq_ignore_ascii_case(word))
             && Self::value_of(&format!(" {text}")) == Some(Yaml::String(text.to_owned()));
         if reads_back_unchanged {
             return text.to_owned();
