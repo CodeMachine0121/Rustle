@@ -637,11 +637,16 @@ describe("VaultSession", () => {
       const session = new VaultSession(channels, holder);
       await session.start();
       holder.openArticle.mockClear();
+      const readBody = channels.readBody.getMockImplementation();
+      channels.readBody.mockImplementation((workspace: string, fileName: string) => {
+        steps.push("read");
+        return readBody?.(workspace, fileName) ?? failed("no body");
+      });
 
       const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
 
       expect(edit).toEqual({ outcome: "updated" });
-      expect(steps).toEqual(["close", "write"]);
+      expect(steps).toEqual(["close", "write", "read"]);
       expect(channels.updateMetadata).toHaveBeenCalledWith({
         workspace: "Blog",
         fileName: "zen-of-writing.md",
@@ -786,6 +791,27 @@ describe("VaultSession", () => {
 
       expect(channels.listArticles).toHaveBeenCalledWith("Blog");
       expect(channels.listWorkspaces).toHaveBeenCalled();
+    });
+
+    it("says to try again after a failed save, and deletes on that second try", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.closeArticle.mockResolvedValueOnce("blockedByFailedSave");
+
+      await session.deleteArticle("zen-of-writing.md");
+
+      expect(channels.deleteArticle).not.toHaveBeenCalled();
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "deleteArticle",
+        message: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
+      });
+
+      await session.deleteArticle("zen-of-writing.md");
+
+      expect(channels.deleteArticle).toHaveBeenCalledWith("Blog", "zen-of-writing.md");
+      expect(session.snapshot.operationFailure).toBeNull();
     });
 
     it("deletes nothing when the open article cannot be left", async () => {
@@ -990,20 +1016,20 @@ describe("VaultSession", () => {
       expect(channels.listWorkspaces).toHaveBeenCalled();
     });
 
-    it("deletes nothing when the open article cannot be left", async () => {
+    it.each([
+      ["blockedByUnansweredWarning", "請先回答標題列的外部改動提示，再試一次。"],
+      ["blockedByFailedSave", "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。"],
+    ] as const)("deletes nothing when the open article cannot be left (%s)", async (refusal, message) => {
       const channels = vaultChannels();
       const holder = articleHolder();
       const session = new VaultSession(channels, holder);
       await session.start();
-      holder.closeArticle.mockResolvedValue("blockedByFailedSave");
+      holder.closeArticle.mockResolvedValue(refusal);
 
       await session.deleteWorkspace("Blog");
 
       expect(channels.deleteWorkspace).not.toHaveBeenCalled();
-      expect(session.snapshot.operationFailure).toEqual({
-        operation: "deleteWorkspace",
-        message: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
-      });
+      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteWorkspace", message });
     });
 
     it("reports the trash's reason and opens the left article again", async () => {
