@@ -17,6 +17,7 @@ tauri-build.workspace = true
 rustle-application.workspace = true
 rustle-domain.workspace = true
 rustle-infrastructure.workspace = true
+percent-encoding.workspace = true
 tauri.workspace = true
 tauri-plugin-opener.workspace = true
 serde.workspace = true

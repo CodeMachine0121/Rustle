@@ -49,9 +49,9 @@ pub fn run() {
 pub fn configure<R: Runtime>(builder: Builder<R>, vault: VaultScope) -> Builder<R> {
     let channels =
         ChannelRegistry::new(channel_handlers()).expect("every channel has exactly one handler");
-    let protocols =
-        ProtocolRegistry::new(scheme_handlers()).expect("every scheme has exactly one handler");
     let vault = ResolvedVaultScope::new(vault);
+    let protocols = ProtocolRegistry::new(scheme_handlers(&vault))
+        .expect("every scheme has exactly one handler");
     protocols
         .install(builder)
         .manage(FileSystemArticleRepository::in_vault(vault.clone()))
