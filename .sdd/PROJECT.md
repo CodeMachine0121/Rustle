@@ -9,8 +9,8 @@ A local, offline Markdown writing app for someone who writes in Chinese every da
 | Area | Choice |
 | :--- | :--- |
 | Shell | Tauri `2.12.5` (`tauri-build 2.7.4`, `wry 0.57.1`), `@tauri-apps/cli` / `@tauri-apps/api` `2.12.4`, `tauri-plugin-opener 2.7.2` (Rust side only) |
-| Rust | stable `1.95` (MSRV 1.90), edition 2024; `serde 1.0.229`, `serde_json 1.0.154`, `chrono 0.4.45` (infrastructure only, `clock` feature: the local UTC offset), `thiserror 2.0.21`, `url 2.5.8`, `tempfile 3.27.0`, `yaml-rust2 0.13.0` (domain: front matter parsing only) |
-| Rust tests | built-in harness, `rstest 0.28.0`, `tempfile`, `mockall 0.15.0` (domain `mocks` feature, e.g. `MockClock`), Tauri `test` feature (mock runtime) |
+| Rust | stable `1.95` (MSRV 1.90), edition 2024; `serde 1.0.229`, `serde_json 1.0.154`, `chrono 0.4.45` (infrastructure only, `clock` feature: the local UTC offset), `thiserror 2.0.21`, `url 2.5.8`, `tempfile 3.27.0`, `yaml-rust2 0.13.0` (domain: front matter parsing only), `trash 5.2.9` (infrastructure only: the system trash) |
+| Rust tests | built-in harness, `rstest 0.28.0`, `tempfile`, `mockall 0.15.0` (domain `mocks` feature, e.g. `MockClock`, `MockTrash`), Tauri `test` feature (mock runtime) |
 | Frontend | TypeScript `6.0.3` (strict), React `19.3.1`, Vite `8.3.5`, CodeMirror 6 (`@codemirror/view 6.43.15`, `state 6.7.6`, `lang-markdown 6.5.2`, `language 6.13.1`, `commands 6.11.1`) |
 | Preview rendering | `markdown-it 14.3.3`, `highlight.js 11.12.0` (`lib/common`), `dompurify 3.4.17` |
 | Frontend tests / lint | Vitest `5.0.5` + happy-dom `21.0.4` (jsdom `30.1.2` for files that run DOMPurify: `// @vitest-environment jsdom`, because happy-dom reports an empty node name to it) + Testing Library; ESLint `9.39.5` + typescript-eslint `8.72.1` (`no-explicit-any` is an error) |
@@ -22,9 +22,9 @@ Upgrading Tauri or CodeMirror requires re-running `docs/ime-regression-checklist
 
 ```
 Cargo.toml                    workspace + [workspace.dependencies] (versions pinned with =)
-crates/domain/                rustle-domain: names, VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleDraft, ArticleFileNameSlug, UtcTimestamp, LocalTimestamp, repository traits, Clock. No I/O
-crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody, SaveArticleBody, ListWorkspaces, ListArticles, CreateWorkspace, CreateArticle, ReadSettings, WriteSettings
-crates/infrastructure/        rustle-infrastructure: ResolvedVaultScope, FileSystemSettingsRepository, FileSystemArticleRepository, FileSystemWorkspaceRepository, SystemClock, write_atomically
+crates/domain/                rustle-domain: names, VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleDraft, ArticleFileNameSlug, UtcTimestamp, LocalTimestamp, repository traits, Clock, Trash. No I/O
+crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody, SaveArticleBody, ListWorkspaces, ListArticles, CreateWorkspace, CreateArticle, UpdateArticleMetadata, DeleteArticle, RenameWorkspace, CountWorkspaceContents, DeleteWorkspace, ReadSettings, WriteSettings
+crates/infrastructure/        rustle-infrastructure: ResolvedVaultScope, FileSystemSettingsRepository, FileSystemArticleRepository, FileSystemWorkspaceRepository, SystemClock, SystemTrash, write_atomically
 src-tauri/                    assembly root: channels, commands, CSP, navigation guard, custom schemes, window
   src/channel.rs              the channel contract (one line per channel)
   src/channels.rs             the channel registration list (one line per channel)
@@ -36,7 +36,7 @@ src/                          webview (React + CodeMirror)
   app/                        App shell (AppLayout: four columns) and global CSS with light/dark color tokens
   ipc/                        callChannel (the only invoke), channels (typed wrappers), ChannelResult
   shared/composition/         CompositionState, CompositionProvider/useCompositionState, CompositionAwareDebouncer
-  features/<feature>/         one folder per feature (editor/, vault/, autosave/, settings/, preview/, articleMetadata/, createArticle/)
+  features/<feature>/         one folder per feature (editor/, vault/, autosave/, settings/, preview/, articleMetadata/, createArticle/, editArticleMetadata/, deletion/)
 docs/ime-regression-checklist.md  manual IME runbook + release checklist
 ```
 
@@ -71,6 +71,14 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 **Another file that does not exist yet** (e.g. pasted images): `ResolvedVaultScope` judges a missing path by its nearest existing ancestor (the workspace folder's links resolved); create it create-new like `FileSystemArticleRepository::create`.
 
 **Metadata form (webview)**: `src/features/articleMetadata/` has `ChipInput` (Enter/`,` add, Backspace on empty removes, × removes, IME-safe, reports composition), `withChip` / `candidatesFor` and `vocabularyOf(articles)` (the selected workspace's categories and tags from the listed rows). A metadata-editing dialog composes these like `CreateArticleDialog`; a dialog is a `div role="dialog"` with no `<form>` (no implicit submit, no focus restore stealing the editor's focus).
+
+**Deleting anything (system trash)**: never delete permanently. `rustle_domain::Trash` is addressed by vault names (`move_article_to_trash`, `move_workspace_to_trash`); `SystemTrash` (managed Tauri state) is its only implementation: it locates the name through `ResolvedVaultScope` (links followed and confined, a missing item refused) and hands the location to the `trash` crate (macOS: `NsFileManager`, no Finder automation prompt). Something new to throw away = one name-addressed method on `Trash`. Tests mock it with `MockTrash`; no automated test moves anything into the real trash (that is the release checklist).
+
+**Editing an article's metadata**: `ArticleDraft` holds the form's rules for creating and editing (`new`, `edit(document, updated_at)`); `ArticleDocument::edit_metadata` is the strict twin of `with_metadata` (refuses a front matter it cannot edit, instead of silently keeping it). `updateMetadata({ workspace, fileName, title, category, tags })` → `{ outcome: "updated", article } | { outcome: "modifiedElsewhere" }` (read, then a guarded write against the time just read).
+
+**Workspace contents and renaming**: `WorkspaceRepository::image_entries` (missing `images/` lists as empty) and `rename` (never onto an existing entry); `VaultEntry::as_image` (a visible file). Channels: `countWorkspaceContents(workspace)` / `deleteWorkspace(workspace)` → `{ articleCount, imageCount }`, `renameWorkspace(workspace, newName)` → `{ outcome: "renamed", workspace } | { outcome: "rejected", reason }`, `deleteArticle(workspace, fileName)`. Rejected-name sentences live in `src/features/vault/workspaceNameRejection.ts` (create and rename share them).
+
+**A failed operation (webview)**: `VaultSession.snapshot.operationFailure = { operation, message }` is the one exit for non-fatal failures; `OperationFailureNotice` shows it with a dismiss button and the next success clears it. A new operation = one `Operation` value and its sentence in `src/features/vault/operationFailure.ts`. Before touching the open article, an operation calls the holder's `closeArticle` and turns a refusal into `LEAVING_REFUSAL_MESSAGES[outcome]` (the second try after a failed save lets go). Destructive confirmations use `ConfirmDeletionDialog` (`src/features/deletion/`: focus starts on 取消, Esc cancels, Enter never confirms).
 
 **Handing the keyboard to the editor**: pass `focusEditor: true` to `ArticleHolder.openArticle`; it flows to `EditorDocument.takesFocus` → `MarkdownEditor focusOnShow`, applied only when a new document is shown. Opening from the list never passes it, so the keyboard stays on the list.
 
