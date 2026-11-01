@@ -99,6 +99,17 @@ fn refuses_a_name_that_escapes_the_vault() {
 }
 
 #[test]
+fn refuses_a_workspace_name_that_escapes_the_vault() {
+    let app = RunningApp::start();
+
+    let failure = app
+        .read_body("..", "zen-of-writing.md")
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+}
+
+#[test]
 fn reports_a_missing_article_as_unexpected() {
     let app = RunningApp::start();
 

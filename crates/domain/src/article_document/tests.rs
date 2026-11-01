@@ -521,6 +521,29 @@ mod line_endings_and_broken_blocks {
     }
 
     #[test]
+    fn edits_a_block_that_uses_explicit_keys() {
+        let text = rewritten(
+            "---\n? title\n: Zen\n---\n",
+            &MetadataUpdate::default().tags(["a"]),
+        );
+
+        let metadata = metadata_of(&text);
+        assert_eq!(metadata.title, "Zen");
+        assert_eq!(metadata.tags, ["a"]);
+        assert!(text.starts_with("---\n? title\n: Zen\n"));
+    }
+
+    #[test]
+    fn replaces_a_category_written_as_a_block_of_text() {
+        let text = rewritten(
+            "---\ncategory: |\n  - 'not an item\n---\n",
+            &MetadataUpdate::default().category(["技術筆記"]),
+        );
+
+        assert_eq!(text, "---\ncategory:\n  - 技術筆記\n---\n");
+    }
+
+    #[test]
     fn starts_the_body_on_its_own_line_after_a_closing_delimiter_at_the_end() {
         let text = ArticleDocument::parse("---\ntitle: Zen\n---")
             .with_body("正文")
