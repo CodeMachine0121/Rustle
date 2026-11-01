@@ -18,6 +18,7 @@ export function useCollapsedSections(settings: SettingsSession): CollapsedSectio
         return {
           ...current,
           sidebar: {
+            ...current.sidebar,
             collapsedSections: collapsed.includes(section)
               ? collapsed.filter((folded) => folded !== section)
               : [...collapsed, section],

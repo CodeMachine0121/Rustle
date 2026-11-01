@@ -22,7 +22,7 @@ function writing(viewMode: ViewMode, isZen = false): WritingLayoutSnapshot {
   return { viewMode, isZen, controlsLiveIn: viewMode === "previewOnly" ? "preview" : "editor" };
 }
 
-function renderLayout(layout = writing("sideBySide"), preview = previewSlot()) {
+function renderLayout(layout = writing("sideBySide"), preview = previewSlot(), isFolded = false) {
   render(
     <CompositionProvider>
       <AppLayout
@@ -35,6 +35,7 @@ function renderLayout(layout = writing("sideBySide"), preview = previewSlot()) {
           zenButton: <button type="button">zen</button>,
           viewModeButtons: <button type="button">modes</button>,
         }}
+        sidebarFold={{ isFolded, button: <button type="button">fold</button> }}
       />
     </CompositionProvider>,
   );
@@ -104,6 +105,30 @@ describe("AppLayout", () => {
 
     expect(screen.queryByRole("button", { name: /預覽/ })).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/◀|✕/u);
+  });
+
+  it("hides only the sidebar, keeping it mounted, while it is folded", () => {
+    renderLayout(writing("sideBySide"), previewSlot(), true);
+
+    expect(document.querySelector("nav")).not.toBeVisible();
+    expect(document.querySelector("nav")).toHaveTextContent("側欄按鈕");
+    expect(region("文章")).toBeVisible();
+    expect(region("編輯區")).toBeVisible();
+  });
+
+  it("puts the fold button first in the articles' header, where it stays while the sidebar is folded", () => {
+    renderLayout(writing("sideBySide"), previewSlot(), true);
+
+    expect(headerOf("文章")).toEqual(["fold", "文章"]);
+    expect(within(region("文章")).getByRole("button", { name: "fold" })).toBeVisible();
+  });
+
+  it.each([false, true])("hides the sidebar, the articles and the fold button in Zen Mode (folded: %s)", (isFolded) => {
+    renderLayout(writing("sideBySide", true), previewSlot(), isFolded);
+
+    expect(document.querySelector("nav")).not.toBeVisible();
+    expect(region("文章")).not.toBeVisible();
+    expect(screen.queryByRole("button", { name: "fold" })).not.toBeInTheDocument();
   });
 
   it("hides the sidebar and the articles, keeping them mounted, in Zen Mode", () => {

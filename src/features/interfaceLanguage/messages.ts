@@ -29,6 +29,8 @@ export const CHINESE_MESSAGES = {
   previewTitle: "預覽",
   previewRegion: "預覽區",
   zenMode: "Zen Mode",
+  hideSidebar: "收起側邊欄",
+  showSidebar: "打開側邊欄",
   viewModesGroup: "檢視模式",
   viewModes: {
     editorOnly: "只有編輯",
@@ -195,6 +197,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   previewTitle: "PREVIEW",
   previewRegion: "Preview",
   zenMode: "Zen Mode",
+  hideSidebar: "Hide sidebar",
+  showSidebar: "Show sidebar",
   viewModesGroup: "View mode",
   viewModes: {
     editorOnly: "Editor only",

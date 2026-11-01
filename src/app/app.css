@@ -165,7 +165,8 @@ body {
   align-items: center;
 }
 
-.region-header .zen-button {
+.region-header .zen-button,
+.region-header .sidebar-fold-button {
   margin-left: 8px;
 }
 
