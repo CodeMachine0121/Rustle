@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use rstest::rstest;
 use rustle_application::{
-    ArticleSummary, CreateWorkspace, CreateWorkspaceOutcome, ListArticles, ListWorkspaces,
-    ReadSettings, WorkspaceSummary, WriteSettings,
+    ArticleSummary, CreateWorkspace, CreateWorkspaceOutcome, ListAllArticles, ListArticles,
+    ListWorkspaces, ReadSettings, WorkspaceSummary, WriteSettings,
 };
 use rustle_domain::{
     LastOpenedSettings, Settings, SettingsError, VaultScope, WorkspaceName, WorkspaceNameRejection,
@@ -78,6 +78,16 @@ impl Vault {
         ListArticles::new(&self.workspaces(), &articles)
             .execute(&WorkspaceName::parse(workspace).expect("valid workspace name"))
             .expect("articles listed")
+    }
+
+    fn list_all_articles(&self) -> Vec<(String, String)> {
+        let articles = FileSystemArticleRepository::in_vault(self.scope());
+        ListAllArticles::new(&self.workspaces(), &articles)
+            .execute()
+            .expect("articles listed")
+            .into_iter()
+            .map(|article| (article.workspace, article.file_name))
+            .collect()
     }
 
     fn article_file_names(&self, workspace: &str) -> Vec<String> {
@@ -525,4 +535,53 @@ fn refuses_to_list_the_articles_of_a_workspace_linked_outside_the_vault() {
         result,
         Err(WorkspaceRepositoryError::OutsideVault(_))
     ));
+}
+
+#[test]
+fn lists_the_articles_of_every_workspace_each_with_its_workspace() {
+    let vault = Vault::create();
+    vault
+        .folder("Work")
+        .folder("Blog")
+        .folder(".rustle")
+        .file("Work/zen.md", "---\ntitle: Zen\n---\n")
+        .file("Blog/zen.md", "---\ntitle: Zen\n---\n")
+        .file("Blog/a.md", "a")
+        .file("loose.md", "not in a workspace");
+
+    assert_eq!(
+        vault.list_all_articles(),
+        [
+            ("Blog".to_owned(), "a.md".to_owned()),
+            ("Blog".to_owned(), "zen.md".to_owned()),
+            ("Work".to_owned(), "zen.md".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn lists_nothing_across_a_vault_without_workspaces() {
+    let vault = Vault::create();
+
+    assert!(vault.list_all_articles().is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn skips_a_workspace_that_cannot_be_read_and_lists_the_others() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let vault = Vault::create();
+    vault
+        .folder("Blog")
+        .folder("Locked")
+        .file("Blog/a.md", "a")
+        .file("Locked/b.md", "b");
+    let locked = vault.root.join("Locked");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).expect("locked");
+
+    let listed = vault.list_all_articles();
+
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).expect("unlocked");
+    assert_eq!(listed, [("Blog".to_owned(), "a.md".to_owned())]);
 }
