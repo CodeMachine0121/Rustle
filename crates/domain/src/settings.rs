@@ -124,11 +124,14 @@ pub enum SidebarSection {
     Tags,
 }
 
-/// Which sidebar sections the user folded; each named at most once.
+/// Which sidebar sections the user folded, each named at most once, and
+/// whether the whole sidebar is folded away (written only while it is).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SidebarSettings {
     pub collapsed_sections: Vec<SidebarSection>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub is_folded: bool,
 }
 
 /// The editor's and the preview's font sizes in pixels, as the webview

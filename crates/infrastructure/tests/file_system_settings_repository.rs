@@ -215,6 +215,7 @@ fn remembered_settings() -> Settings {
         interface_language: Some(InterfaceLanguage::English),
         sidebar: SidebarSettings {
             collapsed_sections: vec![SidebarSection::Tags],
+            is_folded: true,
         },
         font_size: FontSizeSettings {
             editor: Some(17.3),
