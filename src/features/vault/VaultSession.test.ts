@@ -21,6 +21,7 @@ function article(fileName: string): ArticleSummary {
     fileName,
     title: fileName.replace(/\.md$/, ""),
     createdAt: "",
+    updatedAt: "",
     category: [],
     tags: [],
     hasIncompleteMetadata: true,

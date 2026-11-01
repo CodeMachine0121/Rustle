@@ -127,6 +127,7 @@ describe("channels", () => {
       fileName: "zen-of-writing.md",
       title: "Zen of Writing",
       createdAt: "2026-08-20T14:32:05+08:00",
+      updatedAt: "2026-08-20T14:32:05+08:00",
       category: ["技術筆記"],
       tags: ["electron"],
       hasIncompleteMetadata: false,

@@ -197,6 +197,7 @@ fn answers_with_the_row_the_file_itself_describes() {
             "fileName": "zen-of-writing.md",
             "title": "Zen of Writing",
             "createdAt": "2026-08-20T14:32:05+00:00",
+            "updatedAt": "2026-08-20T14:32:05+00:00",
             "category": [],
             "tags": ["electron"],
             "hasIncompleteMetadata": false,

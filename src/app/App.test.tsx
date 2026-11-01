@@ -69,6 +69,7 @@ const CREATED_ARTICLE = {
   fileName: "new-article.md",
   title: "New Article",
   createdAt: "2026-08-20T14:32:05+08:00",
+  updatedAt: "2026-08-20T14:32:05+08:00",
   category: [],
   tags: [],
   hasIncompleteMetadata: false,

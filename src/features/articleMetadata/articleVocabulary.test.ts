@@ -4,7 +4,7 @@ import type { ArticleSummary } from "../../ipc/articleSummary";
 import { vocabularyOf } from "./articleVocabulary";
 
 function article(category: string[], tags: string[]): ArticleSummary {
-  return { fileName: "a.md", title: "a", createdAt: "", category, tags, hasIncompleteMetadata: false };
+  return { fileName: "a.md", title: "a", createdAt: "", updatedAt: "", category, tags, hasIncompleteMetadata: false };
 }
 
 describe("vocabularyOf", () => {

@@ -97,6 +97,7 @@ fn lists_the_articles_of_a_workspace_with_their_metadata() {
             "fileName": "tauri.md",
             "title": "Tauri 與 Electron 的取捨",
             "createdAt": "2026-08-20T14:32:05+08:00",
+            "updatedAt": "",
             "category": ["技術筆記"],
             "tags": ["tauri"],
             "hasIncompleteMetadata": false
@@ -263,6 +264,7 @@ fn creates_an_article_and_answers_with_its_row() {
     assert_eq!(payload["category"], json!(["技術筆記"]));
     assert_eq!(payload["tags"], json!(["electron"]));
     assert_eq!(payload["hasIncompleteMetadata"], json!(false));
+    assert_eq!(payload["createdAt"], payload["updatedAt"]);
     let text =
         fs::read_to_string(app.vault_root.join("Blog/zen-of-writing-2.md")).expect("created file");
     assert!(
