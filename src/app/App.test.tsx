@@ -854,6 +854,63 @@ describe("App", () => {
     expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
   });
 
+  describe("the extend selection key outside the editor", () => {
+    const isMac = /Mac/.test(navigator.platform);
+
+    function pressExtendSelection(target: Element) {
+      return fireEvent.keyDown(target, { key: "w", code: "KeyW", metaKey: isMac, ctrlKey: !isMac });
+    }
+
+    function editorSelection() {
+      const content = editorContent();
+      const editor = content === null ? null : EditorView.findFromDOM(content);
+      return editor?.state.selection.toJSON();
+    }
+
+    it("changes nothing on the article list and asks nothing about closing", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      const openRow = screen.getByRole("button", { name: /^Zen of Writing/ });
+      openRow.focus();
+      const selectionBefore = editorSelection();
+
+      pressExtendSelection(openRow);
+
+      expect(openRow).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /^Tauri 與 Electron/ })).toHaveAttribute("aria-pressed", "false");
+      expect(editorSelection()).toEqual(selectionBefore);
+      expect(invoke).not.toHaveBeenCalledWith("answer_close_request", expect.anything());
+    });
+
+    it("leaves the create article dialog and its title as they are", async () => {
+      answerFromAVaultThatCreatesArticles();
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "新文章" }));
+      const title = screen.getByLabelText("標題");
+      fireEvent.change(title, { target: { value: "草稿標題" } });
+
+      pressExtendSelection(title);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(title).toHaveValue("草稿標題");
+      expect(invoke).not.toHaveBeenCalledWith("answer_close_request", expect.anything());
+    });
+
+    it("changes nothing from the preview", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      const selectionBefore = editorSelection();
+
+      pressExtendSelection(screen.getByRole("region", { name: "預覽區" }));
+
+      expect(editorSelection()).toEqual(selectionBefore);
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+      expect(invoke).not.toHaveBeenCalledWith("answer_close_request", expect.anything());
+    });
+  });
+
   describe("sidebar", () => {
     function articlesRegion() {
       return screen.getByRole("region", { name: "文章" });
