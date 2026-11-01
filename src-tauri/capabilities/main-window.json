@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "The editor window talks to the backend only through Rustle's own channels; it gets no file system, shell or plugin permissions.",
+  "windows": ["main"],
+  "permissions": []
+}
