@@ -4,18 +4,19 @@ import { describe, expect, it } from "vitest";
 
 const checklist = readFileSync(join(process.cwd(), "docs", "ime-regression-checklist.md"), "utf8");
 
-function section(itemNumber: number): string {
-  const start = checklist.indexOf(`### T-${itemNumber} `);
-  const end = checklist.indexOf("\n### ", start + 1);
-  return start === -1 ? "" : checklist.slice(start, end === -1 ? undefined : end);
-}
+const items = checklist
+  .slice(0, checklist.indexOf("## 發佈檢查清單"))
+  .split("\n### ")
+  .slice(1);
 
 describe("input method regression checklist", () => {
-  it.each(Array.from({ length: 12 }, (_, index) => index + 1))(
-    "gives T-%i steps, an expected result and a failure criterion",
-    (itemNumber) => {
-      const item = section(itemNumber);
+  it("has twelve items", () => {
+    expect(items).toHaveLength(12);
+  });
 
+  it.each(items.map((item, index) => [index + 1, item]))(
+    "gives item %i steps, an expected result and a failure criterion",
+    (_itemNumber, item) => {
       expect(item).toContain("**怎麼做**");
       expect(item).toContain("**期望**");
       expect(item).toContain("**失敗**");
