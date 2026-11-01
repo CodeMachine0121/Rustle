@@ -200,6 +200,30 @@ fn keeps_an_svg_without_asking_the_image_library() {
 }
 
 #[test]
+fn keeps_an_animated_gif_and_an_animated_webp_byte_for_byte() {
+    let vault = Vault::create();
+    let frame: &[u8] = &[0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0x00, 2, 2, 0x4c, 0x01, 0];
+    let animated_gif = [b"GIF89a\x01\0\x01\0\0\0\0".as_slice(), frame, frame, b";"].concat();
+    let animated_webp = b"RIFF\0\0\0\0WEBPVP8X\x0a\0\0\0\x02\0\0\0ANIM".to_vec();
+
+    let result = SaveClipboardImages::new(
+        &clipboard_with(&[&animated_gif, &animated_webp]),
+        &vault.images,
+        &never_converting(),
+        &identifiers(&["loop", "motion"]),
+    )
+    .execute(&blog())
+    .expect("saved");
+
+    assert_eq!(
+        result.images,
+        saved(&["images/loop.gif", "images/motion.webp"])
+    );
+    assert_eq!(vault.image("loop.gif"), animated_gif);
+    assert_eq!(vault.image("motion.webp"), animated_webp);
+}
+
+#[test]
 fn stores_several_images_in_clipboard_order() {
     let vault = Vault::create();
 

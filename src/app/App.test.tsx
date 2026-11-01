@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -317,6 +318,19 @@ describe("App", () => {
         "rustle://vault/Blog/images/8f3c.png",
       ),
     );
+
+    const view = EditorView.findFromDOM(content);
+    if (view === null) {
+      throw new Error("the editor view is not reachable");
+    }
+    act(() => {
+      undo(view);
+    });
+
+    expect(view.state.doc.toString()).toBe("正文的第一行。");
+    const commands = vi.mocked(invoke).mock.calls.map(([command]) => command);
+    expect(commands.filter((command) => command === "save_clipboard_image")).toHaveLength(1);
+    expect(commands.filter((command) => /delete|trash|remove/.test(command))).toEqual([]);
   });
 
   it("starts watching window close requests", () => {

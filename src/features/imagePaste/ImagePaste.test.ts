@@ -229,6 +229,7 @@ describe("ImagePaste", () => {
 
       undo(view);
 
+      expect(view.state.doc.toString()).toBe("");
       expect(saveClipboardImage).toHaveBeenCalledOnce();
     });
   });
