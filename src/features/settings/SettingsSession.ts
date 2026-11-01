@@ -30,6 +30,11 @@ export class SettingsSession {
     return this.#settings;
   }
 
+  /** Whether the settings on hand are the user's file rather than the defaults. */
+  get wasRead(): boolean {
+    return this.#wasRead;
+  }
+
   readonly subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);

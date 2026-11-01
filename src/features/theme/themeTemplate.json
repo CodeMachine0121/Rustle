@@ -1,0 +1,53 @@
+{
+  "id": "",
+  "name": {
+    "zh": "",
+    "en": ""
+  },
+  "base": {
+    "appearance": "",
+    "editorBackground": "",
+    "sidebarBackground": "",
+    "articleListBackground": "",
+    "panelBackground": "",
+    "primaryText": "",
+    "secondaryText": "",
+    "divider": "",
+    "accent": "",
+    "red": "",
+    "orange": "",
+    "green": "",
+    "blue": "",
+    "purple": ""
+  },
+  "overrides": {
+    "background": "",
+    "editor-background": "",
+    "sidebar": "",
+    "article-list": "",
+    "panel": "",
+    "text": "",
+    "editor-text": "",
+    "muted-text": "",
+    "border": "",
+    "link": "",
+    "selected": "",
+    "cursor-line": "",
+    "warning": "",
+    "error": "",
+    "success": "",
+    "code-background": "",
+    "code-keyword": "",
+    "code-string": "",
+    "code-number": "",
+    "code-comment": "",
+    "code-title": "",
+    "code-type": "",
+    "editor-heading": "",
+    "editor-link": "",
+    "editor-code": "",
+    "editor-quote": "",
+    "editor-mark": "",
+    "shade": ""
+  }
+}

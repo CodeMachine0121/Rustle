@@ -10,6 +10,8 @@ export type Settings = {
   sidebar: { collapsedSections: SidebarSection[] };
   /** Pixels as last written; absent or out of range means the webview's own rule decides. */
   fontSize?: { editor?: number; preview?: number };
+  /** The chosen theme's id, or `followSystem`; absent until chosen. Only the webview knows which ids exist. */
+  theme?: string;
 };
 
 export type SidebarSection = "workspaces" | "status" | "tags";

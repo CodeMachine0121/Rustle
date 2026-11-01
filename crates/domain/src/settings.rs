@@ -22,6 +22,10 @@ pub struct Settings {
     pub sidebar: SidebarSettings,
     #[serde(skip_serializing_if = "FontSizeSettings::has_no_opinion")]
     pub font_size: FontSizeSettings,
+    /// The chosen theme's name as the webview wrote it. Only the webview knows
+    /// which themes exist, so an unknown name is kept and judged there.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

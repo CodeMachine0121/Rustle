@@ -1,0 +1,24 @@
+{
+  "id": "forest",
+  "name": {
+    "zh": "森林",
+    "en": "Forest"
+  },
+  "base": {
+    "appearance": "dark",
+    "editorBackground": "#2d353b",
+    "sidebarBackground": "#232a2e",
+    "articleListBackground": "#272e33",
+    "panelBackground": "#343f44",
+    "primaryText": "#d3c6aa",
+    "secondaryText": "#859289",
+    "divider": "#3d484d",
+    "accent": "#a7c080",
+    "red": "#e67e80",
+    "orange": "#e69875",
+    "green": "#a7c080",
+    "blue": "#7fbbb3",
+    "purple": "#d699b6"
+  },
+  "overrides": {}
+}

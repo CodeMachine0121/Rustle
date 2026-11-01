@@ -53,6 +53,7 @@ fn reads_the_stored_values() {
             interface_language: None,
             sidebar: SidebarSettings::default(),
             font_size: FontSizeSettings::default(),
+            theme: None,
         }
     );
 }
@@ -344,5 +345,47 @@ fn writes_only_the_font_sizes_it_has() {
     assert_eq!(
         serde_json::to_value(&settings).expect("serializable")["fontSize"],
         json!({ "preview": 13.5 })
+    );
+}
+
+#[test]
+fn has_no_theme_until_one_is_chosen() {
+    let settings = read(json!({}));
+
+    assert_eq!(settings.theme, None);
+    assert!(
+        serde_json::to_value(&settings)
+            .expect("serializable")
+            .get("theme")
+            .is_none()
+    );
+}
+
+#[test]
+fn reads_and_writes_the_chosen_theme_as_written() {
+    let settings = read(json!({ "theme": "someThemeNoOneShips" }));
+
+    assert_eq!(settings.theme, Some("someThemeNoOneShips".to_owned()));
+    assert_eq!(
+        serde_json::to_value(&settings).expect("serializable")["theme"],
+        json!("someThemeNoOneShips")
+    );
+}
+
+#[rstest::rstest]
+#[case::number(json!({ "theme": 3 }))]
+#[case::object(json!({ "theme": { "name": "forest" } }))]
+#[case::null(json!({ "theme": null }))]
+fn reads_a_theme_that_is_not_a_name_as_no_choice(#[case] stored: serde_json::Value) {
+    assert_eq!(read(stored).theme, None);
+}
+
+#[test]
+fn a_broken_theme_costs_no_other_setting() {
+    let settings = read(json!({ "theme": 3, "interfaceLanguage": "en" }));
+
+    assert_eq!(
+        settings.interface_language,
+        Some(InterfaceLanguage::English)
     );
 }

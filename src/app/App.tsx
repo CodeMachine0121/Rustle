@@ -20,6 +20,9 @@ import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { Sidebar } from "../features/sidebar/Sidebar";
+import { browserThemeEnvironment } from "../features/theme/browserThemeEnvironment";
+import { ThemeSession } from "../features/theme/ThemeSession";
+import { useTheme } from "../features/theme/useTheme";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { NewWorkspaceEntry } from "../features/vault/NewWorkspaceEntry";
@@ -58,11 +61,13 @@ function VaultView() {
   const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const [fontSizes] = useState(() => new EditingSurfaceFontSizes(settings, composition));
+  const [themes] = useState(() => new ThemeSession(settings, browserThemeEnvironment()));
   const snapshot = useVaultSnapshot(session);
   const fontSize = useEditingSurfaceFontSizes(fontSizes);
   const previewPanel = usePreviewPanel(settings);
   const writing = useWritingLayout(layout, settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
+  const theme = useTheme(themes);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -91,6 +96,8 @@ function VaultView() {
   useEffect(() => () => imagePaste.dispose(), [imagePaste]);
 
   useEffect(() => () => fontSizes.dispose(), [fontSizes]);
+
+  useEffect(() => () => themes.dispose(), [themes]);
 
   return (
     <InterfaceLanguageProvider language={interfaceLanguage.language}>
@@ -138,7 +145,11 @@ function VaultView() {
           />
         }
         sidebarFooter={
-          <SettingsEntry language={interfaceLanguage.language} onChoose={interfaceLanguage.choose} />
+          <SettingsEntry
+            language={interfaceLanguage.language}
+            onChoose={interfaceLanguage.choose}
+            theme={theme}
+          />
         }
         writing={writing}
         controls={{

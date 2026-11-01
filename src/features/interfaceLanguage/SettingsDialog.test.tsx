@@ -3,21 +3,32 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
+import { FOLLOW_SYSTEM, ThemeCatalog, type ThemeChoice } from "../theme/ThemeCatalog";
 import type { InterfaceLanguage } from "./interfaceLanguage";
 import { InterfaceLanguageProvider } from "./InterfaceLanguageContext";
 import { SettingsDialog } from "./SettingsDialog";
 
-function renderDialog(language: InterfaceLanguage, composition = new CompositionState()) {
+function renderDialog(
+  language: InterfaceLanguage,
+  composition = new CompositionState(),
+  themeChoice: ThemeChoice = FOLLOW_SYSTEM,
+) {
   const onChoose = vi.fn();
   const onClose = vi.fn();
+  const chooseTheme = vi.fn();
+  const theme = { choice: themeChoice, themes: ThemeCatalog.shipped().themes, choose: chooseTheme };
   render(
     <CompositionProvider state={composition}>
       <InterfaceLanguageProvider language={language}>
-        <SettingsDialog language={language} onChoose={onChoose} onClose={onClose} />
+        <SettingsDialog language={language} onChoose={onChoose} theme={theme} onClose={onClose} />
       </InterfaceLanguageProvider>
     </CompositionProvider>,
   );
-  return { onChoose, onClose };
+  return { onChoose, onClose, chooseTheme };
+}
+
+function themeSelect(name = "主題"): HTMLSelectElement {
+  return screen.getByRole("combobox", { name }) as HTMLSelectElement;
 }
 
 function options() {
@@ -25,12 +36,13 @@ function options() {
 }
 
 describe("SettingsDialog", () => {
-  it("is a dialog headed 設定 with one item, the language, and its two options side by side", () => {
+  it("is a dialog headed 設定 with the language, then the theme, and the language's two options side by side", () => {
     renderDialog("zh");
 
     const dialog = screen.getByRole("dialog", { name: "設定" });
     expect(within(dialog).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual([
       "語言",
+      "主題",
     ]);
     expect(screen.getByRole("radiogroup", { name: "語言" })).toBeInTheDocument();
     expect(options()).toHaveLength(2);
@@ -78,12 +90,67 @@ describe("SettingsDialog", () => {
   });
 
   it("closes on Esc without choosing", () => {
-    const { onChoose, onClose } = renderDialog("zh");
+    const { onChoose, onClose, chooseTheme } = renderDialog("zh");
 
     fireEvent.keyDown(screen.getByRole("radio", { name: "中文" }), { key: "Escape" });
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onChoose).not.toHaveBeenCalled();
+    expect(chooseTheme).not.toHaveBeenCalled();
+  });
+
+  it("closes on Esc from the theme menu without choosing a theme", () => {
+    const { onClose, chooseTheme } = renderDialog("zh");
+
+    fireEvent.keyDown(themeSelect(), { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(chooseTheme).not.toHaveBeenCalled();
+  });
+
+  it("lists Follow System, Light, Dark and Forest, and marks the theme in use", () => {
+    renderDialog("zh");
+
+    expect(Array.from(themeSelect().options).map((option) => option.textContent)).toEqual([
+      "跟隨系統",
+      "淡色",
+      "暗色",
+      "森林",
+    ]);
+    expect(themeSelect().selectedOptions[0]?.textContent).toBe("跟隨系統");
+  });
+
+  it("names the themes in English", () => {
+    renderDialog("en", new CompositionState(), "forest");
+
+    expect(Array.from(themeSelect("Theme").options).map((option) => option.textContent)).toEqual([
+      "Follow System",
+      "Light",
+      "Dark",
+      "Forest",
+    ]);
+    expect(themeSelect("Theme").selectedOptions[0]?.textContent).toBe("Forest");
+  });
+
+  it("offers the themes in a native menu the keyboard reaches and works, named by its heading", () => {
+    renderDialog("zh");
+    const select = themeSelect();
+
+    expect(select).toBeInstanceOf(HTMLSelectElement);
+    expect(select).toBeEnabled();
+    expect(select.tabIndex).toBeGreaterThanOrEqual(0);
+    expect(select).toHaveAccessibleName("主題");
+    select.focus();
+    expect(select).toHaveFocus();
+  });
+
+  it("chooses a theme and stays open", () => {
+    const { onClose, chooseTheme } = renderDialog("zh");
+
+    fireEvent.change(themeSelect(), { target: { value: "forest" } });
+
+    expect(chooseTheme).toHaveBeenCalledWith("forest");
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("leaves Esc to the input method while it is composing", () => {
@@ -97,12 +164,13 @@ describe("SettingsDialog", () => {
   });
 
   it("closes on a click on the dimmed backdrop without choosing", () => {
-    const { onChoose, onClose } = renderDialog("zh");
+    const { onChoose, onClose, chooseTheme } = renderDialog("zh");
 
     fireEvent.click(screen.getByTestId("settings-backdrop"));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onChoose).not.toHaveBeenCalled();
+    expect(chooseTheme).not.toHaveBeenCalled();
   });
 
   it("stays open on a click inside the dialog", () => {

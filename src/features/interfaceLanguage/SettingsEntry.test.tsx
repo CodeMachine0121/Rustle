@@ -2,13 +2,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
+import { FOLLOW_SYSTEM } from "../theme/ThemeCatalog";
 import { SettingsEntry } from "./SettingsEntry";
 
 function renderEntry() {
   const onChoose = vi.fn();
   render(
     <CompositionProvider>
-      <SettingsEntry language="zh" onChoose={onChoose} />
+      <SettingsEntry language="zh" onChoose={onChoose} theme={{ choice: FOLLOW_SYSTEM, themes: [], choose: vi.fn() }} />
     </CompositionProvider>,
   );
   return onChoose;

@@ -220,6 +220,7 @@ fn remembered_settings() -> Settings {
             editor: Some(17.3),
             preview: Some(13.5),
         },
+        theme: Some("forest".to_owned()),
     }
 }
 

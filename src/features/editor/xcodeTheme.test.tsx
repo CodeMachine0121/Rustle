@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { THEME_TOKENS, type ThemeToken } from "../theme/Theme";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -58,14 +59,12 @@ describe("the writing area's Xcode theme", () => {
     expect(prose?.textContent).toBe("慢慢寫，一天一段。");
   });
 
-  it("defines every editor colour for both the light and the dark appearance", () => {
-    const css = readFileSync(join(process.cwd(), "src/app/app.css"), "utf8");
-    const [light = "", dark = ""] = css.split("@media (prefers-color-scheme: dark)");
+  it("takes every colour it uses from the theme", () => {
+    const source = readFileSync(join(process.cwd(), "src/features/editor/xcodeTheme.ts"), "utf8");
+    const used = [...source.matchAll(/var\(--color-([a-z-]+)\)/g)].map((match) => match[1] as ThemeToken);
 
-    for (const token of [...EDITOR_TOKENS, "text", "background"]) {
-      expect(light).toContain(`--color-editor-${token}:`);
-      expect(dark.slice(0, dark.indexOf("}\n}"))).toContain(`--color-editor-${token}:`);
-    }
+    expect(used).toEqual(expect.arrayContaining([...EDITOR_TOKENS, "text", "background"].map((token) => `editor-${token}`)));
+    expect(used.every((token) => THEME_TOKENS.includes(token))).toBe(true);
   });
 
   it("uses the editor colours only inside the editor", () => {

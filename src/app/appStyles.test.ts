@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { THEME_TOKENS, type ThemeToken } from "../features/theme/Theme";
+
 const CSS = readFileSync(join(process.cwd(), "src/app/app.css"), "utf8");
 
 /** Every declaration the stylesheet gives `selector`, from all the rules that name it. */
@@ -16,10 +18,6 @@ function ruleFor(selector: string): string {
     throw new Error(`no rule for ${selector}`);
   }
   return rules.map((rule) => rule.slice(rule.indexOf("{") + 1)).join("\n");
-}
-
-function tokenIn(block: string, token: string): string | undefined {
-  return new RegExp(`--${token}:\\s*(#[0-9a-f]{6})`).exec(block)?.[1];
 }
 
 describe("app styles", () => {
@@ -67,20 +65,25 @@ describe("app styles", () => {
     expect(ruleFor("[hidden]")).toMatch(/display: none !important;/);
   });
 
-  it.each([
-    ["editor-text", "#000000", "#dfdfe0"],
-    ["editor-background", "#ffffff", "#1f1f24"],
-    ["editor-heading", "#9b2393", "#fc5fa3"],
-    ["editor-link", "#0e0eff", "#5482ff"],
-    ["editor-code", "#c41a16", "#fc6a5d"],
-    ["editor-quote", "#5d6c79", "#6c7986"],
-    ["editor-mark", "#643820", "#fd8f3f"],
-  ])("colours the editor's %s with Xcode's default light and dark values", (token, light, dark) => {
-    const [lightBlock = "", darkBlock = ""] = CSS.split("@media (prefers-color-scheme: dark)");
+  it("writes no colour of its own: every colour it uses is a theme token", () => {
+    const usedTokens = new Set([...CSS.matchAll(/var\(--color-([a-z-]+)\)/g)].map((match) => match[1]));
 
-    expect(tokenIn(lightBlock, `color-${token}`)).toBe(light);
-    expect(tokenIn(darkBlock, `color-${token}`)).toBe(dark);
+    expect(CSS).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+    expect(CSS).not.toMatch(/--color-[a-z-]+:/);
+    expect([...usedTokens].filter((token) => !THEME_TOKENS.includes(token as ThemeToken))).toEqual([]);
   });
+
+  it("gives the article list its own background and every panel the panel colour", () => {
+    expect(ruleFor(".articles-region")).toMatch(/background: var\(--color-article-list\);/);
+    [".create-article-dialog", ".finder", ".operation-failure-notice", ".settings-select"].forEach((selector) =>
+      expect(ruleFor(selector)).toMatch(/background: var\(--color-panel\);/),
+    );
+  });
+
+  it("dims behind dialogs with the theme's shade", () => {
+    expect(ruleFor(".dialog-backdrop")).toMatch(/background: color-mix\(in srgb, var\(--color-shade\) 35%, transparent\);/);
+  });
+
   it.each(["h1", "h2", "h3", "h4", "h5", "h6", "code", "table"])(
     "sizes the preview's %s relative to the article, never the window",
     (element) => {

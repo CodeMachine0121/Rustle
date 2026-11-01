@@ -1,62 +1,8 @@
+/* Every colour is a theme token (src/features/theme/): none is written here. */
 :root {
   color-scheme: light dark;
   font-family:
     -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
-  --color-background: #ffffff;
-  --color-sidebar: #f6f6f4;
-  --color-text: #1f1f1f;
-  --color-muted-text: #6b6b6b;
-  --color-border: #e2e2de;
-  --color-selected: #e4ecf7;
-  --color-warning: #a35200;
-  --color-error: #b3261e;
-  --color-code-background: #f4f4f2;
-  --color-link: #1a5fb4;
-  --color-code-keyword: #a626a4;
-  --color-code-string: #50a14f;
-  --color-code-number: #986801;
-  --color-code-comment: #a0a1a7;
-  --color-code-title: #4078f2;
-  --color-code-type: #c18401;
-  --color-success: #248a3d;
-  --color-editor-background: #ffffff;
-  --color-editor-text: #000000;
-  --color-editor-heading: #9b2393;
-  --color-editor-link: #0e0eff;
-  --color-editor-code: #c41a16;
-  --color-editor-quote: #5d6c79;
-  --color-editor-mark: #643820;
-  --color-cursor-line: #f3f3f0;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #1c1c1e;
-    --color-sidebar: #232325;
-    --color-text: #e8e8e6;
-    --color-muted-text: #9a9a98;
-    --color-border: #3a3a3c;
-    --color-selected: #2f3d52;
-    --color-warning: #e3a35c;
-    --color-error: #f28b82;
-    --color-code-background: #262628;
-    --color-link: #8ab4f8;
-    --color-code-keyword: #c678dd;
-    --color-code-string: #98c379;
-    --color-code-number: #d19a66;
-    --color-code-comment: #7f848e;
-    --color-code-title: #61afef;
-    --color-code-type: #e5c07b;
-    --color-success: #30d158;
-    --color-editor-background: #1f1f24;
-    --color-editor-text: #dfdfe0;
-    --color-editor-heading: #fc5fa3;
-    --color-editor-link: #5482ff;
-    --color-editor-code: #fc6a5d;
-    --color-editor-quote: #6c7986;
-    --color-editor-mark: #fd8f3f;
-    --color-cursor-line: #262628;
-  }
 }
 
 [hidden] {
@@ -173,6 +119,7 @@ body {
 
 .articles-region {
   flex: 0 0 280px;
+  background: var(--color-article-list);
 }
 
 .writing-area {
@@ -329,7 +276,7 @@ body {
   padding: 6px 8px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--color-background);
+  background: var(--color-panel);
   color: inherit;
   font: inherit;
 }
@@ -592,7 +539,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, #000000 35%, transparent);
+  background: color-mix(in srgb, var(--color-shade) 35%, transparent);
 }
 
 .create-article-dialog {
@@ -602,8 +549,8 @@ body {
   gap: 12px;
   padding: 20px 24px;
   border-radius: 10px;
-  background: var(--color-background);
-  box-shadow: 0 12px 32px color-mix(in srgb, #000000 30%, transparent);
+  background: var(--color-panel);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--color-shade) 30%, transparent);
 }
 
 .create-article-dialog h2 {
@@ -625,7 +572,7 @@ body {
   padding: 6px 8px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--color-background);
+  background: var(--color-panel);
   color: inherit;
   font: inherit;
   font-size: 14px;
@@ -712,7 +659,7 @@ body {
   padding: 0 8px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--color-background);
+  background: var(--color-panel);
   color: var(--color-muted-text);
 }
 
@@ -772,10 +719,10 @@ body {
   padding: 8px 8px 8px 16px;
   border: 1px solid var(--color-error);
   border-radius: 8px;
-  background: var(--color-background);
+  background: var(--color-panel);
   color: var(--color-error);
   font-size: 13px;
-  box-shadow: 0 6px 20px color-mix(in srgb, #000000 20%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-shade) 20%, transparent);
 }
 
 .image-paste-status {
@@ -852,7 +799,7 @@ body {
   padding: 8px 12px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--color-background);
+  background: var(--color-panel);
   color: inherit;
   font: inherit;
   font-size: 14px;
@@ -864,6 +811,16 @@ body {
   background: var(--color-selected);
 }
 
+.settings-select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-panel);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+}
+
 .finder-backdrop {
   position: fixed;
   inset: 0;
@@ -872,7 +829,7 @@ body {
   justify-content: center;
   align-items: flex-start;
   padding-top: 12vh;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--color-shade) 20%, transparent);
 }
 
 .finder {
@@ -880,10 +837,10 @@ body {
   flex-direction: column;
   width: min(560px, 90vw);
   max-height: 60vh;
-  background: var(--color-background);
+  background: var(--color-panel);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--color-shade) 20%, transparent);
   overflow: hidden;
 }
 

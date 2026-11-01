@@ -128,11 +128,39 @@ function saveIndicator(): string | null {
   return document.querySelector(".save-indicator")?.getAttribute("data-indicator") ?? null;
 }
 
+let systemIsDark = false;
+const systemListeners = new Set<() => void>();
+
+function mediaQuery(query: string) {
+  const isColorScheme = query === "(prefers-color-scheme: dark)";
+  return {
+    get matches() {
+      return isColorScheme && systemIsDark;
+    },
+    addEventListener: (_: string, listener: () => void) => isColorScheme && systemListeners.add(listener),
+    removeEventListener: (_: string, listener: () => void) => systemListeners.delete(listener),
+  };
+}
+
+function switchSystemToDark() {
+  systemIsDark = true;
+  act(() => systemListeners.forEach((listener) => listener()));
+}
+
+function paintedColour(token: string): string {
+  return document.documentElement.style.getPropertyValue(`--color-${token}`);
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.mocked(invoke).mockReset();
     vi.spyOn(navigator, "languages", "get").mockReturnValue(["zh-TW"]);
+    systemIsDark = false;
+    systemListeners.clear();
+    window.matchMedia = vi.fn(mediaQuery) as unknown as typeof window.matchMedia;
+    window.localStorage.clear();
+    document.documentElement.removeAttribute("style");
   });
 
   it("opens where the user left off", async () => {
@@ -1573,7 +1601,8 @@ describe("App", () => {
       expect(wheel).toBe(false);
       expect(Number.parseFloat(previewArticle().style.fontSize)).toBeGreaterThan(15);
       expect(sizedElements()).toEqual([editorRoot(), previewArticle()]);
-      expect(document.documentElement.getAttribute("style")).toBeNull();
+      expect(document.documentElement.style.fontSize).toBe("");
+      expect(document.documentElement.style.getPropertyValue("zoom")).toBe("");
       expect(document.body.getAttribute("style")).toBeNull();
     });
 
@@ -1595,6 +1624,179 @@ describe("App", () => {
 
       expect(previewArticle()).toHaveStyle({ fontSize: "15px" });
       expect(editorRoot().style.fontSize).toBe("18px");
+    });
+  });
+
+  describe("theme", () => {
+    function answerWithTheme(theme: unknown, writeFails = false) {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        if (command === "write_settings" && writeFails) {
+          throw { reason: "unexpected", message: "disk full" };
+        }
+        const answered = await answer?.(command, args);
+        return command === "read_settings" ? { ...(answered as object), theme } : answered;
+      });
+    }
+
+    function writtenThemes(): unknown[] {
+      return vi
+        .mocked(invoke)
+        .mock.calls.filter(([command]) => command === "write_settings")
+        .map(([, args]) => (args as { settings: { theme?: unknown } }).settings.theme);
+    }
+
+    async function openThemeMenu(): Promise<HTMLSelectElement> {
+      fireEvent.click(await screen.findByRole("button", { name: "設定" }));
+      return screen.getByRole("combobox", { name: "主題" }) as HTMLSelectElement;
+    }
+
+    it("looks exactly as before when no theme was ever chosen, and follows the system into dark", async () => {
+      answerWithTheme(undefined);
+      render(<App />);
+      await screen.findByRole("button", { name: /^Zen of Writing/ });
+
+      expect(paintedColour("background")).toBe("#ffffff");
+      expect(paintedColour("editor-heading")).toBe("#9b2393");
+      expect(document.documentElement.style.colorScheme).toBe("light");
+
+      switchSystemToDark();
+
+      expect(paintedColour("background")).toBe("#1c1c1e");
+      expect(paintedColour("editor-heading")).toBe("#fc5fa3");
+    });
+
+    it("repaints the whole app at once when Forest is chosen, remembers it and keeps every word", async () => {
+      answerWithTheme(undefined);
+      render(<App />);
+      await waitFor(() => expect(editorContent()?.textContent).toBe("正文的第一行。"));
+      const select = await openThemeMenu();
+      expect(select.selectedOptions[0]?.textContent).toBe("跟隨系統");
+
+      fireEvent.change(select, { target: { value: "forest" } });
+
+      expect(paintedColour("sidebar")).toBe("#232a2e");
+      expect(paintedColour("panel")).toBe("#343f44");
+      expect(paintedColour("editor-code")).toBe("#e67e80");
+      expect(paintedColour("shade")).toBe("#000000");
+      expect(document.documentElement.style.colorScheme).toBe("dark");
+      expect(screen.getByRole("dialog", { name: "設定" })).toBeInTheDocument();
+      expect(editorContent()?.textContent).toBe("正文的第一行。");
+      expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toBeInTheDocument();
+      await waitFor(() => expect(writtenThemes()).toEqual(["forest"]));
+      expect(window.localStorage.getItem("rustle.theme")).toBe("forest");
+    });
+
+    it("ignores the system once Forest is remembered", async () => {
+      answerWithTheme("forest");
+      render(<App />);
+      await waitFor(() => expect(paintedColour("text")).toBe("#d3c6aa"));
+
+      switchSystemToDark();
+
+      expect(paintedColour("text")).toBe("#d3c6aa");
+    });
+
+    it("paints the theme the last window used before the settings answer", () => {
+      window.localStorage.setItem("rustle.theme", "forest");
+      vi.mocked(invoke).mockImplementation(() => new Promise(() => undefined));
+
+      render(<App />);
+
+      expect(paintedColour("text")).toBe("#d3c6aa");
+    });
+
+    it("follows the system when the remembered theme is one it does not know", async () => {
+      window.localStorage.setItem("rustle.theme", "forest");
+      answerWithTheme("solarized");
+      render(<App />);
+
+      await waitFor(() => expect(paintedColour("text")).toBe("#1f1f1f"));
+      expect((await openThemeMenu()).value).toBe("followSystem");
+    });
+
+    it("repaints even when the settings cannot be written, without a word about it", async () => {
+      answerWithTheme(undefined, true);
+      render(<App />);
+      await screen.findByRole("button", { name: /^Zen of Writing/ });
+
+      fireEvent.change(await openThemeMenu(), { target: { value: "forest" } });
+
+      expect(paintedColour("text")).toBe("#d3c6aa");
+      await waitFor(() => expect(writtenThemes()).toEqual(["forest"]));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("keeps the same editor, its text, cursor and composition through a change of theme", async () => {
+      answerWithTheme(undefined);
+      render(<App />);
+      await waitFor(() => expect(editorContent()?.textContent).toBe("正文的第一行。"));
+      const editor = document.querySelector<HTMLElement>(".cm-editor");
+      const view = editor === null ? null : EditorView.findFromDOM(editor);
+      if (view === null) {
+        throw new Error("the editor did not render");
+      }
+      act(() => view.dispatch({ selection: { anchor: 3 } }));
+      const content = editorContent();
+      if (content === null) {
+        throw new Error("no editor content");
+      }
+      fireEvent.compositionStart(content);
+      const select = await openThemeMenu();
+
+      fireEvent.change(select, { target: { value: "forest" } });
+
+      expect(document.querySelector(".cm-editor")).toBe(editor);
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+      expect(view.state.selection.main.head).toBe(3);
+      expect(view.composing || view.compositionStarted).toBe(true);
+    });
+
+    it("still remembers Forest when the vault could not be listed and another setting is changed", async () => {
+      answerWithTheme("forest");
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation((command, args) =>
+        command === "list_workspaces"
+          ? Promise.reject({ reason: "unexpected", message: "permission denied" })
+          : (answer?.(command, args) ?? Promise.resolve(null)),
+      );
+      render(<App />);
+      await screen.findByRole("alert");
+      await waitFor(() => expect(paintedColour("text")).toBe("#d3c6aa"));
+
+      fireEvent.click(await screen.findByRole("button", { name: "設定" }));
+      fireEvent.click(screen.getByRole("radio", { name: "English" }));
+
+      await waitFor(() => expect(writtenThemes()).toEqual(["forest"]));
+    });
+
+    it("has no gear in Zen Mode and puts it back at the bottom of the sidebar afterwards", async () => {
+      answerWithTheme(undefined);
+      render(<App />);
+      await screen.findByRole("button", { name: /^Zen of Writing/ });
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      expect(screen.queryByRole("button", { name: "設定" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      const sidebar = screen.getByRole("navigation", { name: "側邊欄" });
+      expect(within(sidebar).getAllByRole("button").at(-1)).toBe(within(sidebar).getByRole("button", { name: "設定" }));
+    });
+
+    it("leaves the theme alone when the settings are closed with Esc", async () => {
+      answerWithTheme("forest");
+      render(<App />);
+      await waitFor(() => expect(paintedColour("text")).toBe("#d3c6aa"));
+      const select = await openThemeMenu();
+
+      fireEvent.keyDown(select, { key: "Escape" });
+
+      expect(screen.queryByRole("dialog", { name: "設定" })).not.toBeInTheDocument();
+      expect(paintedColour("text")).toBe("#d3c6aa");
+      expect(writtenThemes()).toEqual([]);
     });
   });
 });
