@@ -444,3 +444,56 @@ fn refuses_a_settings_folder_that_links_outside_the_vault() {
         Err(SettingsError::OutsideVault(_))
     ));
 }
+
+#[cfg(unix)]
+fn with_permissions(path: &std::path::Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).expect("permissions");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_vault_that_refuses_new_folders_is_an_error_not_a_rejection() {
+    let vault = Vault::create();
+    with_permissions(&vault.root, 0o555);
+
+    let result = CreateWorkspace::new(&vault.workspaces()).execute("Notes");
+
+    with_permissions(&vault.root, 0o755);
+    assert!(matches!(
+        result,
+        Err(WorkspaceRepositoryError::Unwritable { .. })
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_workspace_that_cannot_be_read_is_reported_instead_of_counted_as_empty() {
+    let vault = Vault::create();
+    vault.folder("Locked");
+    with_permissions(&vault.root.join("Locked"), 0o000);
+
+    let result = ListWorkspaces::new(&vault.workspaces()).execute();
+
+    with_permissions(&vault.root.join("Locked"), 0o755);
+    assert!(matches!(
+        result,
+        Err(WorkspaceRepositoryError::Unreadable { .. })
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn refuses_to_list_the_articles_of_a_workspace_linked_outside_the_vault() {
+    let vault = Vault::create();
+    std::os::unix::fs::symlink(vault.outside(), vault.root.join("Escaped")).expect("symlink");
+    let articles = FileSystemArticleRepository::in_vault(vault.scope());
+
+    let result = ListArticles::new(&vault.workspaces(), &articles)
+        .execute(&WorkspaceName::parse("Escaped").expect("valid workspace name"));
+
+    assert!(matches!(
+        result,
+        Err(WorkspaceRepositoryError::OutsideVault(_))
+    ));
+}

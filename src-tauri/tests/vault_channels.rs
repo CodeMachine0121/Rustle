@@ -115,6 +115,38 @@ fn refuses_to_list_a_workspace_that_escapes_the_vault() {
     assert_eq!(failure["reason"], json!("outsideVault"));
 }
 
+#[cfg(unix)]
+#[test]
+fn refuses_to_list_a_workspace_linked_outside_the_vault() {
+    let app = RunningApp::start();
+    let outside = app.vault_directory.path().join("outside");
+    fs::create_dir_all(&outside).expect("folder outside the vault");
+    std::os::unix::fs::symlink(&outside, app.vault_root.join("Escaped")).expect("symlink");
+
+    let failure = app
+        .call("list_articles", json!({ "workspace": "Escaped" }))
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+}
+
+#[test]
+fn reports_a_vault_that_cannot_be_listed_as_unexpected() {
+    let app = RunningApp::start();
+    fs::remove_dir_all(&app.vault_root).expect("vault removed");
+    fs::write(&app.vault_root, "a file where the vault should be").expect("blocking file");
+
+    let listed = app
+        .call("list_workspaces", json!({}))
+        .expect_err("not a folder");
+    let created = app
+        .call("create_workspace", json!({ "name": "Notes" }))
+        .expect_err("not a folder");
+
+    assert_eq!(listed["reason"], json!("unexpected"));
+    assert_eq!(created["reason"], json!("unexpected"));
+}
+
 #[test]
 fn creates_a_workspace_and_answers_a_rejection_as_an_outcome() {
     let app = RunningApp::start();
