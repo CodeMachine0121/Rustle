@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+use unicode_normalization::UnicodeNormalization;
+
 use crate::vault_name::{ArticleFileName, WorkspaceName};
 use crate::vault_scope::IMAGES_FOLDER_NAME;
 
@@ -63,9 +65,11 @@ impl VaultEntry {
             .then_with(|| self.name.cmp(&other.name))
     }
 
-    /// The file system would treat the two names as the same entry.
+    /// The file system would treat the two names as the same entry: case
+    /// and composed or decomposed accents make no difference to it.
     pub fn clashes_with(&self, name: &str) -> bool {
-        self.name.to_lowercase() == name.to_lowercase()
+        let comparable = |name: &str| name.nfc().collect::<String>().to_lowercase();
+        comparable(&self.name) == comparable(name)
     }
 
     pub(crate) fn is_hidden(name: &str) -> bool {
@@ -162,6 +166,8 @@ mod tests {
     #[case("README.txt", "readme.TXT", true)]
     #[case("Blog", "Blog2", false)]
     #[case("Ärger", "ärger", true)]
+    #[case("Cafe\u{301}", "Caf\u{e9}", true)]
+    #[case("Caf\u{e9}", "CAFE\u{301}", true)]
     fn compares_names_the_way_the_file_system_does(
         #[case] existing: &str,
         #[case] requested: &str,
