@@ -373,7 +373,6 @@ body {
 
 .markdown-editor .cm-editor {
   height: 100%;
-  font-size: 15px;
 }
 
 .markdown-editor .cm-scroller {
@@ -400,6 +399,30 @@ body {
   padding: 24px 32px;
   line-height: 1.7;
   overflow-wrap: anywhere;
+}
+
+.preview-content h1 {
+  font-size: 2em;
+}
+
+.preview-content h2 {
+  font-size: 1.5em;
+}
+
+.preview-content h3 {
+  font-size: 1.25em;
+}
+
+.preview-content h4 {
+  font-size: 1em;
+}
+
+.preview-content h5 {
+  font-size: 0.875em;
+}
+
+.preview-content h6 {
+  font-size: 0.85em;
 }
 
 .preview-content a {
@@ -439,6 +462,7 @@ body {
 
 .preview-content table {
   border-collapse: collapse;
+  font-size: 1em;
 }
 
 .preview-content th,

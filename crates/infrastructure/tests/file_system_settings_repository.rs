@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use rustle_domain::{
-    IndentationSettings, IndentationStyle, InterfaceLanguage, LastOpenedSettings,
+    FontSizeSettings, IndentationSettings, IndentationStyle, InterfaceLanguage, LastOpenedSettings,
     PreviewPanelSettings, Settings, SettingsError, SettingsRepository, SidebarSection,
     SidebarSettings, VaultScope,
 };
@@ -215,6 +215,10 @@ fn remembered_settings() -> Settings {
         interface_language: Some(InterfaceLanguage::English),
         sidebar: SidebarSettings {
             collapsed_sections: vec![SidebarSection::Tags],
+        },
+        font_size: FontSizeSettings {
+            editor: Some(17.3),
+            preview: Some(13.5),
         },
     }
 }

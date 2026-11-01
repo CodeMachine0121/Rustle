@@ -164,4 +164,20 @@ describe("PreviewPanel", () => {
       expect(pane.scrollTo).not.toHaveBeenCalled();
     });
   });
+  it("sizes the article it shows, and only the article, from the size it was given", async () => {
+    const editor = editorSession();
+    const { container } = render(
+      <PreviewPanel previewedBody={new PreviewedBody(editor, new CompositionState())} fontSizePixels={19.2} />,
+    );
+
+    await act(() =>
+      editor.openArticle({
+        article: { workspace: "Blog", fileName: "a.md", body: "# 標題\n\n內文", lastKnownModifiedAt: "2026-08-20T08:00:00.000Z" },
+        title: "A",
+      }),
+    );
+
+    expect(screen.getByRole("article")).toHaveStyle({ fontSize: "19.2px" });
+    expect(container.querySelector(".preview-scroller")?.getAttribute("style")).toBeNull();
+  });
 });

@@ -20,6 +20,8 @@ pub struct Settings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interface_language: Option<InterfaceLanguage>,
     pub sidebar: SidebarSettings,
+    #[serde(skip_serializing_if = "FontSizeSettings::has_no_opinion")]
+    pub font_size: FontSizeSettings,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -120,6 +122,25 @@ pub enum SidebarSection {
 #[serde(rename_all = "camelCase")]
 pub struct SidebarSettings {
     pub collapsed_sections: Vec<SidebarSection>,
+}
+
+/// The editor's and the preview's font sizes in pixels, as the webview
+/// wrote them. `None` when the file holds no number. The webview alone
+/// decides the default, the range and the precision, so the rule is never
+/// written twice.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FontSizeSettings {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub editor: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview: Option<f64>,
+}
+
+impl FontSizeSettings {
+    fn has_no_opinion(&self) -> bool {
+        self.editor.is_none() && self.preview.is_none()
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
