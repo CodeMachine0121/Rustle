@@ -1,8 +1,8 @@
 # 寫作介面整理與檢視模式 — Architecture Design
 
-**Status:** Confirmed (decided autonomously; the user was away — every judgement call is listed in §8)
+**Status:** Implemented (decided autonomously; the user was away — every judgement call is listed in §8)
 **Source PRD:** `.sdd/2026-08-21-editing-surface-and-view-modes/PRD.md`
-**Tech context:** Tauri 2 · TypeScript strict + React 19 + CodeMirror 6 · Vitest + happy-dom. This slice is webview-only: no Rust crate, channel or settings-shape change. One new frontend dependency: `lucide-react 1.56.0` (line icons).
+**Tech context:** Tauri 2 · TypeScript strict + React 19 + CodeMirror 6 · Vitest + happy-dom. This slice is webview-only: no Rust crate, channel or settings-shape change. New frontend dependencies: `lucide-react 1.56.0` (line icons) and `@lezer/highlight 1.2.5` (the highlight tags, already in the tree through CodeMirror; now a direct dependency).
 
 ---
 
@@ -33,7 +33,9 @@
 | `src/features/vault/WorkspaceColumn.tsx`, `src/features/sidebar/Sidebar.tsx`, `CollapsibleSection.tsx` | **Modify** | Section header gets an optional `action` (the plus icon); `▸▾` become chevron line icons |
 | `src/features/preview/usePreviewPanel.ts` | **Modify** | Keeps only the width (resize / commit); open/close/shortcut move to `WritingLayout` |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | `defaultHighlightStyle` → the Xcode style |
-| `src/features/interfaceLanguage/SettingsButton.tsx` | **Modify** | Hand-drawn filled gear → line gear icon (US-10 "every icon is a thin line") |
+| `src/shared/icons/IconButton.tsx` | **Add** | The one icon-only button: label read out and shown as tooltip, a `lucide-react` icon drawn `aria-hidden` |
+| `src/features/articleMetadata/ChipInput.tsx` | **Modify** | The chip's `×` character becomes a line `X` icon (US-10: no character stands in for an icon) |
+| `src/features/interfaceLanguage/SettingsButton.tsx` | **Not touched** | Its gear is already drawn with strokes only (`fill: none`, `stroke: currentColor`) |
 | `src/features/interfaceLanguage/messages.ts` | **Modify** | New labels; `🔍`, `＋`, `◀`, `已儲存`, sort labels removed |
 | `src/app/app.css` | **Modify** | Tokens `--color-success`, `--color-editor-*` (light/dark); icon, card, statusline, header, Zen styles |
 | Rust crates / `src-tauri` / channels / `Settings` shape | **Not touched** | `previewPanel.isOpen` keeps meaning "is the preview on screen"; Zen and "preview only" are not stored |
@@ -47,7 +49,7 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `WritingLayout` | Session class (subscribe / snapshot, like `VaultSession`) | Decide the arrangement: `snapshot = { viewMode, isZen, controlsLiveIn: "editor" \| "preview" }`. `choose(mode)` (editor only → writes `isOpen=false`; side by side → `isOpen=true`; preview only → `isOpen=true` + transient flag), `toggleZen()`, `togglePreviewFromShortcut()` (preview only → side by side; otherwise flips `isOpen`), `revealEditor()` (preview only → side by side without writing settings), `revealEditorWhenRefused(holder)` (an `ArticleHolder` that calls `revealEditor` on any non-`switched` answer), `takeControlsFocus()` (true once after a button choice moved the controls to the other header) | `SettingsSession` | US-07 all, US-08 enter/leave/view modes/restart, US-05 "只有預覽時被擋下" |
+| `WritingLayout` | Session class (subscribe / snapshot, like `VaultSession`) | Decide the arrangement: `snapshot = { viewMode, isZen, controlsLiveIn: "editor" \| "preview" }`. `choose(mode)` (editor only → writes `isOpen=false`; side by side → `isOpen=true`; preview only → `isOpen=true` + transient flag), `toggleZen()`, `togglePreviewFromShortcut()` (preview only → side by side; otherwise flips `isOpen`), `revealEditor()` (preview only → side by side; nothing to write, the settings already say the preview is open), `revealEditorWhenRefused(holder)` (an `ArticleHolder` that calls `revealEditor` on any non-`switched` answer), `takeControlsFocus()` (true once after a button choice moved the controls to the other header) | `SettingsSession` | US-07 all, US-08 enter/leave/view modes/restart, US-05 "只有預覽時被擋下" |
 | `useWritingLayout(layout, settings)` | Hook | `useSyncExternalStore` over the layout; installs the configured preview shortcut (capture phase, `CompositionState.ownsKey` first) → `togglePreviewFromShortcut` | `WritingLayout`, `KeyboardShortcut` | US-07 shortcut scenarios |
 | `ZenButton` / `ViewModeButtons` | Components | Zen: `Maximize2` ↔ `Minimize2`, `aria-pressed`. View modes: three `aria-pressed` icon buttons in a `role="group"`; on mount, take the keyboard if `layout.takeControlsFocus()` | `WritingLayout` | US-07, US-08 keyboard path |
 | `SaveStatusLine` | Component | `footer` under the editor: `ArticlePath` (`workspace ❯ fileName`; workspace shrinks with an ellipsis, file name never) + `SaveIndicator` (`LoaderCircle` spinning / green `Check` / warning `CircleAlert`, same box size) + failure text + outside-change warning with 覆寫 / 重新載入. Nothing rendered while no article is open | `AutosaveSession` | US-05 all, US-10 colours |
@@ -146,21 +148,6 @@ flowchart TD
 | US-10 圖示的樣子 / 舊的 emoji 全部退場 | `lucide-react` icons; `messages.ts` without emoji; `.icon` CSS |
 | US-10 有顏色的圖示只有兩個 / 存不進去的那個也有顏色 | `SaveIndicator` uses `--color-success` / `--color-warning`; every other icon `currentColor` |
 
---- | :--- |
-| US-01 有狀態、有日期、有標籤 / 沒有狀態 / 只有狀態 / 狀態與既有標記 | `ArticleRow` meta line + `.row-meta` (left aligned) |
-| US-02 圖示在卡片的兩個角落 | `ArticleList` card buttons + CSS corners (`.card-action--top` / `--bottom`) |
-| US-02 按右上角改 metadata | pencil button → `onEditMetadata` → existing `EditArticleMetadataDialog` |
-| US-02 按右下角刪掉 | trash button → `onDelete` → existing `ArticleDeletionDialog` (wording unchanged) |
-| US-02 只用鍵盤也走得到那兩個圖示 | buttons always in the DOM after the row button; visible on `:focus-visible` |
-| US-03 那一列 / 順序固定 / 空 workspace / All Notes 新文章 | `ArticleColumn` controls row, `arrangeArticles`, `ArticleFilterField` |
-| US-04 全部 | `NewWorkspaceEntry`, `NewWorkspaceDialog`, `CollapsibleSection.action` |
-| US-05 存好 / 打字轉圈 / 存完綠勾 / 沒有文章 / 失敗 / 外部改動 / 頂端退場 / 麵包屑截短 | `AutosaveSession` status `indicator`, `SaveStatusLine`, `AutosavedEditor`, CSS |
-| US-05 只有預覽時被擋下 | `WritingLayout.revealEditorWhenRefused` around the autosave holder |
-| US-06 淺色 / 深色 / 其他欄位不變 / 散文不上色 | `xcodeHighlightStyle`, `xcodeEditorTheme`, `--color-editor-*` tokens scoped to `.markdown-editor` |
-| US-07 全部 | `WritingLayout`, `ViewModeButtons`, `ZenButton`, `AppLayout`, `useWritingLayout` |
-| US-08 全部 | `WritingLayout.toggleZen` (memory only), `AppLayout` `hidden`, `ZenButton` |
-| US-09 全部 | `AppLayout` never unmounts the editor region; `MarkdownEditor` single `EditorView` |
-| US-10 全部 | `lucide-react` icons, `messages.ts` emoji removed, `--color-success` / `--color-warning` on the indicator only |
 
 ---
 
@@ -175,5 +162,6 @@ flowchart TD
 7. **Zen hides, not removes,** the sidebar and article column (`hidden`): filter text and fold state come back as they were ("回到進入 Zen Mode 之前的樣子") and hidden controls are out of the Tab order.
 8. **Focus after moving the controls:** only a click/key on a view-mode button that moves the controls to the other header hands the keyboard to the chosen button in its new place; the shortcut and Zen never move focus.
 9. **Revealing the editor on refusal** covers every leave that goes through the holder (article click, scope change, operations that let the article go). It does not write settings.
-10. **Settings gear** becomes a line icon so every icon follows US-10.
+10. **Settings gear** stays as it is: it is already a stroke-only line drawing in `currentColor`. The chip remove `×` in the metadata form is the one character-as-icon left, so it becomes a line icon.
 11. **Risk:** CSS-only behaviour (corners, ellipsis, colours, spinner animation) is not measurable in happy-dom; tests pin structure/classes and `docs/ime-regression-checklist.md` is unaffected.
+12. **One icon button:** `IconButton` (added while improving the slice) is the only way an icon-only button is drawn, so label, tooltip and `aria-hidden` cannot drift apart.
