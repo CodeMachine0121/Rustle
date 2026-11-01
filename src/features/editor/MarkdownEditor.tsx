@@ -1,6 +1,5 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +12,7 @@ import { EditorScrollPane } from "./EditorScrollPane";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TableRowContinuation } from "./TableRowContinuation";
 import { TabIndentation } from "./TabIndentation";
+import { xcodeTheme } from "./xcodeTheme";
 
 type BodyChangeListener = (body: string) => void;
 
@@ -148,7 +148,7 @@ function editorExtensions(composition: CompositionState, tabIndentation: Extensi
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     markdown(),
-    syntaxHighlighting(defaultHighlightStyle),
+    xcodeTheme(),
     EditorView.lineWrapping,
     EditorView.domEventHandlers({
       compositionstart: () => {

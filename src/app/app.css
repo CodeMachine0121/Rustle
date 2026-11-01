@@ -18,6 +18,14 @@
   --color-code-comment: #a0a1a7;
   --color-code-title: #4078f2;
   --color-code-type: #c18401;
+  --color-success: #248a3d;
+  --color-editor-background: #ffffff;
+  --color-editor-text: #000000;
+  --color-editor-heading: #9b2393;
+  --color-editor-link: #0e0eff;
+  --color-editor-code: #c41a16;
+  --color-editor-quote: #5d6c79;
+  --color-editor-mark: #643820;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -38,6 +46,14 @@
     --color-code-comment: #7f848e;
     --color-code-title: #61afef;
     --color-code-type: #e5c07b;
+    --color-success: #30d158;
+    --color-editor-background: #1f1f24;
+    --color-editor-text: #dfdfe0;
+    --color-editor-heading: #fc5fa3;
+    --color-editor-link: #5482ff;
+    --color-editor-code: #fc6a5d;
+    --color-editor-quote: #6c7986;
+    --color-editor-mark: #fd8f3f;
   }
 }
 
@@ -296,6 +312,7 @@ body {
 
 .markdown-editor {
   flex: 1;
+  background: var(--color-editor-background);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -303,7 +320,7 @@ body {
 
 .markdown-editor .cm-editor {
   height: 100%;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .markdown-editor .cm-scroller {
