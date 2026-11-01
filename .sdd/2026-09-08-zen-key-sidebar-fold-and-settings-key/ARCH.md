@@ -28,7 +28,6 @@
 | `src/features/vim/VimNormalCommand.ts` | **Add** | The seam type `{ keys, run }` |
 | `MarkdownEditor`, `AutosavedEditor`, `EditorColumn` | **Modify** | Thread an optional `vimNormalCommands` prop (same path as `vimRegister`) |
 | `src/features/interfaceLanguage/SettingsEntry.tsx` | **Modify** | Owns the `Cmd+,`/`Ctrl+,` listener; the dialog is portalled to `document.body` so it shows while the sidebar is hidden; focus returns to where it came from |
-| `src/features/interfaceLanguage/SettingsShortcut.ts` | **Add** | `isSettingsShortcut(event)` — the one rule for the hard-coded key (BR-11) |
 | `src/features/keymap/keymapGroups.ts`, `messages.ts` | **Modify** | `Cmd+,` → 設定 row in the window group; `Esc` row stays; no `zz` row (BR-12) |
 | `src/app/App.tsx` | **Modify** | Build the `zz` command (`layout.toggleZen`), the fold, and pass them on |
 | Zen button, view modes, preview shortcut, article column folding, `TabIndentation`, snippet Esc claims, dialogs' own Esc | **Not touched** | PRD Out of Scope; their Esc handling is "the floating thing's own close" and stays |
@@ -43,9 +42,8 @@
 | `VimNormalCommand` | Type (seam) | An app action bound to a key sequence in Vim's Normal mode | `VimEditing` | US-01 all |
 | `useSidebarFold(settings)` | Hook | Whether column 1 is folded and the toggle that remembers it | `SettingsSession`, `useSettings` | US-03 收起/叫回/記住/不改選擇 |
 | `SidebarFoldButton` | Component | The keyboard-reachable button that folds / unfolds column 1 | `IconButton`, `useMessages` | US-03 收起來之後仍然叫得回來 |
-| `isSettingsShortcut` | Function (key rule) | Is this key press `Cmd+,`/`Ctrl+,` (physical comma, no Shift/Alt) | — | US-04 Cmd+, / Ctrl+, |
 
-> `isSettingsShortcut` is a pure key predicate (the same shape as `finderForKey`), not a helper class.
+> The settings key rule (`Cmd`/`Ctrl` + the physical comma, no Shift/Alt) has one reader, so it lives inline in `SettingsEntry`'s listener rather than in its own module (decided during implementation; see §8).
 
 ---
 
@@ -57,7 +55,7 @@
 | `useWritingLayout` / `WritingLayout` | Preview shortcut + Esc leaves Zen | Esc listener and `leaveZen` removed |
 | `SettingsEntry` | Gear + dialog | + window capture listener for the settings key (ignored while composing, `preventDefault`); dialog via `createPortal(document.body)`; `close` returns focus to the gear when the gear opened it, else to the element that had focus when the key opened it |
 | `AppLayout` | Four columns | `sidebarFold` prop; sidebar `hidden={isZen \|\| isFolded}`; `LayoutRegion` gets a `leadingControl` slot used by the article column |
-| `keymapGroups` | Taught keys | One row `Cmd+,` → `openSettings` in the window group |
+| `keymapGroups` | Taught keys | One row `Cmd+,` → `toggleSettings` (開關設定) in the window group |
 | `SidebarSettings` (Rust) | Folded sections | `is_folded` |
 
 ---
@@ -73,7 +71,7 @@ flowchart TD
     App --> AppLayout
     AppLayout --> SidebarFoldButton
     AppLayout -->|sidebarFooter| SettingsEntry
-    SettingsEntry -->|window keydown capture| isSettingsShortcut
+    SettingsEntry -->|window keydown capture: Cmd/Ctrl+,| SettingsEntry
     SettingsEntry -->|portal| SettingsDialog --> KeymapOverview --> keymapGroups
 ```
 
@@ -107,7 +105,7 @@ flowchart TD
 | US-03 摺疊會被記住 | `SidebarSettings.is_folded` (Rust) + `useSidebarFold` |
 | US-03 專注模式蓋過摺疊但不改變它／攤開的最左欄在專注模式裡照樣收掉 | `AppLayout` `hidden={isZen \|\| isFolded}`; Zen never writes the fold |
 | US-03 最左欄不在時視窗按鈕有地方站 | native title bar (§8); the article column header is the top row |
-| US-04 Cmd+, 打開／再按一次關掉／最左欄收起／專注模式／Ctrl+, | `SettingsEntry` listener + portal; `isSettingsShortcut` |
+| US-04 Cmd+, 打開／再按一次關掉／最左欄收起／專注模式／Ctrl+, | `SettingsEntry` listener + portal |
 | US-04 輸入法選字中不作用 | `composition.ownsKey` in the listener |
 | US-05 清單有 Cmd+,／沒有 zz／Esc 那一列還在 | `keymapGroups` |
 
@@ -119,4 +117,6 @@ flowchart TD
 - **`Ctrl+,` on macOS** also opens the settings (one rule for every platform, like the preview shortcut's `Mod`).
 - **IME in Normal mode:** the `zz` command does nothing while `CompositionState.isComposing`; in Insert mode the engine never sees composing keys already.
 - **Engine mapping is global:** mapped once per `keys` per page; an editor without that command (or with Vim off) gets nothing because the action looks the command up in that editor's facet.
+- **The settings key rule is inline** in `SettingsEntry` (one reader; no `SettingsShortcut` module was needed).
+- **A mapped key is global to the engine:** once `zz` is mapped, an editor without a `zz` command (none exists in the app today) does nothing on `zz` in Normal mode instead of Vim's scroll-to-centre.
 - **Esc then Tab:** unchanged from today (`TabIndentation` always indents); the BRIEF's accepted cost was later overruled by the tab-always-indents slice.
