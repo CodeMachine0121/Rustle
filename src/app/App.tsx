@@ -71,6 +71,9 @@ function VaultView() {
           content: <PreviewPanel previewedBody={previewedBody} />,
           onOpen: previewPanel.open,
           onClose: previewPanel.close,
+          width: previewPanel.width,
+          onResize: previewPanel.resize,
+          onResizeEnd: previewPanel.commitWidth,
         }}
       />
       {articleDialogOpenedAt !== null && (

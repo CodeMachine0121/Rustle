@@ -370,6 +370,23 @@ describe("App", () => {
       expect(within(previewRegion()).getByRole("heading", { name: "Q3 回顧" })).toBeInTheDocument();
     });
 
+    it("opens at the width it was left at and remembers a new one with every other setting", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" }, { isOpen: true, widthRatio: 0.35 });
+      render(<App />);
+      await waitFor(() => expect(previewRegion().style.flexBasis).toBe("35%"));
+
+      fireEvent.keyDown(screen.getByRole("separator"), { key: "ArrowRight", keyCode: 39 });
+
+      expect(previewRegion().style.flexBasis).toBe("30%");
+      expect(invoke).toHaveBeenLastCalledWith("write_settings", {
+        settings: {
+          indentation: { style: "spaces", width: 2 },
+          previewPanel: { isOpen: true, widthRatio: expect.closeTo(0.3) },
+          lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+        },
+      });
+    });
+
     it("starts folded when the settings say it was closed", async () => {
       answerFromAVault({ workspace: null, article: null }, { isOpen: false, widthRatio: 0.5 });
       render(<App />);
