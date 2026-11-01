@@ -35,24 +35,9 @@ fn call(window: &WebviewWindow<MockRuntime>, command_name: &str) -> Result<Value
     .map(|body| body.deserialize::<Value>().expect("JSON response"))
 }
 
-const NOT_YET_IMPLEMENTED: [Channel; 1] = [Channel::UpdateMetadata];
-
 #[test]
 fn the_registration_list_covers_every_channel_exactly_once() {
     assert!(ChannelRegistry::new(channel_handlers::<MockRuntime>()).is_ok());
-}
-
-#[test]
-fn every_channel_not_yet_implemented_says_so_and_names_itself() {
-    let (_app, window) = app();
-
-    for channel in NOT_YET_IMPLEMENTED {
-        let failure = call(&window, channel.command_name()).expect_err("not implemented yet");
-
-        assert_eq!(failure["reason"], json!("notImplemented"), "{channel}");
-        let message = failure["message"].as_str().expect("message is text");
-        assert!(message.contains(channel.name()), "{message}");
-    }
 }
 
 #[test]

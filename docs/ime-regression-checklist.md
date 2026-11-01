@@ -34,7 +34,7 @@
 | T-6 | 組字中的 Enter | 可跑 |
 | T-7 | 組字中的 Tab | 可跑 |
 | T-8 | 組字停留超過 2 秒 | 可跑（自動儲存與預覽） |
-| T-9 | 對話框欄位裡的組字與 Enter | 可跑（新 workspace 名稱欄位、建立文章對話框） |
+| T-9 | 對話框欄位裡的組字與 Enter | 可跑（新 workspace 名稱欄位、建立文章對話框、編輯 metadata 對話框、重新命名 workspace 欄位） |
 | T-10 | 取消組字與組字中刪除 | 可跑 |
 | T-11 | 組字中切換文章／workspace／關閉視窗 | 可跑 |
 | T-12 | 第三方輸入法快速輸入 | 可跑 |
@@ -90,9 +90,9 @@
 
 ### T-9 對話框欄位裡的組字與 Enter
 
-- **怎麼做**：在欄 1 的「新 workspace 名稱」欄位用注音打「筆記」，第一個 Enter 選字，再按一次 Enter。接著在欄 2 按「＋ 新文章」：在 Title 欄位打「台灣」，第一個 Enter 選字、第二個 Enter 送出；再開一次對話框，在 Category 與 Tags 欄位各打一個詞，第一個 Enter 選字、第二個 Enter 成為 chip；組字中按一次 Esc。
-- **期望**：組字中的 Enter 一律屬於輸入法：不送出、不建立 workspace、不建立 chip；選完字後再按一次 Enter 才建立 workspace／chip／送出。組字中的 Esc 只取消組字，對話框不關。候選視窗貼齊欄位游標。送出之後游標停在編輯區第一行，可以直接打字。
-- **失敗**：選字的 Enter 送出了表單、建立了只有注音符號的 workspace 或 chip；組字中的 Esc 關掉了對話框；送出後還要再點一下編輯區才能打字。
+- **怎麼做**：在欄 1 的「新 workspace 名稱」欄位用注音打「筆記」，第一個 Enter 選字，再按一次 Enter。接著在欄 2 按「＋ 新文章」：在 Title 欄位打「台灣」，第一個 Enter 選字、第二個 Enter 送出；再開一次對話框，在 Category 與 Tags 欄位各打一個詞，第一個 Enter 選字、第二個 Enter 成為 chip；組字中按一次 Esc。再對欄 2 某一列按「編輯 metadata」，在 Title、Category、Tags 各做同樣的事（第二個 Enter 在 Title 是儲存）；對欄 1 某一列按「重新命名」，在輸入欄打「筆記」，第一個 Enter 選字、第二個 Enter 改名，組字中按一次 Esc。
+- **期望**：組字中的 Enter 一律屬於輸入法：不送出、不建立 workspace、不建立 chip；選完字後再按一次 Enter 才建立 workspace／chip／送出。組字中的 Esc 只取消組字，對話框與重新命名欄位都不關。候選視窗貼齊欄位游標。送出之後游標停在編輯區第一行，可以直接打字。
+- **失敗**：選字的 Enter 送出了表單、儲存了 metadata、改了 workspace 的名字、建立了只有注音符號的 workspace 或 chip；組字中的 Esc 關掉了對話框或重新命名欄位；送出後還要再點一下編輯區才能打字。
 
 ### T-10 取消組字與組字中刪除
 
@@ -127,6 +127,7 @@
 - [ ] 預覽是死的：把一份惡意樣本（`<script>`、`onerror=`、`javascript:` 連結、`<iframe>`、`<svg>`、外部與 `data:` 圖片、`style` 屬性、表單元素）存成一篇文章，預覽打開時在開發者工具確認 `window.pwned` 仍是 `undefined`、網路面板沒有任何往外的請求。
 - [ ] 預覽跟著系統深淺色：切換系統的深色／淺色模式，預覽底色、文字色與程式碼高亮一起換。收起預覽時編輯區佔滿空出的寬度。
 - [ ] 視窗仍然拒絕導覽到外部頁面：在開發者工具裡執行 `location.href = "https://example.com/"`，以及點一個指向外部網站的連結，視窗都必須停在原頁、編輯區仍在。
+- [ ] 刪除走系統垃圾桶：刪一篇文章、刪一個 workspace，兩者都出現在系統垃圾桶裡（不是永久刪除），而且拖得回原處；刪文章之後同一個 workspace 的 `images/` 一張圖都沒少。刪 workspace 的確認上的篇數與圖片數，與 Finder 裡數到的一致（`.DS_Store` 不算）。
 - [ ] 貼上圖片：截一張圖在編輯區按 `Cmd+V`，`{workspace}/images/` 多一個 UUID 名字的 `.png`、正文多 `![](images/….png)`、預覽看得到那張圖，全程沒有對話框；按一次 undo 語法整段消失，檔案仍在（貼上不刪檔、刪不回來是已知行為）。貼一張 > 10MB 的圖，「正在存圖片…」出現與消失期間編輯區照樣能打字。
 - [ ] 圖片位址只服務 vault：在開發者工具執行 `fetch` 不可行（`connect-src 'none'`），改為在預覽裡手寫 `![](images/../../x.png)`、`<img src="rustle://vault/.rustle/settings.json">`，都必須顯示不出來。
 - [ ] 硬連結：本 App 新增的圖片檔一律「不存在才建立」，寫不進既有的硬連結；但 `images/` 本身若與 vault 外共用同一份 inode，符號連結解析看不出來——這一條仍未關閉，發佈前確認 vault 內沒有這種安排。

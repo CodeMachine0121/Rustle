@@ -14,6 +14,7 @@ mod local_timestamp;
 mod metadata_update;
 mod pasted_image;
 mod settings;
+mod trash;
 mod utc_timestamp;
 mod vault_entry;
 mod vault_name;
@@ -21,7 +22,7 @@ mod vault_scope;
 mod workspace_name_request;
 mod workspace_repository;
 
-pub use article_document::ArticleDocument;
+pub use article_document::{ArticleDocument, UneditableFrontMatter};
 pub use article_draft::{ArticleDraft, ArticleDraftError};
 pub use article_file_name_slug::ArticleFileNameSlug;
 pub use article_metadata::ArticleMetadata;
@@ -48,6 +49,9 @@ pub use settings::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
     SettingsError, SettingsRepository,
 };
+#[cfg(any(test, feature = "mocks"))]
+pub use trash::MockTrash;
+pub use trash::{Trash, TrashError};
 pub use utc_timestamp::UtcTimestamp;
 pub use vault_entry::{VaultEntry, VaultEntryKind};
 pub use vault_name::{ArticleFileName, ImageFileName, VaultPathError, WorkspaceName};

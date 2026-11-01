@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use unicode_normalization::UnicodeNormalization;
 
-use crate::vault_name::{ArticleFileName, WorkspaceName};
+use crate::vault_name::{ArticleFileName, ImageFileName, WorkspaceName};
 use crate::vault_scope::IMAGES_FOLDER_NAME;
 
 const HIDDEN_NAME_PREFIX: char = '.';
@@ -54,6 +54,15 @@ impl VaultEntry {
         ArticleFileName::parse(&self.name)
             .ok()
             .filter(|article| article.markdown_stem().is_some())
+    }
+
+    /// A file in a workspace's images folder that is not hidden, so the
+    /// `.DS_Store` every Finder-opened folder carries is not an image.
+    pub fn as_image(&self) -> Option<ImageFileName> {
+        if self.kind != VaultEntryKind::File || Self::is_hidden(&self.name) {
+            return None;
+        }
+        ImageFileName::parse(&self.name).ok()
     }
 
     /// Alphabetical ignoring case, so `a`, `b`, `C` stay in that order; names
@@ -149,6 +158,26 @@ mod tests {
     #[case(VaultEntry::new("link-outside.md", VaultEntryKind::Unreachable))]
     fn anything_else_is_not_an_article(#[case] entry: VaultEntry) {
         assert_eq!(entry.as_article(), None);
+    }
+
+    #[rstest]
+    #[case("1.png")]
+    #[case("截圖.jpeg")]
+    #[case("notes.txt")]
+    fn a_visible_file_in_the_images_folder_is_an_image(#[case] name: &str) {
+        assert_eq!(
+            file(name).as_image().map(|image| image.to_string()),
+            Some(name.to_owned())
+        );
+    }
+
+    #[rstest]
+    #[case(file(".DS_Store"))]
+    #[case(file(".hidden.png"))]
+    #[case(folder("2026"))]
+    #[case(VaultEntry::new("link-outside.png", VaultEntryKind::Unreachable))]
+    fn a_hidden_file_a_folder_or_an_unreachable_entry_is_not_an_image(#[case] entry: VaultEntry) {
+        assert_eq!(entry.as_image(), None);
     }
 
     #[test]

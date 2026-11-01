@@ -17,7 +17,7 @@ pub mod window_close_guard;
 use rustle_domain::VaultScope;
 use rustle_infrastructure::{
     FileSystemArticleRepository, FileSystemImageAssetRepository, FileSystemSettingsRepository,
-    FileSystemWorkspaceRepository, ResolvedVaultScope,
+    FileSystemWorkspaceRepository, ResolvedVaultScope, SystemTrash,
 };
 use tauri::webview::NewWindowResponse;
 use tauri::{App, Builder, Manager, Runtime, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
@@ -57,7 +57,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>, vault: VaultScope) -> Builder<
         .manage(FileSystemArticleRepository::in_vault(vault.clone()))
         .manage(FileSystemWorkspaceRepository::in_vault(vault.clone()))
         .manage(FileSystemImageAssetRepository::in_vault(vault.clone()))
-        .manage(FileSystemSettingsRepository::in_vault(vault))
+        .manage(FileSystemSettingsRepository::in_vault(vault.clone()))
+        .manage(SystemTrash::in_vault(vault))
         .manage(WindowCloseGuard::default())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event

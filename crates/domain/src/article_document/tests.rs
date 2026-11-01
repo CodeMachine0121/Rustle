@@ -631,3 +631,38 @@ mod writing_scalars {
         assert_eq!(text, "---\ncreated_at: \"\"\n---\n");
     }
 }
+
+mod editing_metadata_strictly {
+    use super::*;
+
+    #[test]
+    fn edits_like_the_tolerant_update_when_the_block_can_be_edited() {
+        let update = MetadataUpdate::default().title("新的標題").tags(["rust"]);
+
+        let edited = ArticleDocument::parse(&annotated_article())
+            .edit_metadata(&update)
+            .expect("an editable block");
+
+        assert_eq!(edited.to_text(), rewritten(&annotated_article(), &update));
+    }
+
+    #[test]
+    fn creates_a_front_matter_for_an_article_without_one() {
+        let edited = ArticleDocument::parse("只有正文。\n")
+            .edit_metadata(&MetadataUpdate::default().title("Zen"))
+            .expect("nothing to break");
+
+        assert_eq!(edited.to_text(), "---\ntitle: Zen\n---\n只有正文。\n");
+    }
+
+    #[rstest]
+    #[case::broken_yaml("---\ntitle: Zen\n  broken: indentation\n---\n正文\n")]
+    #[case::not_a_mapping("---\n- just\n- a list\n---\n正文\n")]
+    #[case::flow_mapping("---\n{title: Zen}\n---\n正文\n")]
+    fn refuses_a_block_it_cannot_edit_safely(#[case] text: &str) {
+        assert_eq!(
+            ArticleDocument::parse(text).edit_metadata(&MetadataUpdate::default().title("新的")),
+            Err(UneditableFrontMatter)
+        );
+    }
+}

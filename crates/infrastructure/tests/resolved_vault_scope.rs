@@ -112,6 +112,61 @@ mod symlinks {
     }
 
     #[test]
+    fn locates_a_linked_workspace_entry_as_the_link_itself() {
+        let vault = Vault::create();
+        fs::create_dir_all(vault.root.join("Blog")).expect("workspace");
+        symlink(vault.root.join("Blog"), vault.root.join("Alias")).expect("symlink");
+
+        assert_eq!(
+            vault.scope().workspace_entry_path(&workspace("Alias")),
+            Ok(vault.root.join("Alias"))
+        );
+    }
+
+    #[test]
+    fn locates_a_linked_article_entry_as_the_link_itself() {
+        let vault = Vault::create();
+        fs::create_dir_all(vault.root.join("Blog")).expect("workspace");
+        fs::write(vault.root.join("Blog/b.md"), "# B").expect("article");
+        symlink(vault.root.join("Blog/b.md"), vault.root.join("Blog/a.md")).expect("symlink");
+
+        assert_eq!(
+            vault
+                .scope()
+                .article_entry_path(&workspace("Blog"), &article("a.md")),
+            Ok(vault.root.join("Blog/a.md"))
+        );
+    }
+
+    #[test]
+    fn locates_an_article_entry_through_a_linked_workspace() {
+        let vault = Vault::create();
+        fs::create_dir_all(vault.root.join("Blog")).expect("workspace");
+        fs::write(vault.root.join("Blog/a.md"), "# A").expect("article");
+        symlink(vault.root.join("Blog"), vault.root.join("Alias")).expect("symlink");
+
+        assert_eq!(
+            vault
+                .scope()
+                .article_entry_path(&workspace("Alias"), &article("a.md")),
+            Ok(vault.root.join("Blog/a.md"))
+        );
+    }
+
+    #[test]
+    fn rejects_a_workspace_entry_that_links_outside_the_vault() {
+        let vault = Vault::create();
+        symlink(outside_folder(&vault), vault.root.join("Escape")).expect("symlink");
+
+        assert_eq!(
+            vault.scope().workspace_entry_path(&workspace("Escape")),
+            Err(VaultPathError::OutsideVault {
+                rejected: "Escape".to_owned()
+            })
+        );
+    }
+
+    #[test]
     fn rejects_a_workspace_that_links_outside_the_vault() {
         let vault = Vault::create();
         symlink(outside_folder(&vault), vault.root.join("Escape")).expect("symlink");

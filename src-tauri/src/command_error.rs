@@ -1,8 +1,11 @@
 use std::fmt;
 
-use rustle_application::{CreateArticleError, SaveClipboardImagesError};
+use rustle_application::{
+    CreateArticleError, DeleteArticleError, DeleteWorkspaceError, SaveClipboardImagesError,
+    UpdateArticleMetadataError,
+};
 use rustle_domain::{
-    ArticleRepositoryError, ImageAssetRepositoryError, SettingsError, VaultPathError,
+    ArticleRepositoryError, ImageAssetRepositoryError, SettingsError, TrashError, VaultPathError,
     WorkspaceRepositoryError,
 };
 use serde::Serialize;
@@ -90,6 +93,43 @@ impl From<CreateArticleError> for CommandError {
             CreateArticleError::Draft(draft) => Self::unexpected(draft),
             CreateArticleError::Workspace(workspace) => workspace.into(),
             CreateArticleError::Article(article) => article.into(),
+        }
+    }
+}
+
+impl From<UpdateArticleMetadataError> for CommandError {
+    fn from(error: UpdateArticleMetadataError) -> Self {
+        match error {
+            UpdateArticleMetadataError::Article(article) => article.into(),
+            other @ (UpdateArticleMetadataError::Draft(_)
+            | UpdateArticleMetadataError::FrontMatter(_)) => Self::unexpected(other),
+        }
+    }
+}
+
+impl From<TrashError> for CommandError {
+    fn from(error: TrashError) -> Self {
+        match error {
+            TrashError::OutsideVault(outside) => outside.into(),
+            other @ TrashError::NotMoved { .. } => Self::unexpected(other),
+        }
+    }
+}
+
+impl From<DeleteArticleError> for CommandError {
+    fn from(error: DeleteArticleError) -> Self {
+        match error {
+            DeleteArticleError::Trash(trash) => trash.into(),
+            other @ DeleteArticleError::NotAnArticle { .. } => Self::unexpected(other),
+        }
+    }
+}
+
+impl From<DeleteWorkspaceError> for CommandError {
+    fn from(error: DeleteWorkspaceError) -> Self {
+        match error {
+            DeleteWorkspaceError::Workspace(workspace) => workspace.into(),
+            DeleteWorkspaceError::Trash(trash) => trash.into(),
         }
     }
 }
@@ -227,6 +267,78 @@ mod tests {
         ));
         assert_eq!(taken.reason(), FailureReason::Unexpected);
         assert!(taken.to_string().contains("Blog/zen-of-writing.md"));
+    }
+
+    #[test]
+    fn a_trash_escape_is_outside_the_vault_and_a_refusal_keeps_its_reason() {
+        let rejected = || WorkspaceName::parse("..").expect_err("'..' is rejected");
+        let not_moved = || TrashError::NotMoved {
+            item: "Blog/zen.md".to_owned(),
+            reason: "Permission denied".to_owned(),
+        };
+
+        assert_eq!(
+            CommandError::from(DeleteArticleError::Trash(TrashError::OutsideVault(
+                rejected()
+            )))
+            .reason(),
+            FailureReason::OutsideVault
+        );
+        assert_eq!(
+            CommandError::from(DeleteWorkspaceError::Trash(TrashError::OutsideVault(
+                rejected()
+            )))
+            .reason(),
+            FailureReason::OutsideVault
+        );
+        let refused = CommandError::from(DeleteArticleError::Trash(not_moved()));
+        assert_eq!(refused.reason(), FailureReason::Unexpected);
+        assert!(refused.to_string().contains("Permission denied"));
+        assert_eq!(
+            CommandError::from(DeleteWorkspaceError::Trash(not_moved())).reason(),
+            FailureReason::Unexpected
+        );
+        assert_eq!(
+            CommandError::from(DeleteArticleError::NotAnArticle {
+                file_name: "README.txt".to_owned()
+            })
+            .reason(),
+            FailureReason::Unexpected
+        );
+        assert_eq!(
+            CommandError::from(DeleteWorkspaceError::Workspace(
+                WorkspaceRepositoryError::OutsideVault(rejected())
+            ))
+            .reason(),
+            FailureReason::OutsideVault
+        );
+    }
+
+    #[test]
+    fn a_metadata_update_failure_keeps_the_reason_of_what_went_wrong() {
+        let rejected = || WorkspaceName::parse("..").expect_err("'..' is rejected");
+
+        assert_eq!(
+            CommandError::from(UpdateArticleMetadataError::Draft(
+                ArticleDraftError::BlankTitle
+            ))
+            .reason(),
+            FailureReason::Unexpected
+        );
+        assert_eq!(
+            CommandError::from(UpdateArticleMetadataError::FrontMatter(
+                rustle_domain::UneditableFrontMatter
+            ))
+            .reason(),
+            FailureReason::Unexpected
+        );
+        assert_eq!(
+            CommandError::from(UpdateArticleMetadataError::Article(
+                ArticleRepositoryError::OutsideVault(rejected())
+            ))
+            .reason(),
+            FailureReason::OutsideVault
+        );
     }
 
     #[test]

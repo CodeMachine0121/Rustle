@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::article_document::ArticleDocument;
+use crate::article_document::{ArticleDocument, UneditableFrontMatter};
 use crate::article_file_name_slug::ArticleFileNameSlug;
 use crate::local_timestamp::LocalTimestamp;
 use crate::metadata_update::MetadataUpdate;
@@ -15,8 +15,9 @@ pub enum ArticleDraftError {
     BlankTitle,
 }
 
-/// A new article as typed into the dialog: a title that is not blank, and
-/// categories and tags without surrounding spaces, blanks or repeats.
+/// An article's metadata as typed into the create or edit form: a title that
+/// is not blank, and categories and tags without surrounding spaces, blanks
+/// or repeats.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArticleDraft {
     title: String,
@@ -73,13 +74,28 @@ impl ArticleDraft {
     /// `created_at`, and an empty body.
     pub fn to_text(&self, created_at: LocalTimestamp) -> String {
         let created_at = created_at.to_string();
-        let update = MetadataUpdate::default()
-            .title(self.title.as_str())
+        let update = self
+            .metadata_update()
             .created_at(created_at.as_str())
-            .updated_at(created_at)
-            .category(self.category.iter().cloned())
-            .tags(self.tags.iter().cloned());
+            .updated_at(created_at);
         ArticleDocument::parse("").with_metadata(&update).to_text()
+    }
+
+    /// Writes the title, categories and tags into `document`, last updated
+    /// at `updated_at`; every other byte of the file stays as it was.
+    pub fn edit(
+        &self,
+        document: ArticleDocument,
+        updated_at: LocalTimestamp,
+    ) -> Result<ArticleDocument, UneditableFrontMatter> {
+        document.edit_metadata(&self.metadata_update().updated_at(updated_at.to_string()))
+    }
+
+    fn metadata_update(&self) -> MetadataUpdate {
+        MetadataUpdate::default()
+            .title(self.title.as_str())
+            .category(self.category.iter().cloned())
+            .tags(self.tags.iter().cloned())
     }
 }
 
@@ -202,6 +218,73 @@ mod tests {
         assert_eq!(
             draft(title, &[], &[]).file_name(&entries).as_str(),
             expected
+        );
+    }
+
+    const ANNOTATED: &str = "---\r\n\
+        # 這一行是使用者自己寫的註解\r\n\
+        title: 舊標題\r\n\
+        draft: true\r\n\
+        created_at: 2026-08-20T14:32:05+08:00\r\n\
+        updated_at: 2026-08-20T16:04:11+08:00\r\n\
+        tags:\r\n  - electron\r\n\
+        ---\r\n\
+        \r\n正文第一行。\r\n";
+
+    fn edited(draft: &ArticleDraft, text: &str) -> String {
+        draft
+            .edit(ArticleDocument::parse(text), created_at())
+            .expect("an editable front matter")
+            .to_text()
+    }
+
+    #[test]
+    fn editing_changes_only_title_category_tags_and_updated_at() {
+        let text = edited(&draft("新標題", &["技術筆記"], &["electron"]), ANNOTATED);
+
+        assert_eq!(
+            text,
+            "---\r\n\
+             # 這一行是使用者自己寫的註解\r\n\
+             title: 新標題\r\n\
+             draft: true\r\n\
+             created_at: 2026-08-20T14:32:05+08:00\r\n\
+             updated_at: 2026-08-20T14:32:05+00:00\r\n\
+             tags:\r\n  - electron\r\n\
+             category:\r\n  - 技術筆記\r\n\
+             ---\r\n\
+             \r\n正文第一行。\r\n"
+        );
+    }
+
+    #[test]
+    fn editing_without_categories_removes_the_category_key() {
+        let text = edited(
+            &draft("Zen", &[], &[]),
+            "---\ntitle: Zen\ncategory:\n  - 技術筆記\n---\n正文\n",
+        );
+
+        assert!(!text.contains("category"));
+        assert!(text.ends_with("---\n正文\n"));
+    }
+
+    #[test]
+    fn editing_keeps_the_byte_order_mark() {
+        let text = edited(
+            &draft("Zen", &[], &[]),
+            "\u{feff}---\ntitle: Old\n---\n正文\n",
+        );
+
+        assert!(text.starts_with("\u{feff}---\ntitle: Zen\n"));
+    }
+
+    #[test]
+    fn editing_refuses_a_front_matter_it_cannot_edit() {
+        let broken = ArticleDocument::parse("---\ntitle: Zen\n  broken: indentation\n---\n");
+
+        assert_eq!(
+            draft("Zen", &[], &[]).edit(broken, created_at()),
+            Err(UneditableFrontMatter)
         );
     }
 }
