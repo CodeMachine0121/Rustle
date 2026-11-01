@@ -33,6 +33,7 @@ const CHANNELS_WITH_ARGUMENTS = [
   "listArticles",
   "createWorkspace",
   "readBody",
+  "searchBodies",
   "saveBody",
   "saveClipboardImage",
   "writeSettings",
@@ -75,6 +76,25 @@ describe("channels", () => {
       fileName: "zen-of-writing.md",
     });
     expect(result).toEqual({ ok: true, payload: articleBody });
+  });
+
+  it("searches the bodies of the given articles for a piece of text", async () => {
+    const found = {
+      matches: [{ workspace: "日記", fileName: "tired.md", lineNumber: 3, lineText: "今天加班到很晚" }],
+      isTruncated: false,
+    };
+    vi.mocked(invoke).mockResolvedValue(found);
+
+    const result = await channels.searchBodies({
+      text: "加班",
+      articles: [{ workspace: "日記", fileName: "tired.md" }],
+    });
+
+    expect(invoke).toHaveBeenLastCalledWith("search_bodies", {
+      text: "加班",
+      articles: [{ workspace: "日記", fileName: "tired.md" }],
+    });
+    expect(result).toEqual({ ok: true, payload: found });
   });
 
   it("saves a body with the modification time it expects and the overwrite choice", async () => {

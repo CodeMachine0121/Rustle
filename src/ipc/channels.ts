@@ -2,6 +2,7 @@ import { Channel } from "@tauri-apps/api/core";
 
 import type { ArticleBody } from "./articleBody";
 import type { ArticleSummary } from "./articleSummary";
+import type { BodySearchRequest, BodySearchResult } from "./bodySearch";
 import { callChannel } from "./callChannel";
 import type { CreateArticleRequest } from "./createArticleRequest";
 import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
@@ -30,6 +31,9 @@ export const channels = {
 
   readBody: (workspace: string, fileName: string) =>
     callChannel<ArticleBody>("read_body", { workspace, fileName }),
+
+  searchBodies: (request: BodySearchRequest) =>
+    callChannel<BodySearchResult>("search_bodies", request),
 
   saveBody: (request: SaveBodyRequest) => callChannel<SavedBody>("save_body", request),
 
