@@ -1965,6 +1965,28 @@ describe("App", () => {
       expect(invoke).toHaveBeenCalledWith("write_clipboard_text", { text: "正" });
     });
 
+    it("still saves a pasted image into the workspace with Vim on", async () => {
+      answerWithVimMode(true);
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) =>
+        command === "save_clipboard_image" ? { images: [{ relativePath: "images/8f3c.png" }] } : answer?.(command, args),
+      );
+      Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
+      Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+      const { content, view } = await startEditing();
+
+      const paste = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(paste, "clipboardData", {
+        value: { items: [{ kind: "file", type: "image/png" }], files: [], getData: () => "" },
+      });
+      act(() => {
+        content.dispatchEvent(paste);
+      });
+
+      expect(invoke).toHaveBeenCalledWith("save_clipboard_image", { workspace: "Blog" });
+      await waitFor(() => expect(view.state.doc.toString()).toBe("![](images/8f3c.png)正文的第一行。"));
+    });
+
     it("never touches the system clipboard while Vim is off", async () => {
       answerWithVimMode(undefined);
       await startEditing();
