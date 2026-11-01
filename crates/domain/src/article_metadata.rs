@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use yaml_rust2::Yaml;
 use yaml_rust2::yaml::Hash;
 
@@ -43,6 +45,9 @@ impl ArticleMetadata {
                 .collect(),
             _ => Vec::new(),
         };
+        let mut tags = list(TAGS_KEY);
+        let mut seen = HashSet::new();
+        tags.retain(|tag| seen.insert(tag.clone()));
         let title = field(TITLE_KEY)
             .and_then(Yaml::as_str)
             .filter(|title| !title.trim().is_empty());
@@ -56,7 +61,7 @@ impl ArticleMetadata {
             created_at: text(CREATED_AT_KEY),
             updated_at: text(UPDATED_AT_KEY),
             category: list(CATEGORY_KEY),
-            tags: list(TAGS_KEY),
+            tags,
             has_incomplete_metadata: title.is_none(),
         }
     }
