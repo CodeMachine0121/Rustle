@@ -330,3 +330,138 @@ fn refuses_a_workspace_name_with_a_path_in_it() {
 
     assert_eq!(failure["reason"], json!("outsideVault"));
 }
+
+#[test]
+fn updates_an_articles_metadata_and_answers_with_its_row() {
+    let app = RunningApp::start();
+    app.write(
+        "Blog/tauri.md",
+        "---\ntitle: 舊標題\ndraft: true\n---\n正文第一行。\n",
+    );
+
+    let payload = app
+        .call(
+            "update_metadata",
+            json!({
+                "workspace": "Blog",
+                "fileName": "tauri.md",
+                "title": "新標題",
+                "category": ["技術筆記"],
+                "tags": []
+            }),
+        )
+        .expect("updated");
+
+    assert_eq!(payload["outcome"], json!("updated"));
+    assert_eq!(payload["article"]["title"], json!("新標題"));
+    assert_eq!(payload["article"]["category"], json!(["技術筆記"]));
+    let text = fs::read_to_string(app.vault_root.join("Blog/tauri.md")).expect("readable");
+    assert!(text.starts_with("---\ntitle: 新標題\ndraft: true\nupdated_at: "));
+    assert!(text.ends_with("category:\n  - 技術筆記\n---\n正文第一行。\n"));
+}
+
+#[test]
+fn refuses_a_blank_title_in_a_metadata_update_and_writes_nothing() {
+    let app = RunningApp::start();
+    app.write("Blog/tauri.md", "---\ntitle: 舊標題\n---\n");
+
+    let failure = app
+        .call(
+            "update_metadata",
+            json!({
+                "workspace": "Blog",
+                "fileName": "tauri.md",
+                "title": "   ",
+                "category": [],
+                "tags": []
+            }),
+        )
+        .expect_err("blank title");
+
+    assert_eq!(failure["reason"], json!("unexpected"));
+    assert_eq!(
+        fs::read_to_string(app.vault_root.join("Blog/tauri.md")).expect("readable"),
+        "---\ntitle: 舊標題\n---\n"
+    );
+}
+
+#[test]
+fn renames_a_workspace_and_answers_a_rejection_as_an_outcome() {
+    let app = RunningApp::start();
+    app.write("Blog/a.md", "");
+    app.write("Work/b.md", "");
+
+    let renamed = app
+        .call(
+            "rename_workspace",
+            json!({ "workspace": "Blog", "newName": "Writing" }),
+        )
+        .expect("renamed");
+    let rejected = app
+        .call(
+            "rename_workspace",
+            json!({ "workspace": "Writing", "newName": "work" }),
+        )
+        .expect("answered");
+
+    assert_eq!(
+        renamed,
+        json!({ "outcome": "renamed", "workspace": "Writing" })
+    );
+    assert_eq!(
+        rejected,
+        json!({ "outcome": "rejected", "reason": "alreadyUsed" })
+    );
+    assert!(app.vault_root.join("Writing/a.md").exists());
+}
+
+#[test]
+fn counts_what_deleting_a_workspace_would_take() {
+    let app = RunningApp::start();
+    app.write("Blog/a.md", "");
+    app.write("Blog/b.md", "");
+    app.write("Blog/README.txt", "");
+    app.write("Blog/images/1.png", "");
+    app.write("Blog/images/2.png", "");
+    app.write("Blog/images/.DS_Store", "");
+
+    let payload = app
+        .call("count_workspace_contents", json!({ "workspace": "Blog" }))
+        .expect("counted");
+
+    assert_eq!(payload, json!({ "articleCount": 2, "imageCount": 2 }));
+}
+
+#[test]
+fn refuses_to_delete_a_workspace_named_outside_the_vault() {
+    let app = RunningApp::start();
+    let elsewhere = app.vault_directory.path().join("elsewhere");
+    fs::create_dir_all(&elsewhere).expect("folder outside");
+
+    let failure = app
+        .call("delete_workspace", json!({ "workspace": "../elsewhere" }))
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+    assert!(elsewhere.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn refuses_to_delete_an_article_in_a_workspace_linked_outside_the_vault() {
+    let app = RunningApp::start();
+    let outside = app.vault_directory.path().join("outside");
+    fs::create_dir_all(&outside).expect("outside folder");
+    fs::write(outside.join("a.md"), "outside").expect("outside article");
+    std::os::unix::fs::symlink(&outside, app.vault_root.join("Escape")).expect("symlink");
+
+    let failure = app
+        .call(
+            "delete_article",
+            json!({ "workspace": "Escape", "fileName": "a.md" }),
+        )
+        .expect_err("outside the vault");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+    assert!(outside.join("a.md").exists());
+}

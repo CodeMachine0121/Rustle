@@ -36,6 +36,10 @@ channels! {
     ReadBody => "readBody", "read_body";
     SaveBody => "saveBody", "save_body";
     UpdateMetadata => "updateMetadata", "update_metadata";
+    DeleteArticle => "deleteArticle", "delete_article";
+    RenameWorkspace => "renameWorkspace", "rename_workspace";
+    CountWorkspaceContents => "countWorkspaceContents", "count_workspace_contents";
+    DeleteWorkspace => "deleteWorkspace", "delete_workspace";
     SaveClipboardImage => "saveClipboardImage", "save_clipboard_image";
     ReadSettings => "readSettings", "read_settings";
     WriteSettings => "writeSettings", "write_settings";

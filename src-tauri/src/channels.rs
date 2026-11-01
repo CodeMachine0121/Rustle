@@ -36,6 +36,22 @@ pub fn channel_handlers<R: Runtime>() -> Vec<ChannelHandler<R>> {
             tauri::generate_handler![commands::update_metadata::update_metadata],
         ),
         ChannelHandler::new(
+            Channel::DeleteArticle,
+            tauri::generate_handler![commands::delete_article::delete_article],
+        ),
+        ChannelHandler::new(
+            Channel::RenameWorkspace,
+            tauri::generate_handler![commands::rename_workspace::rename_workspace],
+        ),
+        ChannelHandler::new(
+            Channel::CountWorkspaceContents,
+            tauri::generate_handler![commands::count_workspace_contents::count_workspace_contents],
+        ),
+        ChannelHandler::new(
+            Channel::DeleteWorkspace,
+            tauri::generate_handler![commands::delete_workspace::delete_workspace],
+        ),
+        ChannelHandler::new(
             Channel::SaveClipboardImage,
             tauri::generate_handler![commands::save_clipboard_image::save_clipboard_image],
         ),

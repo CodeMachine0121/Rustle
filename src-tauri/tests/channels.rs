@@ -35,7 +35,7 @@ fn call(window: &WebviewWindow<MockRuntime>, command_name: &str) -> Result<Value
     .map(|body| body.deserialize::<Value>().expect("JSON response"))
 }
 
-const NOT_YET_IMPLEMENTED: [Channel; 2] = [Channel::UpdateMetadata, Channel::SaveClipboardImage];
+const NOT_YET_IMPLEMENTED: [Channel; 1] = [Channel::SaveClipboardImage];
 
 #[test]
 fn the_registration_list_covers_every_channel_exactly_once() {
