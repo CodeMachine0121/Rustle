@@ -1,3 +1,4 @@
+use rustle_domain::VaultScope;
 use rustle_lib::channel::Channel;
 use rustle_lib::channel_registry::ChannelRegistry;
 use rustle_lib::channels::channel_handlers;
@@ -8,7 +9,8 @@ use tauri::webview::InvokeRequest;
 use tauri::{App, WebviewWindow, WebviewWindowBuilder};
 
 fn app() -> (App<MockRuntime>, WebviewWindow<MockRuntime>) {
-    let app = rustle_lib::configure(mock_builder())
+    let vault = VaultScope::new(std::env::temp_dir().join("rustle-channels-test-vault"));
+    let app = rustle_lib::configure(mock_builder(), vault)
         .build(mock_context(noop_assets()))
         .expect("mock app");
     let window = WebviewWindowBuilder::new(&app, "main", Default::default())
@@ -33,6 +35,17 @@ fn call(window: &WebviewWindow<MockRuntime>, command_name: &str) -> Result<Value
     .map(|body| body.deserialize::<Value>().expect("JSON response"))
 }
 
+const NOT_YET_IMPLEMENTED: [Channel; 8] = [
+    Channel::ListWorkspaces,
+    Channel::ListArticles,
+    Channel::CreateArticle,
+    Channel::SaveBody,
+    Channel::UpdateMetadata,
+    Channel::SaveClipboardImage,
+    Channel::ReadSettings,
+    Channel::WriteSettings,
+];
+
 #[test]
 fn the_registration_list_covers_every_channel_exactly_once() {
     assert!(ChannelRegistry::new(channel_handlers::<MockRuntime>()).is_ok());
@@ -42,7 +55,7 @@ fn the_registration_list_covers_every_channel_exactly_once() {
 fn every_channel_not_yet_implemented_says_so_and_names_itself() {
     let (_app, window) = app();
 
-    for channel in Channel::ALL {
+    for channel in NOT_YET_IMPLEMENTED {
         let failure = call(&window, channel.command_name()).expect_err("not implemented yet");
 
         assert_eq!(failure["reason"], json!("notImplemented"), "{channel}");

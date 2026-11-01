@@ -1,1 +1,5 @@
-//! Use cases. Each later slice adds one struct per use case here.
+//! Use cases, one struct each.
+
+mod read_article_body;
+
+pub use read_article_body::{ArticleBody, ReadArticleBody};

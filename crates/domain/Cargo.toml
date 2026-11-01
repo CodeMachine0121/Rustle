@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true
+yaml-rust2.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
