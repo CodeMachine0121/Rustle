@@ -6,7 +6,7 @@ type EditorColumnProps = {
 };
 
 export function EditorColumn({ snapshot }: EditorColumnProps) {
-  const { body, indentation, bodyFailure } = snapshot;
+  const { body, openedDocument, indentation, bodyFailure } = snapshot;
   if (bodyFailure !== null) {
     return (
       <p className="column-message" role="alert">
@@ -14,8 +14,8 @@ export function EditorColumn({ snapshot }: EditorColumnProps) {
       </p>
     );
   }
-  if (body === null) {
+  if (body === null || openedDocument === null) {
     return <p className="empty-state">選一篇文章開始寫作</p>;
   }
-  return <MarkdownEditor body={body} indentation={indentation} />;
+  return <MarkdownEditor documentKey={openedDocument} body={body} indentation={indentation} />;
 }

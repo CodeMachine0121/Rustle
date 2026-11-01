@@ -168,6 +168,23 @@ describe("VaultSession", () => {
     expect(session.snapshot.body).toBe("b.md 的正文");
   });
 
+  it("tells two opened articles apart even when their bodies are the same", async () => {
+    const channels = vaultChannels();
+    channels.readBody.mockImplementation((workspace, fileName) =>
+      Promise.resolve({ ok: true, payload: { workspace, fileName, body: "", lastKnownModifiedAt: "" } }),
+    );
+    const session = new VaultSession(channels);
+    await session.selectWorkspace("Blog");
+
+    await session.selectArticle("a.md");
+    const first = session.snapshot.openedDocument;
+    await session.selectArticle("b.md");
+
+    expect(first).not.toBeNull();
+    expect(session.snapshot.openedDocument).not.toBeNull();
+    expect(session.snapshot.openedDocument).not.toBe(first);
+  });
+
   it("reports a body that cannot be read", async () => {
     const channels = vaultChannels();
     channels.readBody.mockReturnValue(failed("not text"));

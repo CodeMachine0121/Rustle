@@ -13,7 +13,7 @@ function renderEditor(
 ) {
   const view = render(
     <CompositionProvider state={state}>
-      <MarkdownEditor body={body} indentation={indentation} />
+      <MarkdownEditor documentKey={body} body={body} indentation={indentation} />
     </CompositionProvider>,
   );
   const content = view.container.querySelector(".cm-content");
@@ -77,7 +77,7 @@ describe("MarkdownEditor", () => {
     for (const body of ["# Second article", "# Third article", "# First article"]) {
       view.rerender(
         <CompositionProvider state={state}>
-          <MarkdownEditor body={body} />
+          <MarkdownEditor documentKey={body} body={body} />
         </CompositionProvider>,
       );
 
@@ -86,18 +86,41 @@ describe("MarkdownEditor", () => {
     }
   });
 
-  it("does not replace the document when the same body is given again", () => {
+  it("does not replace the document when the same document is given again", () => {
     const state = new CompositionState();
     const { content, view } = renderEditor(state, "字");
     fireEvent.keyDown(content, { key: "Tab" });
 
     view.rerender(
       <CompositionProvider state={state}>
-        <MarkdownEditor body="字" indentation={{ style: "spaces", width: 2 }} />
+        <MarkdownEditor documentKey="字" body="字" indentation={{ style: "spaces", width: 2 }} />
       </CompositionProvider>,
     );
 
     expect(content.textContent).toBe("  字");
+  });
+
+  it("shows another article even when its body is the same text", () => {
+    const state = new CompositionState();
+    const view = render(
+      <CompositionProvider state={state}>
+        <MarkdownEditor documentKey="Blog/a.md" body="" />
+      </CompositionProvider>,
+    );
+    const content = view.container.querySelector(".cm-content");
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("the editor did not render its content area");
+    }
+    fireEvent.keyDown(content, { key: "Tab" });
+    expect(content.textContent).toBe("  ");
+
+    view.rerender(
+      <CompositionProvider state={state}>
+        <MarkdownEditor documentKey="Blog/b.md" body="" />
+      </CompositionProvider>,
+    );
+
+    expect(content.textContent).toBe("");
   });
 
   it("shows the next article with its own indentation", () => {
@@ -106,7 +129,7 @@ describe("MarkdownEditor", () => {
 
     view.rerender(
       <CompositionProvider state={state}>
-        <MarkdownEditor body="第二篇" indentation={{ style: "tab", width: 4 }} />
+        <MarkdownEditor documentKey="第二篇" body="第二篇" indentation={{ style: "tab", width: 4 }} />
       </CompositionProvider>,
     );
     fireEvent.keyDown(content, { key: "Tab" });
@@ -121,7 +144,7 @@ describe("MarkdownEditor", () => {
     fireEvent.compositionStart(content);
     view.rerender(
       <CompositionProvider state={state}>
-        <MarkdownEditor body="第二篇" />
+        <MarkdownEditor documentKey="第二篇" body="第二篇" />
       </CompositionProvider>,
     );
 
@@ -138,7 +161,7 @@ describe("MarkdownEditor", () => {
     for (const body of ["第二篇", "第三篇"]) {
       view.rerender(
         <CompositionProvider state={state}>
-          <MarkdownEditor body={body} />
+          <MarkdownEditor documentKey={body} body={body} />
         </CompositionProvider>,
       );
     }
@@ -161,7 +184,7 @@ describe("MarkdownEditor", () => {
   it("refuses to mount without a shared composition state", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    expect(() => render(<MarkdownEditor body="# Zen" />)).toThrow(/CompositionProvider/);
+    expect(() => render(<MarkdownEditor documentKey="# Zen" body="# Zen" />)).toThrow(/CompositionProvider/);
   });
 
   it("indents the cursor line by two spaces when no indentation settings are given", () => {

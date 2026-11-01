@@ -24,7 +24,7 @@ describe("EditorColumn", () => {
   });
 
   it("shows the body of the open article in an editable editor", () => {
-    const { container } = renderColumn({ ...NOTHING_OPEN, selectedArticle: "zen.md", body: "正文的第一行。" });
+    const { container } = renderColumn({ ...NOTHING_OPEN, selectedArticle: "zen.md", body: "正文的第一行。", openedDocument: "Blog/zen.md" });
 
     const content = container.querySelector(".cm-content");
     expect(content).toHaveAttribute("contenteditable", "true");

@@ -15,6 +15,7 @@ export type VaultSnapshot = {
   articles: ArticleSummary[];
   selectedArticle: string | null;
   body: string | null;
+  openedDocument: string | null;
   indentation: Settings["indentation"];
   workspaceListFailure: string | null;
   articleListFailure: string | null;
@@ -36,6 +37,7 @@ export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   articles: [],
   selectedArticle: null,
   body: null,
+  openedDocument: null,
   indentation: DEFAULT_SETTINGS.indentation,
   workspaceListFailure: null,
   articleListFailure: null,
@@ -142,6 +144,7 @@ export class VaultSession {
       articles: [],
       selectedArticle: null,
       body: null,
+      openedDocument: null,
       articleListFailure: null,
       bodyFailure: null,
     });
@@ -164,10 +167,10 @@ export class VaultSession {
       return false;
     }
     if (!result.ok) {
-      this.#update({ body: null, bodyFailure: result.message });
+      this.#update({ body: null, openedDocument: null, bodyFailure: result.message });
       return false;
     }
-    this.#update({ body: result.payload.body });
+    this.#update({ body: result.payload.body, openedDocument: `${workspace}/${fileName}` });
     return true;
   }
 

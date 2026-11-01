@@ -11,20 +11,23 @@ import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TabIndentation } from "./TabIndentation";
 
 type MarkdownEditorProps = {
+  documentKey: string;
   body: string;
   indentation?: IndentationSettings;
 };
 
 /**
- * One editor for the app's lifetime. A new body replaces the document (with
- * its own undo history) without rebuilding the editable element, and never
- * while an input method is composing: it waits for the composition to end.
+ * One editor for the app's lifetime. Another document key replaces the
+ * document (with its own undo history) without rebuilding the editable
+ * element, and never while an input method is composing: it waits for the
+ * composition to end. The key, not the body, decides: two articles with the
+ * same text are still two documents.
  */
-export function MarkdownEditor({ body, indentation }: MarkdownEditorProps) {
+export function MarkdownEditor({ documentKey, body, indentation }: MarkdownEditorProps) {
   const composition = useCompositionState();
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const shownBodyRef = useRef<string | null>(null);
+  const shownDocumentRef = useRef<string | null>(null);
   const [indentationCompartment] = useState(() => new Compartment());
 
   const indentationStyle = indentation?.style;
@@ -39,7 +42,7 @@ export function MarkdownEditor({ body, indentation }: MarkdownEditorProps) {
     return () => {
       viewRef.current?.destroy();
       viewRef.current = null;
-      shownBodyRef.current = null;
+      shownDocumentRef.current = null;
       composition.end();
     };
   }, [composition]);
@@ -55,11 +58,11 @@ export function MarkdownEditor({ body, indentation }: MarkdownEditorProps) {
         : IndentUnit.from({ style: indentationStyle, width: indentationWidth });
     const tabIndentation = new TabIndentation(composition, unit).extension();
     const show = () => {
-      if (shownBodyRef.current === body) {
+      if (shownDocumentRef.current === documentKey) {
         view.dispatch({ effects: indentationCompartment.reconfigure(tabIndentation) });
         return;
       }
-      shownBodyRef.current = body;
+      shownDocumentRef.current = documentKey;
       view.setState(
         EditorState.create({
           doc: body,
@@ -78,7 +81,7 @@ export function MarkdownEditor({ body, indentation }: MarkdownEditorProps) {
       }
     });
     return unsubscribe;
-  }, [composition, body, indentationStyle, indentationWidth, indentationCompartment]);
+  }, [composition, documentKey, body, indentationStyle, indentationWidth, indentationCompartment]);
 
   return <div className="markdown-editor" ref={hostRef} />;
 }
