@@ -67,7 +67,7 @@ describe("CreateArticleDialog", () => {
     renderDialog();
 
     const options = screen.getAllByRole("option").map((option) => option.textContent);
-    expect(options).toEqual(["Active", "On Hold", "Completed", "Dropped", "No Status"]);
+    expect(options).toEqual(["進行中", "暫停", "已完成", "已放棄", "未標記"]);
   });
 
   it("shows when the article is created as text, with no field to fill in", () => {

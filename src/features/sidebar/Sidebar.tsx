@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { SettingsSession } from "../settings/SettingsSession";
 import type { VaultSnapshot } from "../vault/VaultSession";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -30,6 +31,7 @@ export function Sidebar({
   onToggleStatus,
   onToggleTag,
 }: SidebarProps) {
+  const messages = useMessages();
   const sections = useCollapsedSections(settings);
   const counts = useMemo(() => sidebarCounts(snapshot.articles), [snapshot.articles]);
   const { sidebarFilter } = snapshot;
@@ -41,24 +43,24 @@ export function Sidebar({
         aria-pressed={snapshot.showsAllNotes}
         onClick={onSelectAllNotes}
       >
-        <span className="row-title">All Notes</span>
+        <span className="row-title">{messages.allNotes}</span>
       </button>
       <CollapsibleSection
-        title="WORKSPACES"
+        title={messages.workspacesTitle}
         isCollapsed={sections.isCollapsed("workspaces")}
         onToggle={() => sections.toggle("workspaces")}
       >
         {workspaces}
       </CollapsibleSection>
       <CollapsibleSection
-        title="STATUS"
+        title={messages.statusTitle}
         isCollapsed={sections.isCollapsed("status")}
         onToggle={() => sections.toggle("status")}
       >
         <StatusSection statuses={counts.statuses} chosen={sidebarFilter.status} onToggle={onToggleStatus} />
       </CollapsibleSection>
       <CollapsibleSection
-        title="TAGS"
+        title={messages.tagsTitle}
         isCollapsed={sections.isCollapsed("tags")}
         onToggle={() => sections.toggle("tags")}
       >

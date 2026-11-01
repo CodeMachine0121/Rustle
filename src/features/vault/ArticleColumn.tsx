@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
-import { statusLabelOf } from "../sidebar/statusChoice";
 import {
   ARTICLE_ORDERS,
   articleOrderNamed,
@@ -100,7 +99,7 @@ function ArticleList({
     );
   }
   if (articles.length === 0 && showsAllNotes) {
-    return <p className="empty-state">還沒有任何文章</p>;
+    return <p className="empty-state">{messages.noArticlesInVault}</p>;
   }
   if (articles.length === 0) {
     return (
@@ -152,7 +151,7 @@ type ArticleRowProps = {
 function ArticleRow({ article, isSelected, isOutsideFilter, showsWorkspace, onSelect }: ArticleRowProps) {
   const messages = useMessages();
   const createdDate = LEADING_DATE.exec(article.createdAt)?.[0] ?? article.createdAt;
-  const details = [createdDate, statusLabelOf(article) ?? ""].filter((detail) => detail !== "");
+  const details = [createdDate, article.status === null ? "" : messages.statusLabels[article.status]].filter((detail) => detail !== "");
   return (
     <button
       type="button"

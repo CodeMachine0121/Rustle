@@ -130,9 +130,9 @@ export function ArticleMetadataForm({
             value={status}
             onChange={(event) => setStatus(statusChoiceNamed(event.target.value))}
           >
-            {STATUS_CHOICES.map(({ choice, label }) => (
+            {STATUS_CHOICES.map((choice) => (
               <option key={choice} value={choice}>
-                {label}
+                {messages.statusLabels[choice]}
               </option>
             ))}
           </select>

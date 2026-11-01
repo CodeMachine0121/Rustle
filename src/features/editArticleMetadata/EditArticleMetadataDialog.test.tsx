@@ -104,11 +104,11 @@ describe("EditArticleMetadataDialog", () => {
 
     expect(screen.getByRole("combobox", { name: "狀態" })).toHaveValue("noStatus");
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Active",
-      "On Hold",
-      "Completed",
-      "Dropped",
-      "No Status",
+      "進行中",
+      "暫停",
+      "已完成",
+      "已放棄",
+      "未標記",
     ]);
   });
 

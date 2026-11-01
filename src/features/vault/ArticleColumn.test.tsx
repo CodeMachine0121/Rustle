@@ -69,7 +69,7 @@ describe("ArticleColumn", () => {
 
     const row = screen.getByRole("button", { name: /^Tauri 與 Electron 的取捨/ });
     expect(row).toHaveTextContent("2026-08-20");
-    expect(row).toHaveTextContent("Active");
+    expect(row).toHaveTextContent("進行中");
     expect(row).not.toHaveTextContent("Blog");
     expect(row).toHaveTextContent("tauri");
     expect(row).toHaveTextContent("electron");
@@ -447,7 +447,7 @@ describe("ArticleColumn with the sidebar and All Notes", () => {
   it("says the vault has no articles under All Notes instead of inviting a first one", () => {
     renderColumn({ ...ALL_NOTES, articles: [] });
 
-    expect(screen.getByText("還沒有任何文章")).toBeInTheDocument();
+    expect(screen.getByText("vault 裡還沒有文章")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "建立第一篇文章" })).not.toBeInTheDocument();
   });
 });

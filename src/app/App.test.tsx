@@ -577,7 +577,7 @@ describe("App", () => {
       render(<App />);
       await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
 
-      fireEvent.click(screen.getByRole("button", { name: "All Notes" }));
+      fireEvent.click(screen.getByRole("button", { name: "所有文章" }));
       const q3 = await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
       expect(q3).toHaveTextContent("Work");
       expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "false");
@@ -591,12 +591,12 @@ describe("App", () => {
     it("narrows the list to the status clicked in the sidebar and clears it on another scope", async () => {
       answerFromAVault({ workspace: null, article: null });
       render(<App />);
-      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "所有文章" }));
       await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
-      const statusSection = screen.getByRole("region", { name: "STATUS" });
-      expect(within(statusSection).getByRole("button", { name: /^Completed/ })).toHaveTextContent("1");
+      const statusSection = screen.getByRole("region", { name: "狀態" });
+      expect(within(statusSection).getByRole("button", { name: /^已完成/ })).toHaveTextContent("1");
 
-      fireEvent.click(within(statusSection).getByRole("button", { name: /^Active/ }));
+      fireEvent.click(within(statusSection).getByRole("button", { name: /^進行中/ }));
 
       expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
       expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
@@ -604,19 +604,19 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
 
       expect(await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ })).toBeInTheDocument();
-      expect(within(statusSection).getByRole("button", { name: /^Active/ })).toHaveAttribute("aria-pressed", "false");
+      expect(within(statusSection).getByRole("button", { name: /^進行中/ })).toHaveAttribute("aria-pressed", "false");
     });
 
     it("keeps narrowing the list by a status whose section is folded", async () => {
       answerFromAVault({ workspace: null, article: null });
       render(<App />);
-      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "所有文章" }));
       await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
-      fireEvent.click(within(screen.getByRole("region", { name: "STATUS" })).getByRole("button", { name: /^Active/ }));
+      fireEvent.click(within(screen.getByRole("region", { name: "狀態" })).getByRole("button", { name: /^進行中/ }));
 
-      fireEvent.click(screen.getByRole("button", { name: /^STATUS/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^狀態/ }));
 
-      expect(within(screen.getByRole("region", { name: "STATUS" })).queryByRole("button", { name: /^Active/ })).toBeNull();
+      expect(within(screen.getByRole("region", { name: "狀態" })).queryByRole("button", { name: /^進行中/ })).toBeNull();
       expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
       expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
     });

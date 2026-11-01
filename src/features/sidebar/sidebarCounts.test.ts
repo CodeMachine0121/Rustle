@@ -17,7 +17,7 @@ function article(status: ArticleSummary["status"], tags: string[] = [], workspac
 }
 
 function statusCounts(articles: ArticleSummary[]) {
-  return sidebarCounts(articles).statuses.map(({ label, count }) => [label, count]);
+  return sidebarCounts(articles).statuses.map(({ choice, count }) => [choice, count]);
 }
 
 describe("sidebarCounts", () => {
@@ -32,21 +32,21 @@ describe("sidebarCounts", () => {
     ];
 
     expect(statusCounts(articles)).toEqual([
-      ["Active", 3],
-      ["On Hold", 1],
-      ["Completed", 0],
-      ["Dropped", 0],
-      ["No Status", 2],
+      ["active", 3],
+      ["onHold", 1],
+      ["completed", 0],
+      ["dropped", 0],
+      ["noStatus", 2],
     ]);
   });
 
   it("keeps all five rows at zero when there are no articles", () => {
     expect(statusCounts([])).toEqual([
-      ["Active", 0],
-      ["On Hold", 0],
-      ["Completed", 0],
-      ["Dropped", 0],
-      ["No Status", 0],
+      ["active", 0],
+      ["onHold", 0],
+      ["completed", 0],
+      ["dropped", 0],
+      ["noStatus", 0],
     ]);
     expect(sidebarCounts([]).tags).toEqual([]);
   });
@@ -54,7 +54,7 @@ describe("sidebarCounts", () => {
   it("counts across every workspace it is given", () => {
     const articles = [article("active", [], "Blog"), article("active", [], "Blog"), article("active", [], "Work")];
 
-    expect(sidebarCounts(articles).statuses[0]).toEqual({ choice: "active", label: "Active", count: 3 });
+    expect(sidebarCounts(articles).statuses[0]).toEqual({ choice: "active", count: 3 });
   });
 
   it("lists the tags most used first, then by name", () => {

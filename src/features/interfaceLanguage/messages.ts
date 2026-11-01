@@ -1,5 +1,6 @@
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
+import type { StatusChoice } from "../sidebar/statusChoice";
 import type { ArticleOrder } from "../vault/articleArrangement";
 import type { Operation } from "../vault/operationFailure";
 import type { InterfaceLanguage } from "./interfaceLanguage";
@@ -9,8 +10,18 @@ type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
 /** Every sentence Rustle itself says. Values in a sentence are arguments and are never rewritten. */
 export const CHINESE_MESSAGES = {
   sidebar: "側邊欄",
+  allNotes: "所有文章",
   workspacesTitle: "WORKSPACES",
+  statusTitle: "狀態",
+  tagsTitle: "標籤",
   noTagsYet: "還沒有標籤",
+  statusLabels: {
+    active: "進行中",
+    onHold: "暫停",
+    completed: "已完成",
+    dropped: "已放棄",
+    noStatus: "未標記",
+  } satisfies Record<StatusChoice, string> as Record<StatusChoice, string>,
   articlesTitle: "文章",
   articlesRegion: "文章",
   editorTitle: "編輯",
@@ -64,6 +75,7 @@ export const CHINESE_MESSAGES = {
   workspaceUnreadable: (reason: string) => `讀不到這個 workspace：${reason}`,
   createFirstArticle: "建立第一篇文章",
   noMatchingArticles: "沒有符合的文章",
+  noArticlesInVault: "vault 裡還沒有文章",
   incompleteMetadata: "metadata 不完整",
   openOutsideFilter: "開著・不符合篩選",
   editMetadata: "編輯 metadata",
@@ -128,8 +140,18 @@ export type Messages = typeof CHINESE_MESSAGES;
 
 export const ENGLISH_MESSAGES: Partial<Messages> = {
   sidebar: "Sidebar",
+  allNotes: "All Notes",
   workspacesTitle: "WORKSPACES",
+  statusTitle: "STATUS",
+  tagsTitle: "TAGS",
   noTagsYet: "No tags yet",
+  statusLabels: {
+    active: "Active",
+    onHold: "On Hold",
+    completed: "Completed",
+    dropped: "Dropped",
+    noStatus: "No Status",
+  },
   articlesTitle: "ARTICLES",
   articlesRegion: "Articles",
   editorTitle: "EDITOR",
@@ -183,6 +205,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   workspaceUnreadable: (reason) => `Cannot read this workspace: ${reason}`,
   createFirstArticle: "Create the first article",
   noMatchingArticles: "No matching articles",
+  noArticlesInVault: "No articles in the vault yet",
   incompleteMetadata: "incomplete metadata",
   openOutsideFilter: "open · outside the filter",
   editMetadata: "Edit metadata",
