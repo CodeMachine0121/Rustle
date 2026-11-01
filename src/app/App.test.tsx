@@ -594,6 +594,14 @@ describe("App", () => {
       expect(view.state.doc.toString()).toBe("正文的第一行。");
     }
 
+    it("leaves no emoji and no character standing in for an icon in any button", async () => {
+      await startWithZenOpen();
+
+      const buttonTexts = Array.from(document.querySelectorAll("button")).map((button) => button.textContent ?? "");
+      expect(buttonTexts.filter((text) => /\p{Extended_Pictographic}|[＋+✕×◀▸▾]/u.test(text))).toEqual([]);
+      expect(document.body.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+    });
+
     it("puts Zen and the three view modes in the editor's header side by side, the current one pressed", async () => {
       await startWithZenOpen();
 

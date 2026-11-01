@@ -626,6 +626,11 @@ body {
   background: var(--color-selected);
 }
 
+.chip__remove-mark {
+  width: 12px;
+  height: 12px;
+}
+
 .chip button,
 .chip-input__candidates button {
   border: none;
