@@ -40,7 +40,7 @@ The NFR "paste never waits" and the PRD risk "fast but stale vs fresh but slow" 
 | `Clipboard::text` / `set_text` | Domain trait methods | The system clipboard's plain text in and out | `SystemClipboard` (infra), `MockClipboard` | US-01, US-02 |
 | `ReadClipboardText` | Use case | The clipboard's text, empty counted as none | `Clipboard` | US-02 空的／只有圖片 |
 | `WriteClipboardText` | Use case | Replace the clipboard's contents with text | `Clipboard` | US-01 all |
-| `SystemClipboardRegister` | Frontend model (the engine's register shape) | Vim's unnamed register: `setText` keeps the text, linewise and blockwise as the engine gave them and writes non-empty text through; `pushText` appends and writes the result; `clear` / empty `setText` are ignored; `toString` / `linewise` / `blockwise` answer the latest known clipboard content — the writer's own (with its exact kind, so a block comes back a block) while the clipboard still holds what this register last wrote, otherwise the outside text with `linewise = endsWith("\n")`, `blockwise = false`, and nothing when there is no text; `refresh()` reads the clipboard and ignores an answer older than the latest write; a failed read counts as no text, a failed write is ignored | `channels.readClipboardText` / `writeClipboardText` | US-01 all, US-02 all, BR-1…BR-6b |
+| `SystemClipboardRegister` | Frontend model (the engine's register shape) | Vim's unnamed register: `setText` keeps the text, linewise and blockwise as the engine gave them and writes non-empty text through; `pushText` appends and writes the result; `clear` empties the local copy only and an empty `setText` is ignored — neither writes; `toString` / `linewise` / `blockwise` answer the latest known clipboard content — the writer's own (with its exact kind, so a block comes back a block) while the clipboard still holds what this register last wrote, otherwise the outside text with `linewise = endsWith("\n")`, `blockwise = false`, and nothing when there is no text; `refresh()` reads the clipboard and ignores an answer older than the latest write; a failed read counts as no text, a failed write is ignored | `channels.readClipboardText` / `writeClipboardText` | US-01 all, US-02 all, BR-1…BR-6b |
 
 `SystemClipboardRegister` decisions:
 
@@ -50,7 +50,7 @@ The NFR "paste never waits" and the PRD risk "fast but stale vs fresh but slow" 
 | `"ay` | engine sets register a, then `unnamed.setText(a's text)` → same as above (BR-1 out) |
 | `"ap` | engine reads register a directly; this register is not asked (BR-1 in) |
 | `"_dd` | engine returns before any register; nothing written (BR-2) |
-| `clear()` / `setText("")` (macro recording into `"`, an empty delete) | ignored: nothing written, and `p` keeps answering what the system clipboard holds (BR-6b) |
+| `clear()` (macro recording into `"` starts) / `setText("")` (an empty delete) | nothing written (BR-6b); `clear()` empties only the local copy so a macro records from scratch (`keyBuffer` is the local text, which the engine replays) |
 | `p` after another app copied (focus refreshed) | outside text, kind from its last character (BR-4, BR-5) |
 | `p` right after `y` | the writer's own content (set synchronously) |
 | A refresh answer equal to what this register last wrote | keeps the writer's own content, so linewise/blockwise survive the round trip (BR-6a) |
