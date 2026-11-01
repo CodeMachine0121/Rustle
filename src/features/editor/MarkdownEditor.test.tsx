@@ -508,20 +508,12 @@ describe("MarkdownEditor marks and emphasis", () => {
 
     expect(editor.state.doc.toString()).toBe("  正文");
   });
-});
 
-describe("MarkdownEditor italic shortcut while composing", () => {
-  it("selects nothing: the old select-the-structure binding is gone", () => {
-    const { content } = renderEditor(new CompositionState(), "看[連結](https://example.com)這裡");
-    const editor = EditorView.findFromDOM(content);
-    if (editor === null) {
-      throw new Error("the editor did not render");
-    }
-    editor.dispatch({ selection: EditorSelection.single(3) });
+  it("selects nothing with the italic shortcut while composing", () => {
+    const { content, editor } = editorOn("看[連結](https://example.com)這裡", EditorSelection.single(3));
     fireEvent.compositionStart(content);
-    const isMac = /Mac/.test(navigator.platform);
 
-    fireEvent.keyDown(content, { key: "i", metaKey: isMac, ctrlKey: !isMac });
+    pressShortcut(content, "i");
 
     expect(editor.state.doc.toString()).toBe("看[連結](https://example.com)這裡");
     expect(editor.state.selection.main.empty).toBe(true);
