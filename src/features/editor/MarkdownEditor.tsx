@@ -8,7 +8,10 @@ import type { CompositionState } from "../../shared/composition/CompositionState
 import { useCompositionState } from "../../shared/composition/CompositionContext";
 import type { CursorPlacement } from "../autosave/AutosaveSession";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
+import { SnippetCatalog } from "../snippets/SnippetCatalog";
+import { SnippetExpansion } from "../snippets/SnippetExpansion";
 import { cursorLineHighlight } from "./cursorLineHighlight";
 import { EditorScrollPane } from "./EditorScrollPane";
 import { EmphasisShortcuts } from "./EmphasisShortcuts";
@@ -17,6 +20,8 @@ import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TableRowContinuation } from "./TableRowContinuation";
 import { TabIndentation } from "./TabIndentation";
 import { xcodeTheme } from "./xcodeTheme";
+
+const SHIPPED_SNIPPETS = SnippetCatalog.shipped();
 
 // Mod-I is italic now; selecting the enclosing syntax node moved to Mod-W (ExtendSelection).
 const editorDefaultKeymap = defaultKeymap.filter((binding) => binding.key !== "Mod-i");
@@ -49,6 +54,7 @@ type MarkdownEditorProps = {
  * shown document (the last line when it is shorter) and takes the keyboard.
  * A new `fontSizePixels` resizes the text in place and re-measures it, so
  * the text, cursor, undo history and composition are untouched.
+ * A half-width slash opens the shipped snippets (see `SnippetExpansion`).
  */
 export function MarkdownEditor({
   documentKey,
@@ -62,6 +68,8 @@ export function MarkdownEditor({
   fontSizePixels,
 }: MarkdownEditorProps) {
   const composition = useCompositionState();
+  const snippetMenuLabel = useMessages().snippetMenu;
+  const snippetMenuLabelRef = useRef(snippetMenuLabel);
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const shownDocumentRef = useRef<string | null>(null);
@@ -72,6 +80,10 @@ export function MarkdownEditor({
   useEffect(() => {
     onBodyChangeRef.current = onBodyChange;
   }, [onBodyChange]);
+
+  useEffect(() => {
+    snippetMenuLabelRef.current = snippetMenuLabel;
+  }, [snippetMenuLabel]);
 
   const indentationStyle = indentation?.style;
   const indentationWidth = indentation?.width;
@@ -136,6 +148,7 @@ export function MarkdownEditor({
           doc: body,
           extensions: [
             editorExtensions(composition, indentationCompartment.of(tabIndentation)),
+            new SnippetExpansion(composition, SHIPPED_SNIPPETS, () => snippetMenuLabelRef.current).extension(),
             imagePaste?.extension() ?? [],
             EditorView.updateListener.of((update) => {
               if (update.docChanged) {

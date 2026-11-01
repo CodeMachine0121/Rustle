@@ -104,4 +104,16 @@ describe("app styles", () => {
     expect(ruleFor(".markdown-editor .cm-editor")).not.toMatch(/font-size/);
     expect(CSS).not.toMatch(/\.preview-content[^{]*\{[^}]*font-size: [\d.]+(px|rem)/);
   });
+
+  it("paints the snippet menu with the theme, its chosen row like a selected row in the lists", () => {
+    expect(ruleFor(".markdown-editor .snippet-menu")).toMatch(/background: var\(--color-panel\);/);
+    expect(ruleFor(".markdown-editor .snippet-menu")).toMatch(/border: 1px solid var\(--color-border\);/);
+    expect(ruleFor('.snippet-menu-row[aria-selected="true"]')).toMatch(/background: var\(--color-selected\);/);
+    expect(ruleFor(".snippet-menu-row:hover")).toMatch(/background: var\(--color-selected\);/);
+    expect(ruleFor(".column-row[aria-pressed=\"true\"]")).toMatch(/background: var\(--color-selected\);/);
+  });
+
+  it("marks an empty snippet field with a thin line in the theme's accent", () => {
+    expect(ruleFor(".snippet-field-marker")).toMatch(/border-left: 1px solid var\(--color-link\);/);
+  });
 });

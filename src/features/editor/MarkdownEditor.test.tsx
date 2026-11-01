@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import type { CursorPlacement } from "../autosave/AutosaveSession";
+import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { IndentationSettings } from "./IndentUnit";
 import { ScrollSynchronizer, type ScrollPane } from "../preview/ScrollSynchronizer";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -686,5 +687,64 @@ describe("MarkdownEditor marks and emphasis", () => {
 
       expect(view.dom.style.fontSize).toBe("");
     });
+  });
+});
+
+describe("MarkdownEditor snippets", () => {
+  function openEditor(documentKey: string, body: string, onBodyChange?: (body: string) => void) {
+    const composition = new CompositionState();
+    const element = (key: string, text: string) => (
+      <InterfaceLanguageProvider language="en">
+        <CompositionProvider state={composition}>
+          <MarkdownEditor documentKey={key} body={text} onBodyChange={onBodyChange} />
+        </CompositionProvider>
+      </InterfaceLanguageProvider>
+    );
+    const rendered = render(element(documentKey, body));
+    const content = rendered.container.querySelector(".cm-content");
+    const editor = content instanceof HTMLElement ? EditorView.findFromDOM(content) : null;
+    if (!(content instanceof HTMLElement) || editor === null) {
+      throw new Error("the editor did not render");
+    }
+    const typeText = (text: string) => {
+      for (const character of text) {
+        const { head } = editor.state.selection.main;
+        editor.dispatch({ changes: { from: head, insert: character }, selection: { anchor: head + 1 }, userEvent: "input.type" });
+      }
+    };
+    return { content, editor, typeText, show: (key: string, text: string) => rendered.rerender(element(key, text)) };
+  }
+
+  it("opens the snippet menu, named in the interface language, and lands the snippet chosen", () => {
+    const { content, editor, typeText } = openEditor("Blog/a.md", "");
+
+    typeText("/h2");
+    const menu = editor.dom.querySelector(".snippet-menu");
+    fireEvent.keyDown(content, { key: "Enter" });
+
+    expect(menu?.getAttribute("aria-label")).toBe("Snippets");
+    expect(editor.state.doc.toString()).toBe("## ");
+  });
+
+  it("reports the landed snippet as the body to save, plain Markdown as shown", () => {
+    const onBodyChange = vi.fn();
+    const { content, typeText } = openEditor("Blog/a.md", "", onBodyChange);
+
+    typeText("/table");
+    fireEvent.keyDown(content, { key: "Enter" });
+
+    expect(onBodyChange).toHaveBeenLastCalledWith("|  |  |\n| --- | --- |\n|  |  |");
+  });
+
+  it("forgets the waiting fields when another article is shown", () => {
+    const { content, editor, typeText, show } = openEditor("Blog/a.md", "");
+    typeText("/link");
+    fireEvent.keyDown(content, { key: "Enter" });
+
+    show("Blog/b.md", "[]()");
+    editor.dispatch({ selection: { anchor: 1 } });
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(editor.state.doc.toString()).toBe("  []()");
   });
 });

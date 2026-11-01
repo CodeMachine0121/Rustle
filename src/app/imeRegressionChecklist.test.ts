@@ -10,8 +10,8 @@ const items = checklist
   .slice(1);
 
 describe("input method regression checklist", () => {
-  it("has twelve items", () => {
-    expect(items).toHaveLength(12);
+  it("has thirteen items", () => {
+    expect(items).toHaveLength(13);
   });
 
   it.each(items.map((item, index) => [index + 1, item]))(
@@ -31,7 +31,7 @@ describe("input method regression checklist", () => {
     const releaseChecklist = checklist.slice(checklist.indexOf("## 發佈檢查清單"));
 
     expect(releaseChecklist).toContain("升級所用的 GUI 框架（Tauri）或編輯器元件（CodeMirror）之前");
-    expect(releaseChecklist).toContain("重跑全部 12 項");
+    expect(releaseChecklist).toContain("重跑全部 13 項");
     expect(releaseChecklist).toContain("依賴版本鎖定");
   });
 });
