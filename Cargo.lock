@@ -2887,6 +2887,10 @@ name = "rustle-application"
 version = "0.1.0"
 dependencies = [
  "rustle-domain",
+ "rustle-infrastructure",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
