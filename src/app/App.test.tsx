@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -275,6 +276,61 @@ describe("App", () => {
     expect(await screen.findByText("儲存失敗：No space left on device")).toBeInTheDocument();
     expect(editorContent()).toHaveTextContent("正文的第一行。");
     expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("pastes an image into the open article, saves the relative path and previews it", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+    vi.mocked(invoke).mockImplementation((command, args) =>
+      command === "save_clipboard_image"
+        ? Promise.resolve({ images: [{ relativePath: "images/8f3c.png" }] })
+        : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
+    );
+    // jsdom has no layout; the editor measures text ranges to scroll the pasted line into view.
+    Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
+    Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+    const { container } = render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    const content = editorContent();
+    if (content === null) {
+      throw new Error("the editor did not render its content area");
+    }
+
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", {
+      value: { items: [{ kind: "file", type: "image/png" }], files: [], getData: () => "" },
+    });
+    act(() => {
+      content.dispatchEvent(paste);
+    });
+
+    expect(invoke).toHaveBeenCalledWith("save_clipboard_image", { workspace: "Blog" });
+    await waitFor(
+      () =>
+        expect(invoke).toHaveBeenCalledWith(
+          "save_body",
+          expect.objectContaining({ body: "![](images/8f3c.png)正文的第一行。" }),
+        ),
+      { timeout: 2000 },
+    );
+    await waitFor(() =>
+      expect(container.querySelector(".preview-content img")?.getAttribute("src")).toBe(
+        "rustle://vault/Blog/images/8f3c.png",
+      ),
+    );
+
+    const view = EditorView.findFromDOM(content);
+    if (view === null) {
+      throw new Error("the editor view is not reachable");
+    }
+    act(() => {
+      undo(view);
+    });
+
+    expect(view.state.doc.toString()).toBe("正文的第一行。");
+    const commands = vi.mocked(invoke).mock.calls.map(([command]) => command);
+    expect(commands.filter((command) => command === "save_clipboard_image")).toHaveLength(1);
+    expect(commands.filter((command) => /delete|trash|remove/.test(command))).toEqual([]);
   });
 
   it("starts watching window close requests", () => {

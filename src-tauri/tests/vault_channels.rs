@@ -330,3 +330,15 @@ fn refuses_a_workspace_name_with_a_path_in_it() {
 
     assert_eq!(failure["reason"], json!("outsideVault"));
 }
+
+#[test]
+fn refuses_to_paste_images_into_a_workspace_outside_the_vault() {
+    let app = RunningApp::start();
+
+    let failure = app
+        .call("save_clipboard_image", json!({ "workspace": "../outside" }))
+        .expect_err("refused");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+    assert!(!app.vault_directory.path().join("outside").exists());
+}

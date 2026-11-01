@@ -1,12 +1,12 @@
-use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::fs::File;
+use std::io::{self, Read};
 
 use rustle_domain::{
     ArticleFileName, ArticleRepository, ArticleRepositoryError, ArticleWrite, StoredArticle,
     UtcTimestamp, WorkspaceName,
 };
 
-use crate::atomic_file::write_atomically_unless_modified;
+use crate::atomic_file::{create_new_durably, write_atomically_unless_modified};
 use crate::resolved_vault_scope::ResolvedVaultScope;
 
 /// Articles as `.md` files in `<vault>/<workspace>/`. Every path is checked
@@ -70,29 +70,7 @@ impl ArticleRepository for FileSystemArticleRepository {
         text: &str,
     ) -> Result<(), ArticleRepositoryError> {
         let path = self.vault.article_path(workspace, article)?;
-        #[cfg(unix)]
-        let sync_folder = || {
-            path.parent()
-                .map_or(Ok(()), |folder| File::open(folder)?.sync_all())
-        };
-        #[cfg(not(unix))]
-        let sync_folder = || io::Result::Ok(());
-        let created = File::options()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .and_then(|mut file| {
-                let written = file
-                    .write_all(text.as_bytes())
-                    .and_then(|()| file.sync_all())
-                    .and_then(|()| sync_folder());
-                if written.is_err() {
-                    drop(file);
-                    let _ = fs::remove_file(&path);
-                }
-                written
-            });
-        created.map_err(|error| {
+        create_new_durably(&path, text.as_bytes()).map_err(|error| {
             let article = format!("{workspace}/{article}");
             if error.kind() == io::ErrorKind::AlreadyExists {
                 ArticleRepositoryError::AlreadyExists { article }
