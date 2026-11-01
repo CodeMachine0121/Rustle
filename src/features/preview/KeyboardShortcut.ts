@@ -15,12 +15,14 @@ export class KeyboardShortcut {
 
   readonly #withShift: boolean;
   readonly #withAlt: boolean;
+  readonly #key: string;
   readonly #code: string;
 
   private constructor(withShift: boolean, withAlt: boolean, key: string) {
     this.#withShift = withShift;
     this.#withAlt = withAlt;
-    this.#code = /\d/.test(key) ? `Digit${key}` : `Key${key.toUpperCase()}`;
+    this.#key = key.toUpperCase();
+    this.#code = /\d/.test(key) ? `Digit${key}` : `Key${this.#key}`;
   }
 
   static parse(text: string): KeyboardShortcut | null {
@@ -38,6 +40,13 @@ export class KeyboardShortcut {
   /** The written shortcut, or the default when there is none or it cannot be understood. */
   static fromSetting(text: string | undefined): KeyboardShortcut {
     return (text === undefined ? null : KeyboardShortcut.parse(text)) ?? KeyboardShortcut.DEFAULT;
+  }
+
+  /** The shortcut as a Mac menu writes it, in key-cap words: Option, then Shift, then Cmd. */
+  get label(): string {
+    const option = this.#withAlt ? "Option+" : "";
+    const shift = this.#withShift ? "Shift+" : "";
+    return `${option}${shift}Cmd+${this.#key}`;
   }
 
   // The physical key, because with Alt on macOS `key` turns into a symbol.

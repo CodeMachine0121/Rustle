@@ -45,4 +45,15 @@ describe("KeyboardShortcut", () => {
       expect(shortcut.matches(CMD_SHIFT_P)).toBe(true);
     },
   );
+
+  it.each([
+    [undefined, "Shift+Cmd+P"],
+    ["Mod+Alt+K", "Option+Cmd+K"],
+    ["alt + shift + mod + k", "Option+Shift+Cmd+K"],
+    ["Mod+1", "Cmd+1"],
+    ["???", "Shift+Cmd+P"],
+    ["Cmd+Alt+K", "Shift+Cmd+P"],
+  ])("writes %j the way a Mac menu does: %s", (written, label) => {
+    expect(KeyboardShortcut.fromSetting(written).label).toBe(label);
+  });
 });
