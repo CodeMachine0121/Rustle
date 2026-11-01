@@ -155,6 +155,19 @@ describe("SettingsEntry", () => {
       expect(screen.getByRole("dialog", { name: "設定" })).toBeInTheDocument();
     });
 
+    it("leaves another open dialog alone", () => {
+      renderEntry();
+      const otherDialog = document.createElement("div");
+      otherDialog.setAttribute("role", "dialog");
+      otherDialog.setAttribute("aria-modal", "true");
+      document.body.append(otherDialog);
+
+      pressComma();
+
+      expect(screen.queryByRole("dialog", { name: "設定" })).not.toBeInTheDocument();
+      otherDialog.remove();
+    });
+
     it.each([
       ["without Cmd or Ctrl", {}],
       ["with Shift", { metaKey: true, shiftKey: true }],

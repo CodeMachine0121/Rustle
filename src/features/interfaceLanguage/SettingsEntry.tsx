@@ -20,9 +20,9 @@ type SettingsEntryProps = {
 /**
  * The gear and the settings it opens. Cmd+, (Ctrl+, too) opens and closes
  * them like the gear does, from anywhere and even while the gear itself is
- * hidden, except while an input method composes; the key is fixed, as on
- * every Mac. The keyboard goes back to the gear, or to wherever it was when
- * the key opened them.
+ * hidden, except while an input method composes or another dialog is open;
+ * the key is fixed, as on every Mac. The keyboard goes back to the gear,
+ * or to wherever it was when the key opened them.
  */
 export function SettingsEntry({ language, onChoose, theme, vimModes, previewToggle }: SettingsEntryProps) {
   const composition = useCompositionState();
@@ -44,9 +44,13 @@ export function SettingsEntry({ language, onChoose, theme, vimModes, previewTogg
     setIsOpen(true);
   };
 
-  const toggleFromKey = useEffectEvent(() =>
-    toggle(document.activeElement instanceof HTMLElement ? document.activeElement : null),
-  );
+  const toggleFromKey = useEffectEvent(() => {
+    const anotherDialogIsOpen = !isOpen && document.querySelector('[aria-modal="true"]') !== null;
+    if (anotherDialogIsOpen) {
+      return;
+    }
+    toggle(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  });
 
   useEffect(() => {
     const toggleOnSettingsKey = (event: KeyboardEvent) => {
