@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import { ArticleColumn } from "./ArticleColumn";
-import type { VaultSnapshot } from "./VaultSession";
+import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 
 const TAURI: ArticleSummary = {
   fileName: "tauri.md",
@@ -24,17 +24,10 @@ const NO_TITLE: ArticleSummary = {
 };
 
 const BLOG: VaultSnapshot = {
+  ...INITIAL_VAULT_SNAPSHOT,
   workspaces: [{ name: "Blog", articleCount: 2 }],
   selectedWorkspace: "Blog",
   articles: [NO_TITLE, TAURI],
-  selectedArticle: null,
-  body: null,
-  indentation: { style: "spaces", width: 2 },
-  workspaceListFailure: null,
-  articleListFailure: null,
-  bodyFailure: null,
-  creationRejection: null,
-  creationFailure: null,
 };
 
 function renderColumn(snapshot: VaultSnapshot, onSelect = vi.fn()) {

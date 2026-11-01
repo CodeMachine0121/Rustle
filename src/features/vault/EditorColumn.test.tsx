@@ -3,21 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { EditorColumn } from "./EditorColumn";
-import type { VaultSnapshot } from "./VaultSession";
+import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 
-const NOTHING_OPEN: VaultSnapshot = {
-  workspaces: [],
-  selectedWorkspace: "Blog",
-  articles: [],
-  selectedArticle: null,
-  body: null,
-  indentation: { style: "spaces", width: 2 },
-  workspaceListFailure: null,
-  articleListFailure: null,
-  bodyFailure: null,
-  creationRejection: null,
-  creationFailure: null,
-};
+const NOTHING_OPEN: VaultSnapshot = { ...INITIAL_VAULT_SNAPSHOT, selectedWorkspace: "Blog" };
 
 function renderColumn(snapshot: VaultSnapshot) {
   return render(

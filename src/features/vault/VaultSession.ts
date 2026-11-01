@@ -29,7 +29,8 @@ const DEFAULT_SETTINGS: Settings = {
   lastOpened: { workspace: null, article: null },
 };
 
-const EMPTY_SNAPSHOT: VaultSnapshot = {
+/** What the session shows before it has read anything. */
+export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   workspaces: [],
   selectedWorkspace: null,
   articles: [],
@@ -51,7 +52,7 @@ const EMPTY_SNAPSHOT: VaultSnapshot = {
 export class VaultSession {
   readonly #channels: VaultChannels;
   readonly #listeners = new Set<() => void>();
-  #snapshot = EMPTY_SNAPSHOT;
+  #snapshot = INITIAL_VAULT_SNAPSHOT;
   #settings: Settings | null = null;
   #latestSelection = 0;
 

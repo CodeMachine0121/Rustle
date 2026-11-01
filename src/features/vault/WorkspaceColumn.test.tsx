@@ -3,22 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
-import type { VaultSnapshot } from "./VaultSession";
+import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 import { WorkspaceColumn } from "./WorkspaceColumn";
 
-const EMPTY: VaultSnapshot = {
-  workspaces: [],
-  selectedWorkspace: null,
-  articles: [],
-  selectedArticle: null,
-  body: null,
-  indentation: { style: "spaces", width: 2 },
-  workspaceListFailure: null,
-  articleListFailure: null,
-  bodyFailure: null,
-  creationRejection: null,
-  creationFailure: null,
-};
+const EMPTY = INITIAL_VAULT_SNAPSHOT;
 
 const TWO_WORKSPACES: VaultSnapshot = {
   ...EMPTY,
