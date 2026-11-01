@@ -83,21 +83,22 @@ export class WritingLayout {
   }
 
   /**
-   * `holder`, except that a refusal to let the open article go also brings
-   * the editor back: the warning or failure that explains it is under the
-   * editor, which preview only hides.
+   * `holder`, except that it also brings the editor back when preview only
+   * would hide what the writer needs: the warning or failure that explains
+   * a refusal to let the open article go, or the editor an opened article
+   * hands the keyboard to.
    */
-  revealEditorWhenRefused(holder: ArticleHolder): ArticleHolder {
-    const revealOnRefusal = async (leaving: ReturnType<ArticleHolder["closeArticle"]>) => {
+  revealEditorWhenNeeded(holder: ArticleHolder): ArticleHolder {
+    const revealUnless = async (leaving: ReturnType<ArticleHolder["closeArticle"]>, keepsHidden: boolean) => {
       const outcome = await leaving;
-      if (outcome !== "switched") {
+      if (outcome !== "switched" || !keepsHidden) {
         this.revealEditor();
       }
       return outcome;
     };
     return {
-      openArticle: (article) => revealOnRefusal(holder.openArticle(article)),
-      closeArticle: () => revealOnRefusal(holder.closeArticle()),
+      openArticle: (article) => revealUnless(holder.openArticle(article), article.focusEditor !== true),
+      closeArticle: () => revealUnless(holder.closeArticle(), true),
     };
   }
 

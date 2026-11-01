@@ -49,7 +49,7 @@ function VaultView() {
   const [settings] = useState(() => new SettingsSession(channels));
   const [layout] = useState(() => new WritingLayout(settings));
   const [session] = useState(
-    () => new VaultSession(channels, layout.revealEditorWhenRefused(autosave), settings),
+    () => new VaultSession(channels, layout.revealEditorWhenNeeded(autosave), settings),
   );
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
   const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());

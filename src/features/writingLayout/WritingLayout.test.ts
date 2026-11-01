@@ -152,7 +152,7 @@ describe("WritingLayout", () => {
       async (refusal) => {
         const { layout, channels } = await layoutWith();
         layout.choose("previewOnly");
-        const holder = layout.revealEditorWhenRefused(holderAnswering(refusal));
+        const holder = layout.revealEditorWhenNeeded(holderAnswering(refusal));
 
         await expect(holder.openArticle(OPENED)).resolves.toBe(refusal);
 
@@ -165,7 +165,7 @@ describe("WritingLayout", () => {
       const { layout } = await layoutWith();
       layout.choose("previewOnly");
 
-      await layout.revealEditorWhenRefused(holderAnswering("blockedByFailedSave")).closeArticle();
+      await layout.revealEditorWhenNeeded(holderAnswering("blockedByFailedSave")).closeArticle();
 
       expect(layout.snapshot.viewMode).toBe("sideBySide");
     });
@@ -174,7 +174,7 @@ describe("WritingLayout", () => {
       const { layout } = await layoutWith();
       layout.choose("previewOnly");
       const inner = holderAnswering("switched");
-      const holder = layout.revealEditorWhenRefused(inner);
+      const holder = layout.revealEditorWhenNeeded(inner);
 
       await expect(holder.openArticle(OPENED)).resolves.toBe("switched");
       await expect(holder.closeArticle()).resolves.toBe("switched");
@@ -183,12 +183,23 @@ describe("WritingLayout", () => {
       expect(layout.snapshot.viewMode).toBe("previewOnly");
     });
 
+    it("brings the editor back from preview only for an opened article that asks for the keyboard", async () => {
+      const { layout, channels } = await layoutWith();
+      layout.choose("previewOnly");
+      const holder = layout.revealEditorWhenNeeded(holderAnswering("switched"));
+
+      await holder.openArticle({ ...OPENED, focusEditor: true });
+
+      expect(layout.snapshot.viewMode).toBe("sideBySide");
+      expect(channels.writeSettings).not.toHaveBeenCalled();
+    });
+
     it("leaves editor only alone on a refusal", async () => {
       const { layout } = await layoutWith(false);
       const listener = vi.fn();
       layout.subscribe(listener);
 
-      await layout.revealEditorWhenRefused(holderAnswering("blockedByFailedSave")).closeArticle();
+      await layout.revealEditorWhenNeeded(holderAnswering("blockedByFailedSave")).closeArticle();
 
       expect(layout.snapshot.viewMode).toBe("editorOnly");
       expect(listener).not.toHaveBeenCalled();
