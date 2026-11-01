@@ -10,14 +10,22 @@ import { useCompositionState } from "../../shared/composition/CompositionContext
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TabIndentation } from "./TabIndentation";
 
+type BodyChangeListener = (body: string) => void;
+
 type MarkdownEditorProps = {
   initialBody: string;
   indentation?: IndentationSettings;
+  onBodyChange?: BodyChangeListener;
 };
 
-export function MarkdownEditor({ initialBody, indentation }: MarkdownEditorProps) {
+export function MarkdownEditor({ initialBody, indentation, onBodyChange }: MarkdownEditorProps) {
   const composition = useCompositionState();
   const hostRef = useRef<HTMLDivElement>(null);
+  const onBodyChangeRef = useRef(onBodyChange);
+
+  useEffect(() => {
+    onBodyChangeRef.current = onBodyChange;
+  }, [onBodyChange]);
 
   const indentationStyle = indentation?.style;
   const indentationWidth = indentation?.width;
@@ -33,7 +41,17 @@ export function MarkdownEditor({ initialBody, indentation }: MarkdownEditorProps
         : IndentUnit.from({ style: indentationStyle, width: indentationWidth });
     const view = new EditorView({
       parent: host,
-      state: EditorState.create({ doc: initialBody, extensions: editorExtensions(composition, unit) }),
+      state: EditorState.create({
+        doc: initialBody,
+        extensions: [
+          editorExtensions(composition, unit),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              onBodyChangeRef.current?.(update.state.doc.toString());
+            }
+          }),
+        ],
+      }),
     });
     return () => {
       view.destroy();

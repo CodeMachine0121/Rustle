@@ -24,6 +24,34 @@ function renderEditor(
 }
 
 describe("MarkdownEditor", () => {
+  it("reports the whole body every time it is edited", () => {
+    const onBodyChange = vi.fn();
+    const view = render(
+      <CompositionProvider state={new CompositionState()}>
+        <MarkdownEditor initialBody="# 標題" onBodyChange={onBodyChange} />
+      </CompositionProvider>,
+    );
+    const content = view.container.querySelector(".cm-content");
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("the editor did not render its content area");
+    }
+
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(onBodyChange).toHaveBeenCalledWith("  # 標題");
+  });
+
+  it("does not report the body it was given as an edit", () => {
+    const onBodyChange = vi.fn();
+    render(
+      <CompositionProvider state={new CompositionState()}>
+        <MarkdownEditor initialBody="# 標題" onBodyChange={onBodyChange} />
+      </CompositionProvider>,
+    );
+
+    expect(onBodyChange).not.toHaveBeenCalled();
+  });
+
   it("shows the body it was given and lets it be edited", () => {
     const { content } = renderEditor(new CompositionState(), "# 寫作的禪\n\n慢慢寫。");
 
