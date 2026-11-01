@@ -19,6 +19,7 @@
   --color-code-title: #4078f2;
   --color-code-type: #c18401;
   --color-editor-heading-fallback: #7a3db8;
+  --color-cursor-line: #f3f3f0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +41,7 @@
     --color-code-title: #61afef;
     --color-code-type: #e5c07b;
     --color-editor-heading-fallback: #c7a0f2;
+    --color-cursor-line: #262628;
   }
 }
 
@@ -313,6 +315,10 @@ body {
 
 .markdown-editor .cm-editor.cm-focused {
   outline: none;
+}
+
+.markdown-editor .cm-cursorLine {
+  background-color: var(--color-cursor-line);
 }
 
 .preview-scroller {
