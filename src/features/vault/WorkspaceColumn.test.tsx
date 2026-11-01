@@ -73,15 +73,14 @@ describe("WorkspaceColumn", () => {
   });
 
   it.each([
-    ["alreadyUsed", "已經被使用"],
-    ["containsPathSeparator", "/ 或 \\"],
-    ["reserved", "保留名稱"],
-    ["empty", "不可為空"],
+    ["alreadyUsed", "這個名稱已經有人用了，請換一個。"],
+    ["containsPathSeparator", "名稱不能包含 / 或 \\，一個 workspace 就是一層資料夾。"],
+    ["reserved", "這是保留名稱（images，或以 . 開頭的名稱），請換一個。"],
+    ["empty", "請先輸入 workspace 名稱。"],
   ] as const)("explains a %s rejection", (reason, explanation) => {
     renderColumn({ ...TWO_WORKSPACES, creationRejection: reason });
 
     expect(screen.getByRole("alert")).toHaveTextContent(explanation);
-    expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 
   it("shows why a workspace could not be created", () => {

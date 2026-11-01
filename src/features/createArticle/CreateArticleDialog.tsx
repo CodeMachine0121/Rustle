@@ -4,6 +4,7 @@ import { useCompositionState } from "../../shared/composition/CompositionContext
 import type { ArticleVocabulary } from "../articleMetadata/articleVocabulary";
 import { ChipInput } from "../articleMetadata/ChipInput";
 import { withChip } from "../articleMetadata/chipValues";
+import { describeOperationFailure } from "../vault/operationFailure";
 import type { ArticleCreation, ArticleDraft } from "../vault/VaultSession";
 
 type CreateArticleDialogProps = {
@@ -129,7 +130,7 @@ export function CreateArticleDialog({ openedAt, vocabulary, onCreate, onClose }:
         )}
         {failure !== null && (
           <p className="column-message" role="alert">
-            建立失敗：{failure}
+            {describeOperationFailure({ operation: "createArticle", message: failure })}
           </p>
         )}
         <div className="dialog-actions">
