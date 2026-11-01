@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useRef, useState } from "react";
 
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
+import { IconButton } from "../../shared/icons/IconButton";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 
@@ -24,17 +25,13 @@ export function NewWorkspaceEntry({ rejection, failure, onCreate }: NewWorkspace
 
   return (
     <>
-      <button
+      <IconButton
         ref={buttonRef}
-        type="button"
-        className="icon-button"
-        aria-label={messages.newWorkspace}
-        title={messages.newWorkspace}
+        label={messages.newWorkspace}
+        icon={Plus}
         aria-haspopup="dialog"
         onClick={() => setIsOpen(true)}
-      >
-        <Plus className="icon" aria-hidden="true" />
-      </button>
+      />
       {isOpen && (
         <NewWorkspaceDialog rejection={rejection} failure={failure} onCreate={onCreate} onClose={close} />
       )}

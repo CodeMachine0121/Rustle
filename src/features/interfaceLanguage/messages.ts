@@ -76,7 +76,6 @@ export const CHINESE_MESSAGES = {
   noArticlesInVault: "vault 裡還沒有文章",
   incompleteMetadata: "metadata 不完整",
   openOutsideFilter: "開著・不符合篩選",
-  editMetadata: "編輯 metadata",
   editMetadataFor: (title: string) => `編輯 ${title} 的 metadata`,
   deleteArticle: (title: string) => `刪除 ${title}`,
 
@@ -208,7 +207,6 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noArticlesInVault: "No articles in the vault yet",
   incompleteMetadata: "incomplete metadata",
   openOutsideFilter: "open · outside the filter",
-  editMetadata: "Edit metadata",
   editMetadataFor: (title) => `Edit metadata for "${title}"`,
   deleteArticle: (title) => `Delete "${title}"`,
 

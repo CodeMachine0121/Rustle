@@ -1,6 +1,7 @@
-import { Columns2, Maximize2, Minimize2, PanelLeftClose, PanelRightClose } from "lucide-react";
+import { Columns2, Maximize2, Minimize2, PanelLeftClose, PanelRightClose, type LucideIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { IconButton } from "../../shared/icons/IconButton";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import { VIEW_MODES, type ViewMode, type WritingLayout } from "./WritingLayout";
 
@@ -12,18 +13,14 @@ type ZenButtonProps = {
 /** Arrows pointing out while the columns are shown, pointing in while Zen Mode hides them. */
 export function ZenButton({ layout, isZen }: ZenButtonProps) {
   const messages = useMessages();
-  const Mark = isZen ? Minimize2 : Maximize2;
   return (
-    <button
-      type="button"
-      className="icon-button zen-button"
-      aria-label={messages.zenMode}
-      title={messages.zenMode}
+    <IconButton
+      className="zen-button"
+      label={messages.zenMode}
+      icon={isZen ? Minimize2 : Maximize2}
       aria-pressed={isZen}
       onClick={() => layout.toggleZen()}
-    >
-      <Mark className="icon" aria-hidden="true" />
-    </button>
+    />
   );
 }
 
@@ -31,7 +28,7 @@ const VIEW_MODE_MARKS = {
   editorOnly: PanelRightClose,
   sideBySide: Columns2,
   previewOnly: PanelLeftClose,
-} satisfies Record<ViewMode, typeof Columns2>;
+} satisfies Record<ViewMode, LucideIcon>;
 
 type ViewModeButtonsProps = {
   layout: WritingLayout;
@@ -51,23 +48,16 @@ export function ViewModeButtons({ layout, viewMode }: ViewModeButtonsProps) {
 
   return (
     <div className="view-mode-buttons" role="group" aria-label={messages.viewModesGroup}>
-      {VIEW_MODES.map((mode) => {
-        const Mark = VIEW_MODE_MARKS[mode];
-        return (
-          <button
-            key={mode}
-            ref={mode === viewMode ? currentRef : undefined}
-            type="button"
-            className="icon-button"
-            aria-label={messages.viewModes[mode]}
-            title={messages.viewModes[mode]}
-            aria-pressed={mode === viewMode}
-            onClick={() => layout.choose(mode)}
-          >
-            <Mark className="icon" aria-hidden="true" />
-          </button>
-        );
-      })}
+      {VIEW_MODES.map((mode) => (
+        <IconButton
+          key={mode}
+          ref={mode === viewMode ? currentRef : undefined}
+          label={messages.viewModes[mode]}
+          icon={VIEW_MODE_MARKS[mode]}
+          aria-pressed={mode === viewMode}
+          onClick={() => layout.choose(mode)}
+        />
+      ))}
     </div>
   );
 }

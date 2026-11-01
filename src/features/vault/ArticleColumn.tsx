@@ -7,6 +7,7 @@ import { arrangeArticles } from "./articleArrangement";
 import { ArticleFilterField } from "./ArticleFilterField";
 import { isSameArticle } from "./articleLocation";
 import type { VaultSnapshot } from "./VaultSession";
+import { IconButton } from "../../shared/icons/IconButton";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 const LEADING_DATE = /^\d{4}-\d{2}-\d{2}/;
@@ -45,15 +46,7 @@ export function ArticleColumn(props: ArticleColumnProps) {
     <>
       <div className="article-list-controls">
         <ArticleFilterField onApply={setFilterText} />
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={messages.newArticle}
-          title={messages.newArticle}
-          onClick={createArticle}
-        >
-          <FilePenLine className="icon" aria-hidden="true" />
-        </button>
+        <IconButton label={messages.newArticle} icon={FilePenLine} onClick={createArticle} />
       </div>
       {isCreationRefused && (
         <p className="column-message" role="alert">
@@ -107,24 +100,18 @@ function ArticleList({
             showsWorkspace={showsAllNotes}
             onSelect={onSelect}
           />
-          <button
-            type="button"
-            className="icon-button card-action card-action--top"
-            aria-label={messages.editMetadataFor(article.title)}
-            title={messages.editMetadata}
+          <IconButton
+            className="card-action card-action--top"
+            label={messages.editMetadataFor(article.title)}
+            icon={Pencil}
             onClick={() => onEditMetadata(article)}
-          >
-            <Pencil className="icon" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="icon-button card-action card-action--bottom"
-            aria-label={messages.deleteArticle(article.title)}
-            title={messages.delete}
+          />
+          <IconButton
+            className="card-action card-action--bottom"
+            label={messages.deleteArticle(article.title)}
+            icon={Trash2}
             onClick={() => onDelete(article)}
-          >
-            <Trash2 className="icon" aria-hidden="true" />
-          </button>
+          />
         </li>
       ))}
     </ul>
