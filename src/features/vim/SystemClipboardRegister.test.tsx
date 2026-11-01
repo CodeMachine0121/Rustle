@@ -206,6 +206,35 @@ describe("text Vim takes goes out to the system clipboard", () => {
 
     expect(text()).toBe("第二行\n今日盤後觀察");
   });
+
+  it("the writer's own yank survives coming back to the window when the clipboard refused it", async () => {
+    const clipboard = systemClipboard("舊的");
+    clipboard.backend.writeClipboardText.mockResolvedValue({ ok: false, reason: "unexpected", message: "denied" });
+    const { select, type, text, cursorAt, comeBackToTheWindow, editor } = await openEditor("台積電", clipboard);
+
+    select(0, 3);
+    type("y");
+    await comeBackToTheWindow();
+    cursorAt(editor.state.doc.length);
+    type("p");
+
+    expect(text()).toBe("台積電台積電");
+  });
+
+  it("a copy made elsewhere after a refused yank still wins", async () => {
+    const clipboard = systemClipboard("舊的");
+    clipboard.backend.writeClipboardText.mockResolvedValue({ ok: false, reason: "unexpected", message: "denied" });
+    const { select, type, text, cursorAt, comeBackToTheWindow, editor } = await openEditor("台積電", clipboard);
+
+    select(0, 3);
+    type("y");
+    clipboard.copyElsewhere("營收成長");
+    await comeBackToTheWindow();
+    cursorAt(editor.state.doc.length);
+    type("p");
+
+    expect(text()).toBe("台積電營收成長");
+  });
 });
 
 describe("text copied elsewhere comes in with Vim's paste", () => {

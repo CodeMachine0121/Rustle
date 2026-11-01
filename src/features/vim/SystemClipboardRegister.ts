@@ -30,6 +30,8 @@ export class SystemClipboardRegister implements EngineRegister {
   #content: RegisterContent = NOTHING;
   #written: RegisterContent | null = null;
   #writesLanding: Promise<unknown> = Promise.resolve();
+  #clipboardLastSeen: string | null = null;
+  #latestWriteRefused = false;
   insertModeChanges: InsertModeChanges[] = [];
   searchQueries: string[] = [];
 
@@ -79,7 +81,11 @@ export class SystemClipboardRegister implements EngineRegister {
     return this.#content.text;
   }
 
-  /** Looks at the clipboard once the writes so far have landed; an answer older than a later write is dropped. */
+  /**
+   * Looks at the clipboard once the writes so far have landed; an answer older
+   * than a later write is dropped. When the clipboard refused the latest write,
+   * the writer's own text stays until something else is copied.
+   */
   async refresh(): Promise<void> {
     await this.#writesLanding;
     const writtenBefore = this.#written;
@@ -88,6 +94,14 @@ export class SystemClipboardRegister implements EngineRegister {
       return;
     }
     const text = result.ok ? result.payload.text : null;
+    if (this.#latestWriteRefused && this.#written !== null && (text ?? "") === this.#clipboardLastSeen) {
+      this.#content = this.#written;
+      return;
+    }
+    this.#latestWriteRefused = false;
+    if (result.ok) {
+      this.#clipboardLastSeen = text ?? "";
+    }
     if (text === null) {
       this.#content = NOTHING;
     } else if (text === this.#written?.text) {
@@ -126,6 +140,14 @@ export class SystemClipboardRegister implements EngineRegister {
   #write(content: RegisterContent): void {
     this.#content = content;
     this.#written = content;
-    this.#writesLanding = Promise.all([this.#writesLanding, this.#backend.writeClipboardText(content.text)]);
+    const landing = this.#backend.writeClipboardText(content.text).then((result) => {
+      if (result.ok) {
+        this.#clipboardLastSeen = content.text;
+      }
+      if (this.#written === content) {
+        this.#latestWriteRefused = !result.ok;
+      }
+    });
+    this.#writesLanding = Promise.all([this.#writesLanding, landing]);
   }
 }
