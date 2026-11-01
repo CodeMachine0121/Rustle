@@ -64,16 +64,12 @@ impl ArticleDraft {
     /// `created_at`, and an empty body.
     pub fn to_text(&self, created_at: LocalTimestamp) -> String {
         let created_at = created_at.to_string();
-        let mut update = MetadataUpdate::default()
+        let update = MetadataUpdate::default()
             .title(self.title.as_str())
             .created_at(created_at.as_str())
-            .updated_at(created_at);
-        if !self.category.is_empty() {
-            update = update.category(self.category.iter().cloned());
-        }
-        if !self.tags.is_empty() {
-            update = update.tags(self.tags.iter().cloned());
-        }
+            .updated_at(created_at)
+            .category(self.category.iter().cloned())
+            .tags(self.tags.iter().cloned());
         ArticleDocument::parse("").with_metadata(&update).to_text()
     }
 
