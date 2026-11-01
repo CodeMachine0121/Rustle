@@ -1,5 +1,10 @@
 // The webview reads its policy from tauri.conf.json; this module is the
 // readable source of truth that a test pins that file to.
+pub mod channel;
+pub mod channel_registry;
+pub mod channels;
+pub mod command_error;
+pub mod commands;
 #[cfg(test)]
 mod content_security_policy;
 pub mod navigation_policy;

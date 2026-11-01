@@ -2555,10 +2555,12 @@ name = "rustle"
 version = "0.1.0"
 dependencies = [
  "rstest",
+ "rustle-domain",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "thiserror 2.0.21",
  "url",
 ]
 
