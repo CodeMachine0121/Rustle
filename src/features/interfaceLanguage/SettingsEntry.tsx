@@ -30,23 +30,23 @@ export function SettingsEntry({ language, onChoose, theme, vimModes, previewTogg
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const open = (returnFocusTo: HTMLElement | null) => {
-    returnFocusRef.current = returnFocusTo;
-    setIsOpen(true);
-  };
-
   const close = () => {
     setIsOpen(false);
     returnFocusRef.current?.focus();
   };
 
-  const toggleFromKey = useEffectEvent(() => {
+  const toggle = (returnFocusTo: HTMLElement | null) => {
     if (isOpen) {
       close();
-    } else {
-      open(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      return;
     }
-  });
+    returnFocusRef.current = returnFocusTo;
+    setIsOpen(true);
+  };
+
+  const toggleFromKey = useEffectEvent(() =>
+    toggle(document.activeElement instanceof HTMLElement ? document.activeElement : null),
+  );
 
   useEffect(() => {
     const toggleOnSettingsKey = (event: KeyboardEvent) => {
@@ -64,11 +64,7 @@ export function SettingsEntry({ language, onChoose, theme, vimModes, previewTogg
 
   return (
     <>
-      <SettingsButton
-        buttonRef={buttonRef}
-        isOpen={isOpen}
-        onToggle={() => (isOpen ? close() : open(buttonRef.current))}
-      />
+      <SettingsButton buttonRef={buttonRef} isOpen={isOpen} onToggle={() => toggle(buttonRef.current)} />
       {isOpen &&
         createPortal(
           <SettingsDialog
