@@ -26,9 +26,14 @@ thiserror.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+muda.workspace = true
 rstest.workspace = true
 tempfile.workspace = true
 tauri = { workspace = true, features = ["test"] }
+
+[[test]]
+name = "application_menu"
+harness = false
 
 [lints]
 workspace = true

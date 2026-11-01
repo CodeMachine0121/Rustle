@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod content_security_policy;
 
+pub mod application_menu;
 pub mod channel;
 pub mod channel_registry;
 pub mod channels;
@@ -29,7 +30,7 @@ use crate::protocol_registry::ProtocolRegistry;
 use crate::protocols::scheme_handlers;
 use crate::window_close_guard::{CloseRequestDecision, WindowCloseGuard};
 
-const MAIN_WINDOW_LABEL: &str = "main";
+pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
 const APP_PAGE: &str = "index.html";
 
 pub fn run() {

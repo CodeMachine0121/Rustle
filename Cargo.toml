@@ -32,6 +32,7 @@ tauri-build = "=2.7.4"
 tauri-plugin-opener = "=2.7.2"
 
 mockall = "=0.15.0"
+muda = { version = "=0.20.0", default-features = false }
 rstest = "=0.28.0"
 tempfile = "=3.27.0"
 
