@@ -14,6 +14,33 @@ body,
 .app {
   height: 100%;
   display: flex;
+  flex-direction: column;
+}
+
+.save-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.save-status-bar:empty {
+  border-bottom: none;
+}
+
+.save-status-bar__title {
+  font-weight: 600;
+}
+
+.save-status-bar__warning,
+.save-status-bar__failure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c0392b;
 }
 
 .markdown-editor {
