@@ -217,9 +217,10 @@ describe("the italic shortcut", () => {
     const { view, composition } = openEditor("這是⟨重點⟩的地方");
     composition.start();
 
-    press(view, "i");
+    const event = press(view, "i");
 
     expect(shown(view)).toBe("這是⟨重點⟩的地方");
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it("does not unwrap bold", () => {
