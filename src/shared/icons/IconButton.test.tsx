@@ -17,6 +17,8 @@ describe("IconButton", () => {
     expect(button).toHaveTextContent("");
     expect(button).toHaveClass("icon-button", "card-action");
     expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(button.querySelector("svg")).toHaveAttribute("stroke", "currentColor");
+    expect(button.querySelector("svg")).toHaveAttribute("fill", "none");
   });
 
   it("never submits a form", () => {

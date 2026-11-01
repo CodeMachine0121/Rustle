@@ -72,7 +72,7 @@ describe("SaveStatusLine", () => {
     expect(statusLine()).toHaveTextContent(/^Blog❯zen\.md$/u);
     expect(statusLine()).not.toHaveTextContent("寫作的禪");
     expect(indicator()).toBe("saved");
-    expect(screen.getByRole("img", { name: "已存進檔案" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "已存進檔案" }).querySelector("svg")).toHaveClass("lucide-check");
   });
 
   it("spins as soon as the body changes, before anything is written", async () => {
@@ -82,6 +82,7 @@ describe("SaveStatusLine", () => {
     act(() => session.changeBody("新的正文"));
 
     expect(indicator()).toBe("saving");
+    expect(screen.getByRole("img", { name: "還沒存進檔案" }).querySelector("svg")).toHaveClass("lucide-loader-circle");
     expect(saveBody).not.toHaveBeenCalled();
   });
 
@@ -112,6 +113,7 @@ describe("SaveStatusLine", () => {
     expect(statusLine()).toContainElement(screen.getByRole("alert"));
     expect(screen.getByRole("alert")).toHaveTextContent("No space left on device");
     expect(indicator()).toBe("failed");
+    expect(screen.getByRole("img", { name: "存不進檔案" }).querySelector("svg")).toHaveClass("lucide-circle-alert");
   });
 
   it("says the file changed outside and offers overwrite and reload", async () => {

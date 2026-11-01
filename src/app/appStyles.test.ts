@@ -43,6 +43,10 @@ describe("app styles", () => {
     expect(ruleFor(".card-action--bottom")).toMatch(/bottom: /);
   });
 
+  it("writes every tag on a card with its #", () => {
+    expect(ruleFor(".row-tag::before")).toMatch(/content: "#";/);
+  });
+
   it("keeps the card's detail line against its left edge", () => {
     expect(ruleFor(".row-meta")).toMatch(/justify-content: flex-start;/);
     expect(ruleFor(".row-meta")).toMatch(/text-align: left;/);

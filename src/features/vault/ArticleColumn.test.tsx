@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
+import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { ArticleColumn } from "./ArticleColumn";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
@@ -195,6 +196,24 @@ describe("ArticleColumn", () => {
     renderColumn({ ...BLOG, articles: [{ ...TAURI, status: null }] });
 
     expect(metaOf(/^Tauri/)[0]).toBe("未標記");
+  });
+
+  it("says No Status in English, as the sidebar does", () => {
+    render(
+      <InterfaceLanguageProvider language="en">
+        <CompositionProvider>
+          <ArticleColumn
+            snapshot={{ ...BLOG, articles: [{ ...TAURI, status: null }] }}
+            onSelect={vi.fn()}
+            onCreateArticle={vi.fn()}
+            onEditMetadata={vi.fn()}
+            onDelete={vi.fn()}
+          />
+        </CompositionProvider>
+      </InterfaceLanguageProvider>,
+    );
+
+    expect(metaOf(/^Tauri/)).toEqual(["No Status", "2026-08-20", "tauri", "electron", "技術筆記"]);
   });
 
   it("shows only the status for an article with no date and no tags", () => {

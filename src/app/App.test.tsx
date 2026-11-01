@@ -2,7 +2,7 @@
 import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -602,6 +602,18 @@ describe("App", () => {
       expect(document.body.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
     });
 
+    it("gives the editor the whole writing area in editor only, its button pressed and the controls still there", async () => {
+      await startWithZenOpen();
+
+      fireEvent.click(screen.getByRole("button", { name: "只有編輯" }));
+
+      expect(document.querySelector('section[aria-label="預覽區"]')).toBeNull();
+      expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+      expect(headerButtons("編輯區")).toEqual(CONTROLS);
+      expect(screen.getByRole("button", { name: "只有編輯" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "false");
+    });
+
     it("puts Zen and the three view modes in the editor's header side by side, the current one pressed", async () => {
       await startWithZenOpen();
 
@@ -665,11 +677,42 @@ describe("App", () => {
       expect(screen.queryByRole("button", { name: "所有文章" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
+      expect(section("編輯區")).toBeVisible();
+      expect(section("預覽區")).toBeVisible();
+      expect(Array.from(document.querySelectorAll("main > :not([hidden])"))).toEqual([
+        document.querySelector(".writing-area"),
+      ]);
 
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
 
       expect(screen.getByRole("navigation")).toBeVisible();
+      expect(section("文章")).toBeVisible();
       expect(screen.getByRole("textbox", { name: "篩選文章" })).toHaveValue("Zen");
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("leaves only the header buttons and the writing area for the keyboard in Zen Mode", async () => {
+      await startWithZenOpen();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      const reachable = Array.from(document.querySelectorAll<HTMLElement>("button, input, [contenteditable='true'], [tabindex='0']")).filter(
+        (element) => element.closest("[hidden]") === null && !element.closest(".dialog-backdrop"),
+      );
+      expect(reachable.every((element) => element.closest(".writing-area") !== null)).toBe(true);
+      expect(reachable.filter((element) => element.closest(".region-header") !== null).map((button) => button.getAttribute("aria-label"))).toEqual(CONTROLS);
+    });
+
+    it("starts with the columns shown even after the app was left in Zen Mode", async () => {
+      await startWithZenOpen();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      cleanup();
+
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      expect(screen.getByRole("navigation")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
     });
 
     it("lets the view modes work in Zen Mode, preview only included", async () => {
