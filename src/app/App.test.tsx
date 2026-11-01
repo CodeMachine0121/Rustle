@@ -599,6 +599,20 @@ describe("App", () => {
       expect(within(statusSection).getByRole("button", { name: /^Active/ })).toHaveAttribute("aria-pressed", "false");
     });
 
+    it("keeps narrowing the list by a status whose section is folded", async () => {
+      answerFromAVault({ workspace: null, article: null });
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      fireEvent.click(within(screen.getByRole("region", { name: "STATUS" })).getByRole("button", { name: /^Active/ }));
+
+      fireEvent.click(screen.getByRole("button", { name: /^STATUS/ }));
+
+      expect(within(screen.getByRole("region", { name: "STATUS" })).queryByRole("button", { name: /^Active/ })).toBeNull();
+      expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
+      expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
+    });
+
     it("keeps the workspace and the list when the workspace section is folded", async () => {
       answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
       render(<App />);

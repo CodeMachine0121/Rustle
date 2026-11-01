@@ -71,4 +71,18 @@ describe("sidebarCounts", () => {
       { tag: "bug", count: 1 },
     ]);
   });
+
+  it("counts five hundred articles from five workspaces without a visible pause", () => {
+    const many = Array.from({ length: 500 }, (_, index) =>
+      article(index % 2 === 0 ? "active" : null, [`tag-${index % 40}`, "work"], `Workspace ${index % 5}`),
+    );
+
+    const started = performance.now();
+    const counts = sidebarCounts(many);
+    const elapsedMilliseconds = performance.now() - started;
+
+    expect(counts.statuses[0]?.count).toBe(250);
+    expect(counts.tags[0]).toEqual({ tag: "work", count: 500 });
+    expect(elapsedMilliseconds).toBeLessThan(50);
+  });
 });
