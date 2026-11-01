@@ -65,6 +65,8 @@ function answerFromAVault(
           updatedAt: "2026-08-20T08:05:00.000Z",
           lastKnownModifiedAt: "2026-08-20T08:05:00.100Z",
         });
+      case "read_preferred_locales":
+        return Promise.resolve({ locales: ["zh-Hant-TW", "en-US"] });
       case "write_settings":
       case "watch_close_requests":
         return Promise.resolve(null);
@@ -115,6 +117,7 @@ describe("App", () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.mocked(invoke).mockReset();
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["zh-TW"]);
   });
 
   it("opens where the user left off", async () => {
@@ -213,7 +216,9 @@ describe("App", () => {
 
   it("says in one line that the vault could not be read and stays usable", async () => {
     vi.mocked(invoke).mockImplementation((command) =>
-      command === "list_workspaces"
+      command === "read_preferred_locales"
+        ? Promise.resolve({ locales: ["zh-Hant-TW"] })
+        : command === "list_workspaces"
         ? Promise.reject({ reason: "unexpected", message: "permission denied" })
         : Promise.resolve({
             indentation: { style: "spaces", width: 2 },
@@ -485,7 +490,9 @@ describe("App", () => {
 
     it("stays usable when the settings cannot be read, without writing any", async () => {
       vi.mocked(invoke).mockImplementation((command) =>
-        command === "read_settings"
+        command === "read_preferred_locales"
+          ? Promise.resolve({ locales: ["zh-Hant-TW"] })
+          : command === "read_settings"
           ? Promise.reject({ reason: "unexpected", message: "permission denied" })
           : Promise.resolve([]),
       );
@@ -780,5 +787,161 @@ describe("App", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });
-});
 
+  describe("interface language", () => {
+    function answerInLanguage(interfaceLanguage: string | undefined, systemLocales: string[]) {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        if (command === "read_preferred_locales") {
+          return { locales: systemLocales };
+        }
+        const answer = await answerFromTheVault?.(command, args);
+        return command === "read_settings" && interfaceLanguage !== undefined
+          ? { ...(answer as object), interfaceLanguage }
+          : answer;
+      });
+    }
+
+    function regionTitles() {
+      return screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
+    }
+
+    async function openSettings(name = "設定") {
+      fireEvent.click(screen.getByRole("button", { name }));
+      return screen.findByRole("dialog");
+    }
+
+    async function renderWithTheArticleOpen() {
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    }
+
+    it("puts the gear at the bottom of the sidebar", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      const sidebar = screen.getByRole("region", { name: "側邊欄" });
+      const gear = within(sidebar).getByRole("button", { name: "設定" });
+      expect(within(sidebar).getAllByRole("button").at(-1)).toBe(gear);
+      expect(gear.closest(".region-footer")).not.toBeNull();
+    });
+
+    it("speaks Chinese on a Chinese system until anything is chosen", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      expect(regionTitles()).toEqual(["WORKSPACES", "文章", "編輯", "預覽"]);
+      expect(document.documentElement.lang).toBe("zh-Hant");
+    });
+
+    it("speaks English on a system in a language it does not support", async () => {
+      answerInLanguage(undefined, ["ja-JP"]);
+      render(<App />);
+
+      await waitFor(() => expect(regionTitles()).toEqual(["WORKSPACES", "ARTICLES", "EDITOR", "PREVIEW"]));
+      expect(document.documentElement.lang).toBe("en");
+    });
+
+    it("speaks the language chosen before, whatever the system says", async () => {
+      answerInLanguage("en", ["zh-Hant-TW"]);
+      render(<App />);
+
+      await waitFor(() => expect(regionTitles()).toEqual(["WORKSPACES", "ARTICLES", "EDITOR", "PREVIEW"]));
+      expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    });
+
+    it("changes the whole screen at once and remembers it with every other setting", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      const dialog = await openSettings();
+      expect(within(dialog).getByRole("heading", { name: "設定" })).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("radio", { name: "English" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(regionTitles()).toEqual(["WORKSPACES", "ARTICLES", "EDITOR", "PREVIEW"]);
+      expect(screen.getByRole("textbox", { name: "New workspace name" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: 'Delete "Zen of Writing"' })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
+      expect(invoke).toHaveBeenCalledWith("write_settings", {
+        settings: {
+          indentation: { style: "spaces", width: 2 },
+          previewPanel: { isOpen: true, widthRatio: 0.5 },
+          lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+          interfaceLanguage: "en",
+        },
+      });
+    });
+
+    it("changes nothing on screen when the language in use is chosen", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+      const before = document.querySelector(".app-layout")?.textContent;
+
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "中文" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.querySelector(".app-layout")?.textContent).toBe(before);
+    });
+
+    it.each(["Escape", "a click on the dimmed backdrop"] as const)(
+      "closes on %s without changing the language",
+      async (way) => {
+        answerInLanguage(undefined, ["zh-Hant-TW"]);
+        await renderWithTheArticleOpen();
+        const dialog = await openSettings();
+
+        if (way === "Escape") {
+          fireEvent.keyDown(within(dialog).getByRole("radio", { name: "中文" }), { key: "Escape" });
+        } else {
+          fireEvent.click(screen.getByTestId("settings-backdrop"));
+        }
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(regionTitles()).toEqual(["WORKSPACES", "文章", "編輯", "預覽"]);
+        expect(screen.getByRole("button", { name: "設定" })).toHaveFocus();
+        expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
+      },
+    );
+
+    it("keeps the body, its unsaved change and the cursor when the language changes", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+      const content = editorContent();
+      const view = content === null ? null : EditorView.findFromDOM(content);
+      if (content === null || view === null) {
+        throw new Error("the editor did not render");
+      }
+      act(() => view.dispatch({ changes: { from: 0, insert: "新的" }, selection: { anchor: 2 } }));
+
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
+
+      expect(EditorView.findFromDOM(content)).toBe(view);
+      expect(view.state.doc.toString()).toBe("新的正文的第一行。");
+      expect(view.state.selection.main.head).toBe(2);
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+      await waitFor(
+        () => expect(invoke).toHaveBeenCalledWith("save_body", expect.objectContaining({ body: "新的正文的第一行。" })),
+        { timeout: 2000 },
+      );
+    });
+
+    it("sends no language with a new article, so the file does not depend on it", async () => {
+      answerFromAVaultThatCreatesArticles();
+      await renderWithTheArticleOpen();
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "＋ New article" }));
+      fireEvent.change(screen.getByLabelText("Title"), { target: { value: "New Article" } });
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Create" })));
+
+      expect(invoke).toHaveBeenCalledWith("create_article", {
+        workspace: "Blog",
+        title: "New Article",
+        category: [],
+        tags: [],
+      });
+    });
+  });
+});

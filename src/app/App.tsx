@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
@@ -8,6 +8,10 @@ import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialo
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
+import { InterfaceLanguageProvider } from "../features/interfaceLanguage/InterfaceLanguageContext";
+import { SettingsButton } from "../features/interfaceLanguage/SettingsButton";
+import { SettingsDialog } from "../features/interfaceLanguage/SettingsDialog";
+import { useInterfaceLanguage } from "../features/interfaceLanguage/useInterfaceLanguage";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
@@ -45,6 +49,9 @@ function VaultView() {
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
+  const interfaceLanguage = useInterfaceLanguage(settings, channels);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -72,8 +79,13 @@ function VaultView() {
 
   useEffect(() => () => imagePaste.dispose(), [imagePaste]);
 
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+    settingsButtonRef.current?.focus();
+  };
+
   return (
-    <>
+    <InterfaceLanguageProvider language={interfaceLanguage.language}>
       <AppLayout
         workspaces={
           <WorkspaceColumn
@@ -99,6 +111,13 @@ function VaultView() {
             autosave={autosave}
             scrollSynchronizer={scrollSynchronizer}
             imagePaste={imagePaste}
+          />
+        }
+        workspacesFooter={
+          <SettingsButton
+            buttonRef={settingsButtonRef}
+            isOpen={isSettingsOpen}
+            onToggle={() => (isSettingsOpen ? closeSettings() : setIsSettingsOpen(true))}
           />
         }
         preview={{
@@ -155,7 +174,14 @@ function VaultView() {
         failure={snapshot.operationFailure}
         onDismiss={() => session.dismissOperationFailure()}
       />
-    </>
+      {isSettingsOpen && (
+        <SettingsDialog
+          language={interfaceLanguage.language}
+          onChoose={interfaceLanguage.choose}
+          onClose={closeSettings}
+        />
+      )}
+    </InterfaceLanguageProvider>
   );
 }
 
