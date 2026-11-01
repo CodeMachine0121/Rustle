@@ -4,6 +4,9 @@ import type { ArticleSummary } from "../../ipc/articleSummary";
 import type { ChannelResult } from "../../ipc/channelResult";
 import type { CreateArticleRequest } from "../../ipc/createArticleRequest";
 import type { CreateWorkspaceOutcome } from "../../ipc/createWorkspaceOutcome";
+import type { MetadataUpdateOutcome, MetadataUpdateRequest } from "../../ipc/metadataUpdate";
+import type { RenameWorkspaceOutcome } from "../../ipc/renameWorkspaceOutcome";
+import type { WorkspaceContents } from "../../ipc/workspaceContents";
 import type { Settings } from "../../ipc/settings";
 import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
 import { SettingsSession } from "../settings/SettingsSession";
@@ -61,6 +64,21 @@ function vaultChannels(settings: Settings = STORED_SETTINGS) {
     createArticle: vi.fn(
       (request: CreateArticleRequest): Promise<ChannelResult<ArticleSummary>> =>
         ok({ ...article("new-article.md"), title: request.title }),
+    ),
+    updateMetadata: vi.fn(
+      (request: MetadataUpdateRequest): Promise<ChannelResult<MetadataUpdateOutcome>> =>
+        ok({ outcome: "updated", article: { ...article(request.fileName), title: request.title } }),
+    ),
+    deleteArticle: vi.fn((): Promise<ChannelResult<null>> => ok(null)),
+    renameWorkspace: vi.fn(
+      (_workspace: string, newName: string): Promise<ChannelResult<RenameWorkspaceOutcome>> =>
+        ok({ outcome: "renamed", workspace: newName }),
+    ),
+    countWorkspaceContents: vi.fn(
+      (): Promise<ChannelResult<WorkspaceContents>> => ok({ articleCount: 3, imageCount: 2 }),
+    ),
+    deleteWorkspace: vi.fn(
+      (): Promise<ChannelResult<WorkspaceContents>> => ok({ articleCount: 3, imageCount: 2 }),
     ),
   } satisfies VaultChannels;
 }
@@ -579,6 +597,455 @@ describe("VaultSession", () => {
       expect(await creation).toEqual({ outcome: "created" });
       expect(session.snapshot.selectedWorkspace).toBe("Work");
       expect(session.snapshot.selectedArticle).toBeNull();
+    });
+  });
+
+  describe("editing an article's metadata", () => {
+    const EDIT = { title: "新標題", category: ["技術筆記"], tags: [] };
+
+    function blogAfterEditing() {
+      const channels = vaultChannels();
+      let titles: Record<string, string> = {};
+      channels.updateMetadata.mockImplementation((request: MetadataUpdateRequest) => {
+        titles = { ...titles, [request.fileName]: request.title };
+        return ok({ outcome: "updated", article: { ...article(request.fileName), title: request.title } });
+      });
+      channels.listArticles.mockImplementation((workspace: string) =>
+        ok(
+          (ARTICLES[workspace] ?? []).map((row) => ({
+            ...row,
+            title: titles[row.fileName] ?? row.title,
+          })),
+        ),
+      );
+      return channels;
+    }
+
+    it("saves and lets go of the open article before writing, then opens it again under its new title", async () => {
+      const channels = blogAfterEditing();
+      const holder = articleHolder();
+      const steps: string[] = [];
+      holder.closeArticle.mockImplementation(() => {
+        steps.push("close");
+        return Promise.resolve("switched");
+      });
+      const writeMetadata = channels.updateMetadata.getMockImplementation();
+      channels.updateMetadata.mockImplementationOnce((request: MetadataUpdateRequest) => {
+        steps.push("write");
+        return writeMetadata?.(request) ?? failed("no write");
+      });
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.openArticle.mockClear();
+
+      const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
+
+      expect(edit).toEqual({ outcome: "updated" });
+      expect(steps).toEqual(["close", "write"]);
+      expect(channels.updateMetadata).toHaveBeenCalledWith({
+        workspace: "Blog",
+        fileName: "zen-of-writing.md",
+        ...EDIT,
+      });
+      expect(holder.openArticle).toHaveBeenCalledTimes(1);
+      expect(holder.openArticle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "新標題",
+          article: expect.objectContaining({
+            fileName: "zen-of-writing.md",
+            lastKnownModifiedAt: "2026-08-20T08:04:11.123Z",
+          }),
+        }),
+      );
+      expect(channels.readBody).toHaveBeenLastCalledWith("Blog", "zen-of-writing.md");
+      expect(session.snapshot.selectedArticle).toBe("zen-of-writing.md");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("refreshes the row of an article that is not open and leaves the open one alone", async () => {
+      const channels = blogAfterEditing();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.openArticle.mockClear();
+
+      await session.updateMetadata("a.md", EDIT);
+
+      expect(holder.closeArticle).not.toHaveBeenCalled();
+      expect(holder.openArticle).not.toHaveBeenCalled();
+      expect(session.snapshot.articles.find(({ fileName }) => fileName === "a.md")?.title).toBe("新標題");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it.each([
+      ["blockedByUnansweredWarning", "請先回答標題列的外部改動提示，再試一次。"],
+      ["blockedByFailedSave", "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。"],
+    ] as const)("writes nothing when the open article cannot be left (%s)", async (refusal, message) => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.closeArticle.mockResolvedValue(refusal);
+
+      const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
+
+      expect(edit).toEqual({ outcome: "failed", message });
+      expect(channels.updateMetadata).not.toHaveBeenCalled();
+      expect(session.snapshot.operationFailure).toEqual({ operation: "updateMetadata", message });
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("reports a file another program changed meanwhile and keeps the article open", async () => {
+      const channels = vaultChannels();
+      channels.updateMetadata.mockImplementation(() => ok({ outcome: "modifiedElsewhere" }));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
+
+      expect(edit.outcome).toBe("failed");
+      expect(session.snapshot.operationFailure?.operation).toBe("updateMetadata");
+      expect(session.snapshot.operationFailure?.message).toContain("被別的程式改過");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("reports the backend's reason and opens the article again", async () => {
+      const channels = vaultChannels();
+      channels.updateMetadata.mockImplementation(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      const edit = await session.updateMetadata("zen-of-writing.md", EDIT);
+
+      expect(edit).toEqual({ outcome: "failed", message: "磁碟已滿" });
+      expect(session.snapshot.operationFailure).toEqual({ operation: "updateMetadata", message: "磁碟已滿" });
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("asks for nothing while no workspace is selected", async () => {
+      const channels = vaultChannels();
+      const session = new VaultSession(channels);
+
+      const edit = await session.updateMetadata("a.md", EDIT);
+
+      expect(edit.outcome).toBe("failed");
+      expect(channels.updateMetadata).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("deleting an article", () => {
+    it("saves and lets go of the open article first, then leaves nothing selected", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const steps: string[] = [];
+      holder.closeArticle.mockImplementation(() => {
+        steps.push("close");
+        return Promise.resolve("switched");
+      });
+      channels.deleteArticle.mockImplementation(() => {
+        steps.push("trash");
+        return ok(null);
+      });
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      await session.deleteArticle("zen-of-writing.md");
+
+      expect(steps).toEqual(["close", "trash"]);
+      expect(channels.deleteArticle).toHaveBeenCalledWith("Blog", "zen-of-writing.md");
+      expect(session.snapshot.selectedArticle).toBeNull();
+      expect(session.snapshot.openedDocument).toBeNull();
+      expect(session.snapshot.body).toBeNull();
+      expect(channels.writeSettings).toHaveBeenLastCalledWith({
+        ...STORED_SETTINGS,
+        lastOpened: { workspace: "Blog", article: null },
+      });
+    });
+
+    it("leaves the open article alone when another one is deleted", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      await session.deleteArticle("a.md");
+
+      expect(holder.closeArticle).not.toHaveBeenCalled();
+      expect(session.snapshot.selectedArticle).toBe("zen-of-writing.md");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("lists both the articles and the workspaces again", async () => {
+      const channels = vaultChannels();
+      const session = new VaultSession(channels);
+      await session.start();
+      channels.listArticles.mockClear();
+      channels.listWorkspaces.mockClear();
+
+      await session.deleteArticle("a.md");
+
+      expect(channels.listArticles).toHaveBeenCalledWith("Blog");
+      expect(channels.listWorkspaces).toHaveBeenCalled();
+    });
+
+    it("deletes nothing when the open article cannot be left", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.closeArticle.mockResolvedValue("blockedByUnansweredWarning");
+
+      await session.deleteArticle("zen-of-writing.md");
+
+      expect(channels.deleteArticle).not.toHaveBeenCalled();
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "deleteArticle",
+        message: "請先回答標題列的外部改動提示，再試一次。",
+      });
+    });
+
+    it("reports the trash's reason and opens the article again", async () => {
+      const channels = vaultChannels();
+      channels.deleteArticle.mockImplementation(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      await session.deleteArticle("zen-of-writing.md");
+
+      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteArticle", message: "磁碟已滿" });
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("clears the failure notice when the next operation succeeds", async () => {
+      const channels = vaultChannels();
+      channels.deleteArticle.mockImplementationOnce(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+      await session.deleteArticle("a.md");
+
+      await session.deleteArticle("b.md");
+
+      expect(session.snapshot.operationFailure).toBeNull();
+    });
+
+    it("asks for nothing while no workspace is selected", async () => {
+      const channels = vaultChannels();
+      const session = new VaultSession(channels);
+
+      await session.deleteArticle("a.md");
+
+      expect(channels.deleteArticle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("renaming a workspace", () => {
+    it("saves and lets go of the open article first, then keeps the workspace selected under its new name", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const steps: string[] = [];
+      holder.closeArticle.mockImplementation(() => {
+        steps.push("close");
+        return Promise.resolve("switched");
+      });
+      channels.renameWorkspace.mockImplementation((_workspace: string, newName: string) => {
+        steps.push("rename");
+        return ok({ outcome: "renamed", workspace: newName });
+      });
+      channels.listArticles.mockImplementation((workspace: string) =>
+        ok(workspace === "Writing" ? (ARTICLES.Blog ?? []) : []),
+      );
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      const renamed = await session.renameWorkspace("Blog", "Writing");
+
+      expect(renamed).toBe(true);
+      expect(steps.slice(0, 2)).toEqual(["close", "rename"]);
+      expect(session.snapshot.selectedWorkspace).toBe("Writing");
+      expect(session.snapshot.articles).toHaveLength(3);
+      expect(session.snapshot.selectedArticle).toBeNull();
+      expect(session.snapshot.openedDocument).toBeNull();
+      expect(channels.writeSettings).toHaveBeenLastCalledWith({
+        ...STORED_SETTINGS,
+        lastOpened: { workspace: "Writing", article: null },
+      });
+    });
+
+    it("keeps the selection when another workspace is renamed", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      await session.renameWorkspace("Work", "Job");
+
+      expect(holder.closeArticle).not.toHaveBeenCalled();
+      expect(session.snapshot.selectedWorkspace).toBe("Blog");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+      expect(channels.listWorkspaces).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps the rejection for the field and opens the left article again", async () => {
+      const channels = vaultChannels();
+      channels.renameWorkspace.mockImplementation(() => ok({ outcome: "rejected", reason: "alreadyUsed" }));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      const renamed = await session.renameWorkspace("Blog", "work");
+
+      expect(renamed).toBe(false);
+      expect(session.snapshot.renameRejection).toEqual({ workspace: "Blog", reason: "alreadyUsed" });
+      expect(session.snapshot.selectedWorkspace).toBe("Blog");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+
+    it("renames nothing when the open article cannot be left", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.closeArticle.mockResolvedValue("blockedByUnansweredWarning");
+
+      const renamed = await session.renameWorkspace("Blog", "Writing");
+
+      expect(renamed).toBe(false);
+      expect(channels.renameWorkspace).not.toHaveBeenCalled();
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "renameWorkspace",
+        message: "請先回答標題列的外部改動提示，再試一次。",
+      });
+    });
+
+    it("reports the backend's reason", async () => {
+      const channels = vaultChannels();
+      channels.renameWorkspace.mockImplementation(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      expect(await session.renameWorkspace("Work", "Job")).toBe(false);
+      expect(session.snapshot.operationFailure).toEqual({ operation: "renameWorkspace", message: "磁碟已滿" });
+    });
+  });
+
+  describe("deleting a workspace", () => {
+    it("counts what deleting a workspace would take", async () => {
+      const channels = vaultChannels();
+      const session = new VaultSession(channels);
+
+      expect(await session.countWorkspaceContents("Blog")).toEqual({ articleCount: 3, imageCount: 2 });
+      expect(channels.countWorkspaceContents).toHaveBeenCalledWith("Blog");
+    });
+
+    it("reports a workspace that cannot be counted instead of answering a number", async () => {
+      const channels = vaultChannels();
+      channels.countWorkspaceContents.mockImplementation(() => failed("permission denied"));
+      const session = new VaultSession(channels);
+
+      expect(await session.countWorkspaceContents("Blog")).toBeNull();
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "deleteWorkspace",
+        message: "permission denied",
+      });
+    });
+
+    it("saves and lets go of the open article first, then selects nothing", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const steps: string[] = [];
+      holder.closeArticle.mockImplementation(() => {
+        steps.push("close");
+        return Promise.resolve("switched");
+      });
+      channels.deleteWorkspace.mockImplementation(() => {
+        steps.push("trash");
+        return ok({ articleCount: 3, imageCount: 2 });
+      });
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      await session.deleteWorkspace("Blog");
+
+      expect(steps).toEqual(["close", "trash"]);
+      expect(session.snapshot.selectedWorkspace).toBeNull();
+      expect(session.snapshot.articles).toEqual([]);
+      expect(session.snapshot.selectedArticle).toBeNull();
+      expect(session.snapshot.openedDocument).toBeNull();
+      expect(channels.writeSettings).toHaveBeenLastCalledWith({
+        ...STORED_SETTINGS,
+        lastOpened: { workspace: null, article: null },
+      });
+    });
+
+    it("keeps the selection and lists the workspaces again when another one is deleted", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      channels.listWorkspaces.mockClear();
+
+      await session.deleteWorkspace("Work");
+
+      expect(holder.closeArticle).not.toHaveBeenCalled();
+      expect(session.snapshot.selectedWorkspace).toBe("Blog");
+      expect(channels.listWorkspaces).toHaveBeenCalled();
+    });
+
+    it("deletes nothing when the open article cannot be left", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.closeArticle.mockResolvedValue("blockedByFailedSave");
+
+      await session.deleteWorkspace("Blog");
+
+      expect(channels.deleteWorkspace).not.toHaveBeenCalled();
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "deleteWorkspace",
+        message: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
+      });
+    });
+
+    it("reports the trash's reason and opens the left article again", async () => {
+      const channels = vaultChannels();
+      channels.deleteWorkspace.mockImplementation(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      await session.deleteWorkspace("Blog");
+
+      expect(session.snapshot.operationFailure).toEqual({ operation: "deleteWorkspace", message: "磁碟已滿" });
+      expect(session.snapshot.selectedWorkspace).toBe("Blog");
+      expect(session.snapshot.openedDocument).toBe("Blog/zen-of-writing.md");
+    });
+  });
+
+  describe("the operation failure notice", () => {
+    it("records a failed article creation as such, not as a list that cannot be read", async () => {
+      const channels = vaultChannels();
+      channels.createArticle.mockImplementation(() => failed("'Blog/zen.md' already exists"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      await session.createArticle({ title: "Zen", category: [], tags: [] });
+
+      expect(session.snapshot.operationFailure).toEqual({
+        operation: "createArticle",
+        message: "'Blog/zen.md' already exists",
+      });
+      expect(session.snapshot.articleListFailure).toBeNull();
+    });
+
+    it("can be dismissed", async () => {
+      const channels = vaultChannels();
+      channels.deleteArticle.mockImplementation(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+      await session.deleteArticle("a.md");
+
+      session.dismissOperationFailure();
+
+      expect(session.snapshot.operationFailure).toBeNull();
     });
   });
 });
