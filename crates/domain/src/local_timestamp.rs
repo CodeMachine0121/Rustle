@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::SystemTime;
 
-use crate::utc_timestamp::{SECONDS_PER_DAY, UtcTimestamp};
+use crate::utc_timestamp::UtcTimestamp;
 
 const SECONDS_PER_MINUTE: i64 = 60;
 const SECONDS_PER_HOUR: i64 = 3_600;
@@ -29,16 +29,12 @@ impl fmt::Display for LocalTimestamp {
         let local_seconds =
             u64::try_from(utc_seconds.saturating_add(i64::from(self.offset_seconds)))
                 .unwrap_or_default();
-        let (year, month, day) = UtcTimestamp::civil_date(local_seconds / SECONDS_PER_DAY);
-        let second_of_day = local_seconds % SECONDS_PER_DAY;
+        UtcTimestamp::write_date_time(formatter, local_seconds)?;
         let sign = if self.offset_seconds < 0 { '-' } else { '+' };
         let offset = i64::from(self.offset_seconds).abs();
         write!(
             formatter,
-            "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}{sign}{:02}:{:02}",
-            second_of_day / 3_600,
-            second_of_day % 3_600 / 60,
-            second_of_day % 60,
+            "{sign}{:02}:{:02}",
             offset / SECONDS_PER_HOUR,
             offset % SECONDS_PER_HOUR / SECONDS_PER_MINUTE,
         )
