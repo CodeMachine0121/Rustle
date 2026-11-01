@@ -111,6 +111,12 @@ describe("Theme", () => {
     expect(tokens.selected).toBe("color-mix(in oklab, #a7c080 14%, #272e33)");
   });
 
+  it("is a theme without any overrides at all", () => {
+    const withoutOverrides = Object.fromEntries(Object.entries(forest).filter(([field]) => field !== "overrides"));
+
+    expect(parsed(withoutOverrides).tokens).toEqual(parsed(forest).tokens);
+  });
+
   it("takes an override over the derived colour and ignores one that is not a colour", () => {
     const tokens = parsed({ ...forest, overrides: { "editor-code": "#123456", "editor-quote": "green", nonsense: "#ffffff" } })
       .tokens;
