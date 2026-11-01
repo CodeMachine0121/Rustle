@@ -50,6 +50,15 @@ describe("usePreviewPanel", () => {
     expect(result.current.isOpen).toBe(true);
   });
 
+  it("collapses on Mod+Shift+P and expands on the next Mod+Shift+P", async () => {
+    const { result } = await openPanel();
+
+    pressShortcut(MOD_SHIFT_P);
+    expect(result.current.isOpen).toBe(false);
+    pressShortcut(MOD_SHIFT_P);
+    expect(result.current.isOpen).toBe(true);
+  });
+
   it("toggles on Mod+Shift+P, with Ctrl as well as Cmd", async () => {
     const { result } = await openPanel();
 
