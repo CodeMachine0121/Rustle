@@ -2,6 +2,7 @@ import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import type { AutosaveSwitchOutcome, SaveIndicator } from "../autosave/AutosaveSession";
 import type { StatusChoice } from "../sidebar/statusChoice";
 import type { Operation } from "../vault/operationFailure";
+import type { ViewMode } from "../writingLayout/WritingLayout";
 import type { InterfaceLanguage } from "./interfaceLanguage";
 
 type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
@@ -30,6 +31,13 @@ export const CHINESE_MESSAGES = {
   openPreview: "開啟預覽",
   openPreviewHandle: "◀ 預覽",
   closePreview: "關閉預覽",
+  zenMode: "Zen Mode",
+  viewModesGroup: "檢視模式",
+  viewModes: {
+    editorOnly: "只有編輯",
+    sideBySide: "編輯與預覽並排",
+    previewOnly: "只有預覽",
+  } satisfies Record<ViewMode, string> as Record<ViewMode, string>,
   previewContent: "預覽內容",
   adjustPreviewWidth: "調整預覽寬度",
 
@@ -158,6 +166,13 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   openPreview: "Open preview",
   openPreviewHandle: "◀ Preview",
   closePreview: "Close preview",
+  zenMode: "Zen Mode",
+  viewModesGroup: "View mode",
+  viewModes: {
+    editorOnly: "Editor only",
+    sideBySide: "Editor and preview side by side",
+    previewOnly: "Preview only",
+  },
   previewContent: "Preview content",
   adjustPreviewWidth: "Adjust preview width",
 
