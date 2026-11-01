@@ -8,9 +8,7 @@ use tauri::webview::InvokeRequest;
 use tauri::{App, WebviewWindow, WebviewWindowBuilder};
 
 fn app() -> (App<MockRuntime>, WebviewWindow<MockRuntime>) {
-    let registry = ChannelRegistry::new(channel_handlers()).expect("every channel has one handler");
-    let app = mock_builder()
-        .invoke_handler(registry.into_invoke_handler())
+    let app = rustle_lib::configure(mock_builder())
         .build(mock_context(noop_assets()))
         .expect("mock app");
     let window = WebviewWindowBuilder::new(&app, "main", Default::default())

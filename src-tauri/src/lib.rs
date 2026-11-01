@@ -1,23 +1,32 @@
 // The webview reads its policy from tauri.conf.json; this module is the
 // readable source of truth that a test pins that file to.
+#[cfg(test)]
+mod content_security_policy;
+
 pub mod channel;
 pub mod channel_registry;
 pub mod channels;
 pub mod command_error;
 pub mod commands;
-#[cfg(test)]
-mod content_security_policy;
 pub mod navigation_policy;
 pub mod protocol_registry;
 pub mod protocols;
 pub mod vault_asset_scheme;
 
-use tauri::{App, WebviewUrl, WebviewWindowBuilder};
+use tauri::webview::NewWindowResponse;
+use tauri::{App, Builder, Runtime, Url, WebviewUrl, WebviewWindowBuilder};
+
+use crate::channel_registry::ChannelRegistry;
+use crate::channels::channel_handlers;
+use crate::navigation_policy::{NavigationDecision, NavigationPolicy};
+use crate::protocol_registry::ProtocolRegistry;
+use crate::protocols::scheme_handlers;
 
 const MAIN_WINDOW_LABEL: &str = "main";
+const APP_PAGE: &str = "index.html";
 
 pub fn run() {
-    tauri::Builder::default()
+    configure(Builder::default())
         .setup(|app| {
             open_main_window(app)?;
             Ok(())
@@ -26,11 +35,67 @@ pub fn run() {
         .expect("Rustle failed to start");
 }
 
-fn open_main_window(app: &App) -> tauri::Result<()> {
-    WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
+/// Installs the channel and protocol registries. Assembly mistakes (a
+/// channel without a handler, a scheme registered twice) stop the app here.
+pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
+    let channels =
+        ChannelRegistry::new(channel_handlers()).expect("every channel has exactly one handler");
+    let protocols =
+        ProtocolRegistry::new(scheme_handlers()).expect("every scheme has exactly one handler");
+    protocols
+        .install(builder)
+        .invoke_handler(channels.into_invoke_handler())
+}
+
+fn open_main_window<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
+    let navigation_policy = NavigationPolicy::new(app_page_url(app));
+    let new_window_policy = navigation_policy.clone();
+    WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App(APP_PAGE.into()))
         .title("Rustle")
         .inner_size(1200.0, 800.0)
         .min_inner_size(640.0, 400.0)
+        .on_navigation(
+            move |target| match navigation_policy.decide(target.as_str()) {
+                NavigationDecision::Allow => true,
+                NavigationDecision::Deny { open_in_browser } => {
+                    if open_in_browser {
+                        open_in_system_browser(target);
+                    }
+                    false
+                }
+            },
+        )
+        .on_new_window(move |target, _features| {
+            if let NavigationDecision::Deny {
+                open_in_browser: true,
+            } = new_window_policy.decide(target.as_str())
+            {
+                open_in_system_browser(&target);
+            }
+            NewWindowResponse::Deny
+        })
         .build()?;
     Ok(())
+}
+
+fn open_in_system_browser(target: &Url) {
+    if let Err(error) = tauri_plugin_opener::open_url(target.as_str(), None::<&str>) {
+        eprintln!("could not open {target} in the browser: {error}");
+    }
+}
+
+/// Mirrors how Tauri resolves `WebviewUrl::App`: the dev server while
+/// developing, otherwise its asset protocol origin.
+fn app_page_url<R: Runtime>(app: &App<R>) -> Url {
+    let origin = if cfg!(windows) {
+        "http://tauri.localhost/"
+    } else {
+        "tauri://localhost/"
+    };
+    let base = tauri::is_dev()
+        .then(|| app.config().build.dev_url.clone())
+        .flatten()
+        .unwrap_or_else(|| Url::parse(origin).expect("the asset origin is a valid URL"));
+    base.join(APP_PAGE)
+        .expect("the app page name is a valid relative URL")
 }
