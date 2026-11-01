@@ -1,3 +1,4 @@
+import type { ArticleBody } from "./articleBody";
 import { callChannel } from "./callChannel";
 
 // The webview's only way to reach the backend. Each slice replaces the
@@ -9,7 +10,8 @@ export const channels = {
 
   createArticle: () => callChannel<null>("create_article"),
 
-  readBody: () => callChannel<null>("read_body"),
+  readBody: (workspace: string, fileName: string) =>
+    callChannel<ArticleBody>("read_body", { workspace, fileName }),
 
   saveBody: () => callChannel<null>("save_body"),
 
