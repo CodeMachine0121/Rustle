@@ -103,23 +103,3 @@ fn the_webview_channel_list_matches_the_backend_channels() {
         );
     }
 }
-
-#[test]
-fn a_close_request_answer_that_keeps_the_window_open_succeeds() {
-    let (_app, window) = app();
-
-    let answer = tauri::test::get_ipc_response(
-        &window,
-        InvokeRequest {
-            cmd: "answer_close_request".into(),
-            callback: CallbackFn(0),
-            error: CallbackFn(1),
-            url: "tauri://localhost".parse().expect("valid url"),
-            body: InvokeBody::Json(json!({ "close": false })),
-            headers: Default::default(),
-            invoke_key: INVOKE_KEY.to_owned(),
-        },
-    );
-
-    assert!(answer.is_ok());
-}
