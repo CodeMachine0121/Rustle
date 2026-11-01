@@ -154,6 +154,19 @@ describe("Theme", () => {
     expect(element.style.colorScheme).toBe("dark");
   });
 
+  it("replaces every colour of the previous theme when it names only base colours", () => {
+    const element = document.createElement("div");
+    parsed(light).applyTo(element);
+    const forestTokens = parsed(forest).tokens;
+
+    parsed(forest).applyTo(element);
+
+    expect(THEME_TOKENS.map((token) => element.style.getPropertyValue(`--color-${token}`))).toEqual(
+      THEME_TOKENS.map((token) => forestTokens[token]),
+    );
+    expect(THEME_TOKENS.filter((token) => element.style.getPropertyValue(`--color-${token}`) === "")).toEqual([]);
+  });
+
   it("leaves nothing of the previous theme behind", () => {
     const element = document.createElement("div");
     parsed(forest).applyTo(element);
