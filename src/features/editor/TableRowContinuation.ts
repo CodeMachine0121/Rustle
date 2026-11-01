@@ -7,8 +7,8 @@ import { TableRow } from "./TableRow";
 
 /**
  * Owns Enter at the end of a Markdown table row: it adds the next empty row.
- * On a row whose cells are all empty, Enter anywhere past its first pipe
- * clears the row to leave the table (an added row puts the cursor in its
+ * On the table's last row, when its cells are all empty, Enter anywhere past
+ * its first pipe clears the row to leave the table (an added row puts the cursor in its
  * first cell, so two presses leave).
  * Every other Enter stays the editor's own. It sits above the default Enter
  * and below anything that claims Enter at the highest precedence (a menu).
@@ -27,7 +27,8 @@ export class TableRowContinuation {
       return false;
     }
     const line = state.doc.lineAt(cursor.head);
-    const edit = TableRow.parse(line.text)?.enterAt(cursor.head - line.from) ?? null;
+    const lineBelow = line.number < state.doc.lines ? state.doc.line(line.number + 1).text : null;
+    const edit = TableRow.parse(line.text)?.enterAt(cursor.head - line.from, lineBelow) ?? null;
     if (edit === null) {
       return false;
     }

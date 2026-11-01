@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { TableRow } from "./TableRow";
 
 /** The line after Enter at `‸`, with `‸` where the cursor ends up; `null` when the row leaves Enter alone. */
-function afterEnter(marked: string): string | null {
+function afterEnter(marked: string, lineBelow: string | null = null): string | null {
   const column = marked.indexOf("‸");
   const line = marked.replace("‸", "");
-  const edit = TableRow.parse(line)?.enterAt(column) ?? null;
+  const edit = TableRow.parse(line)?.enterAt(column, lineBelow) ?? null;
   if (edit === null) {
     return null;
   }
@@ -46,6 +46,20 @@ describe("TableRow", () => {
     ["> |  |  |  ‸", "> ‸"],
   ])("clears the finished, empty row %j", (before, after) => {
     expect(afterEnter(before)).toBe(after);
+  });
+
+  it.each([
+    ["|  |  |‸", "| 甲 | 乙 |", "|  |  |\n| ‸ |  |"],
+    ["| ‸ |  |", "| 丙 | 丁 |", null],
+  ])("keeps the empty row %j in the table when %j is below it", (before, lineBelow, after) => {
+    expect(afterEnter(before, lineBelow)).toBe(after);
+  });
+
+  it.each([
+    ["|  |  |‸", ""],
+    ["|  |  |‸", "下一段"],
+  ])("clears the empty row %j when %j is below it", (before, lineBelow) => {
+    expect(afterEnter(before, lineBelow)).toBe("‸");
   });
 
   it.each(["| 甲‸ | 乙 |", "‸| 甲 | 乙 |", "‸|  |  |", "> ‸|  |", "| 甲 | 乙 ‸|"])(

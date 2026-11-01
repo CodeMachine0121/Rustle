@@ -33,15 +33,18 @@ export class TableRow {
   }
 
   /**
-   * What Enter does with the cursor at `column`: at the end of the row it adds
-   * the next empty row (same prefix and columns, cursor in its first cell).
-   * On a finished row — every cell empty; a lone pipe is a row being started —
-   * anywhere after the first pipe it clears the row down to its prefix.
+   * What Enter does with the cursor at `column`, given the line below the row
+   * (`null` at the end of the document): at the end of the row it adds the
+   * next empty row (same prefix and columns, cursor in its first cell).
+   * On the table's last row, when it is finished — every cell empty; a lone
+   * pipe is a row being started — anywhere after the first pipe it clears the
+   * row down to its prefix. An empty row with rows below it stays in the table.
    * Anywhere else it is not the table's Enter: `null`.
    */
-  enterAt(column: number): TableRowEdit | null {
+  enterAt(column: number, lineBelow: string | null): TableRowEdit | null {
     const isBlank = this.#hasClosedCell && this.#cells.every((cell) => cell.trim() === "");
-    if (isBlank && column > this.#prefix.length) {
+    const isLastRow = lineBelow === null || TableRow.parse(lineBelow) === null;
+    if (isBlank && isLastRow && column > this.#prefix.length) {
       return { from: 0, to: this.#length, insert: this.#prefix, cursor: this.#prefix.length };
     }
     if (column !== this.#length) {

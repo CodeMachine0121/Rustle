@@ -104,12 +104,24 @@ describe("Enter on a row whose every cell is empty leaves the table", () => {
     ["with the row's indentation kept", "  | 甲 | 乙 |\n  |  |  |‸", "  | 甲 | 乙 |\n  ‸"],
     ["inside a quote, staying in the quote", "> | 甲 | 乙 |\n> |  |  |‸", "> | 甲 | 乙 |\n> ‸"],
     ["for a row of one empty cell", "|  |‸", "‸"],
+    ["above a paragraph", "| 甲 | 乙 |\n|  |  |‸\n\n下一段", "| 甲 | 乙 |\n‸\n\n下一段"],
   ])("%s", (_situation, before, after) => {
     const { view } = openEditor(before);
 
     pressEnter(view);
 
     expect(shown(view)).toBe(after);
+  });
+
+  it.each([
+    ["at its end, adding the next row", "| 甲 | 乙 |\n|  |  |‸\n| 丙 | 丁 |", "| 甲 | 乙 |\n|  |  |\n| ‸ |  |\n| 丙 | 丁 |"],
+    ["in its first cell, as the editor's own Enter", "| 甲 | 乙 |\n| ‸ |  |\n| 丙 | 丁 |", null],
+  ])("keeps an empty row with rows below it in the table, %s", (_situation, before, after) => {
+    const { view } = openEditor(before);
+
+    pressEnter(view);
+
+    expect(shown(view)).toBe(after ?? enterWithoutContinuation(before));
   });
 
   it("takes two presses of Enter after a filled row", () => {
