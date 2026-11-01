@@ -151,10 +151,10 @@ class TabKeyListener {
     }
     const composing = this.#composition.ownsKey(event);
     if (event.key === "Escape") {
-      if (composing) {
+      if (composing || event.shiftKey) {
         return;
       }
-      if (!event.shiftKey && this.#claims().some((claim) => claim.claimEscape(this.#view))) {
+      if (this.#claims().some((claim) => claim.claimEscape(this.#view))) {
         event.preventDefault();
       } else if (!this.#view.state.facet(escapeRouteClosed)) {
         this.#escapeArmedAt = Date.now();

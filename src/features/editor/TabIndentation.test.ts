@@ -482,6 +482,16 @@ describe("keyboard way out after Esc", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("keeps indenting on the Tab right after Shift+Esc", () => {
+    const { view } = openEditor({ doc: "字" });
+
+    press(view, "Escape", { shiftKey: true });
+    const event = pressTab(view);
+
+    expect(textOf(view)).toBe("  字");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("leaves an Esc nothing claims to the rest of the app", () => {
     const { view } = openEditor({ doc: "字" });
 
