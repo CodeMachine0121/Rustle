@@ -4,7 +4,6 @@ import type { ArticleSummary } from "../../ipc/articleSummary";
 import {
   ARTICLE_ORDERS,
   articleOrderNamed,
-  ArticleFilter,
   arrangeArticles,
   DEFAULT_ARTICLE_ORDER,
   type ArticleOrder,
@@ -64,10 +63,9 @@ type ArticleListProps = ArticleColumnProps & { filterText: string; order: Articl
 
 function ArticleList({ snapshot, filterText, order, onSelect, onCreateArticle }: ArticleListProps) {
   const { articles, selectedArticle, articleListFailure } = snapshot;
-  const filter = useMemo(() => new ArticleFilter(filterText), [filterText]);
   const rows = useMemo(
-    () => arrangeArticles(articles, { filter, order, openArticle: selectedArticle }),
-    [articles, filter, order, selectedArticle],
+    () => arrangeArticles(articles, { filterText, order, openArticle: selectedArticle }),
+    [articles, filterText, order, selectedArticle],
   );
   if (articleListFailure !== null) {
     return (
@@ -88,12 +86,12 @@ function ArticleList({ snapshot, filterText, order, onSelect, onCreateArticle }:
   }
   return (
     <ul className="column-list">
-      {rows.map((article) => (
+      {rows.map(({ article, isOutsideFilter }) => (
         <li key={article.fileName}>
           <ArticleRow
             article={article}
             isSelected={article.fileName === selectedArticle}
-            isKeptOnlyBecauseOpen={!filter.isEmpty && !filter.matches(article)}
+            isOutsideFilter={isOutsideFilter}
             onSelect={onSelect}
           />
         </li>
@@ -105,11 +103,11 @@ function ArticleList({ snapshot, filterText, order, onSelect, onCreateArticle }:
 type ArticleRowProps = {
   article: ArticleSummary;
   isSelected: boolean;
-  isKeptOnlyBecauseOpen: boolean;
+  isOutsideFilter: boolean;
   onSelect: (fileName: string) => void;
 };
 
-function ArticleRow({ article, isSelected, isKeptOnlyBecauseOpen, onSelect }: ArticleRowProps) {
+function ArticleRow({ article, isSelected, isOutsideFilter, onSelect }: ArticleRowProps) {
   const createdDate = LEADING_DATE.exec(article.createdAt)?.[0] ?? article.createdAt;
   const details = [createdDate, ...article.category].filter((detail) => detail !== "");
   return (
@@ -131,7 +129,7 @@ function ArticleRow({ article, isSelected, isKeptOnlyBecauseOpen, onSelect }: Ar
         </span>
       )}
       {article.hasIncompleteMetadata && <span className="incomplete-marker">metadata 不完整</span>}
-      {isKeptOnlyBecauseOpen && <span className="open-article-marker">開著・不符合篩選</span>}
+      {isOutsideFilter && <span className="open-article-marker">開著・不符合篩選</span>}
     </button>
   );
 }

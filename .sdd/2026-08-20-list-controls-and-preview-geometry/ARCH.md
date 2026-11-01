@@ -47,8 +47,8 @@
 | Name | Kind | Responsibility | Collaborators | Satisfies |
 | :--- | :--- | :--- | :--- | :--- |
 | `ArticleOrder` | union type + `ARTICLE_ORDERS` labels | the three orders: `createdNewestFirst` (default), `title`, `updatedNewestFirst` | — | TC-01~03 |
-| `ArticleFilter` | class | `new ArticleFilter(text)`: trims, case-insensitive substring over title / categories / tags; blank matches everything | — | TC-11~18 |
-| `arrangeArticles` | pure function | filter (keeping the open article), then sort on a copy; times compared as instants (`Date.parse` on an ISO-shaped string, anything else = no time, last); ties by title then file name | `ArticleFilter`, `ArticleOrder` | TC-01~08, TC-20, TC-23, TC-58 |
+| `ArticleFilter` | class (module-private) | `new ArticleFilter(text)`: trims, case-insensitive substring over title / categories / tags; blank matches everything | — | TC-11~18 |
+| `arrangeArticles` | pure function | `(articles, { filterText, order, openArticle })` → `{ article, isOutsideFilter }[]`: filter (keeping the open article, flagged), then sort on a copy; times compared as instants (`Date.parse` on an ISO-shaped string, anything else = no time, last); ties by title then file name | `ArticleFilter`, `ArticleOrder` | TC-01~08, TC-20, TC-23, TC-58 |
 | `ArticleFilterField` | component | typed text vs applied text, debounced via the shared composition state | `CompositionAwareDebouncer`, `CompositionState` | TC-24~31 |
 | `PreviewWidth` | value class | `of(ratio)` clamps to 0.2–0.8; `draggedBy(pixelsToTheRight, areaWidth)`; `steppedBy(steps)` (5 points a step); `percent` | — | TC-32, TC-35~38, TC-40 |
 | `PaneDivider` | component | separator semantics (`aria-valuenow/min/max`, focusable); pointer capture drag → `onResize` per move, `onResizeEnd` once on release; ArrowLeft/Right → `onResizeEnd` unless the input method owns the key | `PreviewWidth`, `CompositionState` | TC-32~36, TC-39~42 |
@@ -113,7 +113,7 @@ flowchart TD
 | TC-09, TC-10 (order change keeps selection, no channel) | `ArticleColumn` local state (never calls `onSelect`, no channel access) |
 | TC-11 ~ TC-18 (matching) | `ArticleFilter` |
 | TC-19 (no match message) | `ArticleColumn` |
-| TC-20 (open article kept) | `arrangeArticles` (`keep`) + `ArticleColumn` marker |
+| TC-20 (open article kept) | `arrangeArticles` (`openArticle`, `isOutsideFilter`) + `ArticleColumn` marker |
 | TC-21 (no channel) | `ArticleColumn` / `ArticleFilterField` (no channel access) |
 | TC-22 (vocabulary is whole workspace) | `App` keeps `vocabularyOf(snapshot.articles)`; column never changes the snapshot |
 | TC-23 (filter + order) | `arrangeArticles` |

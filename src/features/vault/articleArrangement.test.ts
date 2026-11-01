@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import {
-  ArticleFilter,
   arrangeArticles,
   articleOrderNamed,
   type ArticleOrder,
@@ -54,17 +53,15 @@ const THREE = [
 ];
 
 function ordered(articles: ArticleSummary[], order: ArticleOrder): string[] {
-  return arrangeArticles(articles, { filter: new ArticleFilter(""), order, openArticle: null }).map(
-    ({ fileName }) => fileName,
+  return arrangeArticles(articles, { filterText: "", order, openArticle: null }).map(
+    ({ article: { fileName } }) => fileName,
   );
 }
 
 function filtered(text: string, openArticle: string | null = null): string[] {
-  return arrangeArticles(THREE, {
-    filter: new ArticleFilter(text),
-    order: "title",
-    openArticle,
-  }).map(({ title }) => title);
+  return arrangeArticles(THREE, { filterText: text, order: "title", openArticle }).map(
+    ({ article: { title } }) => title,
+  );
 }
 
 describe("arrangeArticles ordering", () => {
@@ -148,8 +145,13 @@ describe("arrangeArticles filtering", () => {
     expect(filtered(text)).toHaveLength(3);
   });
 
-  it("keeps the open article even when it does not match", () => {
-    expect(filtered("技術", "zen.md")).toEqual(["Tauri 與 Electron", "Zen of Writing"]);
+  it("keeps the open article even when it does not match, and says so", () => {
+    const rows = arrangeArticles(THREE, { filterText: "技術", order: "title", openArticle: "zen.md" });
+
+    expect(rows.map(({ article: { title }, isOutsideFilter }) => [title, isOutsideFilter])).toEqual([
+      ["Tauri 與 Electron", false],
+      ["Zen of Writing", true],
+    ]);
   });
 
   it("orders what is left", () => {
@@ -169,7 +171,7 @@ describe("arrangeArticles filtering", () => {
 
     const started = performance.now();
     const rows = arrangeArticles(many, {
-      filter: new ArticleFilter("技術"),
+      filterText: "技術",
       order: "createdNewestFirst",
       openArticle: null,
     });
