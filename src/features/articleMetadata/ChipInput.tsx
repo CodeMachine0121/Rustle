@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useId, type KeyboardEvent } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
@@ -66,7 +67,7 @@ export function ChipInput({
               aria-label={messages.removeChip(value)}
               onClick={() => onValuesChange(values.filter((chip) => chip !== value))}
             >
-              ×
+              <X className="icon chip__remove-mark" aria-hidden="true" />
             </button>
           </span>
         ))}

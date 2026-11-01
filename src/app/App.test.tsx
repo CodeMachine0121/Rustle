@@ -2,7 +2,7 @@
 import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -120,6 +120,14 @@ function editorContent(): HTMLElement | null {
   return content instanceof HTMLElement ? content : null;
 }
 
+function saveStatusLine(): HTMLElement {
+  return screen.getByRole("contentinfo", { name: "儲存狀態列" });
+}
+
+function saveIndicator(): string | null {
+  return document.querySelector(".save-indicator")?.getAttribute("data-indicator") ?? null;
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -217,9 +225,29 @@ describe("App", () => {
       (element) => columns.findIndex((column) => column.contains(element)),
     );
 
-    expect(focusable.every((count) => count > 0)).toBe(true);
+    expect(focusable.slice(0, -1).every((count) => count > 0)).toBe(true);
     expect(order).toEqual([...order].sort((left, right) => left - right));
-    expect(document.querySelector("input")).toHaveAccessibleName("新 workspace 名稱");
+    expect(document.querySelector("button")).toHaveAccessibleName("所有文章");
+    expect(columns.at(-1)).toHaveAccessibleName("預覽區");
+  });
+
+  it("creates a workspace from the dialog behind the plus icon and closes it", async () => {
+    answerFromAVault({ workspace: null, article: null });
+    const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+    vi.mocked(invoke).mockImplementation((command, args) =>
+      command === "create_workspace"
+        ? Promise.resolve({ outcome: "created", workspace: { name: "Notes", articleCount: 0 } })
+        : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
+    );
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "新增 workspace" }));
+    const field = within(screen.getByRole("dialog")).getByRole("textbox", { name: "新 workspace 名稱" });
+    fireEvent.change(field, { target: { value: "Notes" } });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "建立" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(invoke).toHaveBeenCalledWith("create_workspace", { name: "Notes" });
   });
 
   it("says in one line that the vault could not be read and stays usable", async () => {
@@ -239,14 +267,15 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("讀不到 vault");
-    expect(screen.getByRole("textbox", { name: "新 workspace 名稱" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "新增 workspace" })).toBeEnabled();
   });
 
-  it("saves what is typed into the open article and says so in its title bar", async () => {
+  it("saves what is typed into the open article and says so in its save status line", async () => {
     answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
     render(<App />);
     await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
-    expect(screen.getByRole("banner")).toHaveTextContent("Zen of Writing");
+    expect(saveStatusLine()).toHaveTextContent("Blog❯zen-of-writing.md");
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
 
     const content = editorContent();
     if (content === null) {
@@ -254,7 +283,7 @@ describe("App", () => {
     }
     fireEvent.keyDown(content, { key: "Tab" });
 
-    expect(screen.getByText("未儲存的變更")).toBeInTheDocument();
+    expect(saveIndicator()).toBe("saving");
     await waitFor(
       () =>
         expect(invoke).toHaveBeenCalledWith("save_body", {
@@ -266,7 +295,7 @@ describe("App", () => {
         }),
       { timeout: 2000 },
     );
-    expect(await screen.findByText("已儲存")).toBeInTheDocument();
+    await waitFor(() => expect(saveIndicator()).toBe("saved"));
   });
 
   it("keeps the article open while its changes cannot be saved", async () => {
@@ -369,14 +398,14 @@ describe("App", () => {
       act(() => view.dispatch({ changes: { from: view.state.doc.length, insert: text } }));
     }
 
-    it("shows the open article rendered in the fourth column with a close button", async () => {
+    it("shows the open article rendered in the fourth column without a close button", async () => {
       answerFromAVault({ workspace: "Work", article: "q3.md" });
       render(<App />);
 
       expect(
         await within(previewRegion()).findByRole("heading", { level: 1, name: "Q3 回顧" }),
       ).toBeInTheDocument();
-      expect(within(previewRegion()).getByRole("button", { name: "關閉預覽" })).toBeInTheDocument();
+      expect(within(previewRegion()).queryByRole("button")).not.toBeInTheDocument();
       expect(within(previewRegion()).queryByText(/title:/)).not.toBeInTheDocument();
     });
 
@@ -418,12 +447,12 @@ describe("App", () => {
       ).toBeInTheDocument();
     });
 
-    it("folds into a handle, remembers it, and comes back showing the current body", async () => {
+    it("goes away in editor only, remembers it, and comes back showing the current body", async () => {
       answerFromAVault({ workspace: "Work", article: "q3.md" });
       render(<App />);
       await within(previewRegion()).findByRole("heading", { name: "Q3 回顧" });
 
-      fireEvent.click(screen.getByRole("button", { name: "關閉預覽" }));
+      fireEvent.click(screen.getByRole("button", { name: "只有編輯" }));
 
       expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
       expect(screen.queryAllByRole("heading", { name: "Q3 回顧" })).toHaveLength(0);
@@ -436,7 +465,8 @@ describe("App", () => {
         },
       });
 
-      fireEvent.click(screen.getByRole("button", { name: "開啟預覽" }));
+      expect(screen.queryByRole("button", { name: "開啟預覽" })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "編輯與預覽並排" }));
 
       expect(within(previewRegion()).getByRole("heading", { name: "Q3 回顧" })).toBeInTheDocument();
     });
@@ -481,11 +511,11 @@ describe("App", () => {
       expect(previewPosition).toBe(1700);
     });
 
-    it("starts folded when the settings say it was closed", async () => {
+    it("starts in editor only when the settings say the preview was closed", async () => {
       answerFromAVault({ workspace: null, article: null }, { isOpen: false, widthRatio: 0.5 });
       render(<App />);
 
-      expect(await screen.findByRole("button", { name: "開啟預覽" })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "只有編輯" })).toHaveAttribute("aria-pressed", "true");
       expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
     });
 
@@ -511,10 +541,266 @@ describe("App", () => {
       await waitFor(() => expect(invoke).toHaveBeenCalledWith("list_workspaces", undefined));
 
       expect(previewRegion()).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "關閉預覽" }));
+      fireEvent.click(screen.getByRole("button", { name: "只有編輯" }));
 
-      expect(screen.getByRole("button", { name: "開啟預覽" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
       expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
+    });
+  });
+
+  describe("view modes and Zen Mode", () => {
+    function editorView(): EditorView {
+      const editor = document.querySelector<HTMLElement>(".cm-editor");
+      const view = editor === null ? null : EditorView.findFromDOM(editor);
+      if (view === null) {
+        throw new Error("the editor did not render");
+      }
+      return view;
+    }
+
+    function section(name: string): HTMLElement {
+      const found = document.querySelector<HTMLElement>(`section[aria-label="${name}"]`);
+      if (found === null) {
+        throw new Error(`no ${name} region`);
+      }
+      return found;
+    }
+
+    function headerButtons(region: string): string[] {
+      return Array.from(section(region).querySelectorAll(".region-header button")).map(
+        (button) => button.getAttribute("aria-label") ?? "",
+      );
+    }
+
+    const CONTROLS = ["Zen Mode", "只有編輯", "編輯與預覽並排", "只有預覽"];
+
+    async function startWithZenOpen() {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    }
+
+    function typeUnsavedText(): EditorView {
+      const view = editorView();
+      act(() => view.dispatch({ changes: { from: 0, insert: "還沒存的字" }, selection: { anchor: 2 } }));
+      return view;
+    }
+
+    function expectUntouched(view: EditorView) {
+      expect(editorView()).toBe(view);
+      expect(view.state.doc.toString()).toBe("還沒存的字正文的第一行。");
+      expect(view.state.selection.main.head).toBe(2);
+      undo(view);
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+    }
+
+    it("leaves no emoji and no character standing in for an icon in any button", async () => {
+      await startWithZenOpen();
+
+      const buttonTexts = Array.from(document.querySelectorAll("button")).map((button) => button.textContent ?? "");
+      expect(buttonTexts.filter((text) => /\p{Extended_Pictographic}|[＋+✕×◀▸▾]/u.test(text))).toEqual([]);
+      expect(document.body.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+    });
+
+    it("gives the editor the whole writing area in editor only, its button pressed and the controls still there", async () => {
+      await startWithZenOpen();
+
+      fireEvent.click(screen.getByRole("button", { name: "只有編輯" }));
+
+      expect(document.querySelector('section[aria-label="預覽區"]')).toBeNull();
+      expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+      expect(headerButtons("編輯區")).toEqual(CONTROLS);
+      expect(screen.getByRole("button", { name: "只有編輯" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("puts Zen and the three view modes in the editor's header side by side, the current one pressed", async () => {
+      await startWithZenOpen();
+
+      expect(headerButtons("編輯區")).toEqual(CONTROLS);
+      expect(headerButtons("預覽區")).toEqual([]);
+      expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("moves to preview only with the controls, the keyboard and no save status line, and back", async () => {
+      await startWithZenOpen();
+
+      fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
+
+      expect(section("編輯區")).not.toBeVisible();
+      expect(headerButtons("預覽區")).toEqual(CONTROLS);
+      expect(screen.getByRole("button", { name: "只有預覽" })).toHaveFocus();
+      expect(screen.queryByRole("contentinfo", { name: "儲存狀態列" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "編輯與預覽並排" }));
+
+      expect(section("編輯區")).toBeVisible();
+      expect(headerButtons("編輯區")).toEqual(CONTROLS);
+      expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
+    });
+
+    it("keeps the divider where it was dragged after editor only", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" }, { isOpen: true, widthRatio: 0.35 });
+      render(<App />);
+      await waitFor(() => expect(section("預覽區").style.flexBasis).toBe("35%"));
+      fireEvent.keyDown(screen.getByRole("separator"), { key: "ArrowRight", keyCode: 39 });
+
+      fireEvent.click(screen.getByRole("button", { name: "只有編輯" }));
+      fireEvent.click(screen.getByRole("button", { name: "編輯與預覽並排" }));
+
+      expect(section("預覽區").style.flexBasis).toBe("30%");
+    });
+
+    it.each([
+      ["editor only and back", ["只有編輯", "編輯與預覽並排"]],
+      ["preview only and back", ["只有預覽", "編輯與預覽並排"]],
+      ["Zen Mode and out", ["Zen Mode", "Zen Mode"]],
+    ])("keeps unsaved text, the cursor and undo through %s", async (_case, presses) => {
+      await startWithZenOpen();
+      const view = typeUnsavedText();
+
+      for (const name of presses) {
+        fireEvent.click(screen.getByRole("button", { name }));
+      }
+
+      expectUntouched(view);
+    });
+
+    it("hides the sidebar and the article list in Zen Mode and brings them back as they were", async () => {
+      await startWithZenOpen();
+      fireEvent.change(screen.getByRole("textbox", { name: "篩選文章" }), { target: { value: "Zen" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      expect(screen.getByRole("navigation", { hidden: true })).not.toBeVisible();
+      expect(section("文章")).not.toBeVisible();
+      expect(screen.queryByRole("button", { name: "所有文章" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
+      expect(saveStatusLine()).toHaveTextContent("Blog❯zen-of-writing.md");
+      expect(saveIndicator()).toBe("saved");
+      expect(section("編輯區")).toBeVisible();
+      expect(section("預覽區")).toBeVisible();
+      expect(Array.from(document.querySelectorAll("main > :not([hidden])"))).toEqual([
+        document.querySelector(".writing-area"),
+      ]);
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      expect(screen.getByRole("navigation")).toBeVisible();
+      expect(section("文章")).toBeVisible();
+      expect(screen.getByRole("textbox", { name: "篩選文章" })).toHaveValue("Zen");
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("leaves only the header buttons and the writing area for the keyboard in Zen Mode", async () => {
+      await startWithZenOpen();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      const reachable = Array.from(document.querySelectorAll<HTMLElement>("button, input, [contenteditable='true'], [tabindex='0']")).filter(
+        (element) => element.closest("[hidden]") === null && !element.closest(".dialog-backdrop"),
+      );
+      expect(reachable.every((element) => element.closest(".writing-area") !== null)).toBe(true);
+      expect(reachable.filter((element) => element.closest(".region-header") !== null).map((button) => button.getAttribute("aria-label"))).toEqual(CONTROLS);
+    });
+
+    it("starts with the columns shown even after the app was left in Zen Mode", async () => {
+      await startWithZenOpen();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      cleanup();
+
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      expect(screen.getByRole("navigation")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("lets the view modes work in Zen Mode, preview only included", async () => {
+      await startWithZenOpen();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
+
+      expect(headerButtons("預覽區")).toEqual(CONTROLS);
+      expect(section("文章")).not.toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("stays in Zen Mode when Esc hands the keyboard away from the editor", async () => {
+      await startWithZenOpen();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      const content = editorContent();
+      if (content === null) {
+        throw new Error("the editor did not render its content area");
+      }
+
+      fireEvent.keyDown(content, { key: "Escape" });
+
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
+      expect(section("文章")).not.toBeVisible();
+    });
+
+    it("never writes Zen Mode or preview only into the settings", async () => {
+      await startWithZenOpen();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
+
+      expect(invoke).not.toHaveBeenCalledWith(
+        "write_settings",
+        expect.objectContaining({ settings: expect.objectContaining({ zen: expect.anything() }) }),
+      );
+      expect(invoke).not.toHaveBeenCalledWith(
+        "write_settings",
+        expect.objectContaining({
+          settings: expect.objectContaining({ previewPanel: expect.objectContaining({ isOpen: false }) }),
+        }),
+      );
+    });
+
+    it("says no article is open in Zen Mode and leaves it from there", async () => {
+      answerFromAVault({ workspace: "Blog", article: null });
+      render(<App />);
+      await screen.findByRole("button", { name: /^Zen of Writing/ });
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      expect(within(section("編輯區")).getByText("還沒有選取文章")).toBeVisible();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toBeVisible();
+    });
+
+    it("brings the editor back from preview only when a failed save holds the article", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation((command, args, options) =>
+        command === "save_body"
+          ? Promise.reject({ reason: "unexpected", message: "No space left on device" })
+          : (answer?.(command, args, options) ?? Promise.resolve(null)),
+      );
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      typeUnsavedText();
+      fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
+
+      fireEvent.click(screen.getByRole("button", { name: /^Tauri 與 Electron/ }));
+
+      await waitFor(() => expect(section("編輯區")).toBeVisible());
+      expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "true");
+      expect(within(section("編輯區")).getByText("儲存失敗：No space left on device")).toBeVisible();
+      expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("brings the editor back side by side from preview only on the preview shortcut", async () => {
+      await startWithZenOpen();
+      fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
+
+      fireEvent.keyDown(window, { metaKey: true, shiftKey: true, key: "P", code: "KeyP" });
+
+      expect(section("編輯區")).toBeVisible();
+      expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "true");
     });
   });
 
@@ -526,7 +812,7 @@ describe("App", () => {
 
     expect(screen.getByLabelText("2 篇文章")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+    fireEvent.click(screen.getByRole("button", { name: "新文章" }));
     const dialog = screen.getByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("標題"), { target: { value: "New Article" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "建立" }));
@@ -546,12 +832,13 @@ describe("App", () => {
     expect(editorContent()?.textContent).toBe("");
   });
 
-  it("opens the dialog from an empty workspace's invitation", async () => {
+  it("opens the dialog from the new article icon above an empty workspace", async () => {
     answerFromAVault({ workspace: null, article: null });
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: /^Empty/ }));
+    await screen.findByText("建立第一篇文章");
 
-    fireEvent.click(await screen.findByRole("button", { name: "建立第一篇文章" }));
+    fireEvent.click(screen.getByRole("button", { name: "新文章" }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
@@ -559,7 +846,7 @@ describe("App", () => {
   it("closes the dialog on Esc without creating anything", async () => {
     answerFromAVaultThatCreatesArticles();
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "＋ 新文章" }));
+    fireEvent.click(await screen.findByRole("button", { name: "新文章" }));
 
     fireEvent.keyDown(screen.getByLabelText("標題"), { key: "Escape" });
 
@@ -657,7 +944,7 @@ describe("App", () => {
       fireEvent.keyDown(field, { key: "Enter", keyCode: 13 });
     }
 
-    it("filters and orders without calling any channel and keeps the open article", async () => {
+    it("filters without calling any channel and keeps the open article", async () => {
       answerWithCategorizedArticles();
       render(<App />);
       await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
@@ -665,7 +952,6 @@ describe("App", () => {
 
       filterTheList("技術");
       expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveTextContent("不符合篩選");
-      fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
 
       expect(invoke).not.toHaveBeenCalled();
       expect(editorContent()).toHaveTextContent("正文的第一行。");
@@ -685,7 +971,7 @@ describe("App", () => {
         expect(screen.queryByRole("button", { name: /^Zen of Writing/ })).not.toBeInTheDocument(),
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+      fireEvent.click(screen.getByRole("button", { name: "新文章" }));
       const dialog = screen.getByRole("dialog");
       fireEvent.change(within(dialog).getByLabelText("標籤"), { target: { value: "隨" } });
 
@@ -767,7 +1053,8 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: "儲存" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-      await waitFor(() => expect(screen.getByRole("banner")).toHaveTextContent("新標題"));
+      await waitFor(() => expect(screen.getByRole("button", { name: /^新標題/ })).toHaveAttribute("aria-pressed", "true"));
+      expect(saveStatusLine()).toHaveTextContent("zen-of-writing.md");
       expect(editorContent()).toHaveTextContent("正文的第一行。");
       const content = editorContent();
       if (content === null) {
@@ -783,7 +1070,7 @@ describe("App", () => {
           ),
         { timeout: 2000 },
       );
-      expect(await screen.findByText("已儲存")).toBeInTheDocument();
+      await waitFor(() => expect(saveIndicator()).toBe("saved"));
     });
 
     it("asks before moving an article to the trash, saying where it goes and that images stay", async () => {
@@ -853,7 +1140,7 @@ describe("App", () => {
         create_article: () => Promise.reject({ reason: "unexpected", message: "'Blog/zen.md' already exists" }),
       });
       await startInBlog();
-      fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+      fireEvent.click(screen.getByRole("button", { name: "新文章" }));
       fireEvent.change(screen.getByLabelText("標題"), { target: { value: "Zen" } });
       fireEvent.click(screen.getByRole("button", { name: "建立" }));
       await waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
@@ -945,7 +1232,7 @@ describe("App", () => {
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]);
-      expect(screen.getByRole("textbox", { name: "New workspace name" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "New workspace" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: 'Delete "Zen of Writing"' })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
       expect(invoke).toHaveBeenCalledWith("write_settings", {
@@ -1039,7 +1326,7 @@ describe("App", () => {
       expect(EditorView.findFromDOM(content)).toBe(view);
       expect(view.state.doc.toString()).toBe("新的正文的第一行。");
       expect(view.state.selection.main.head).toBe(2);
-      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: "Not in the file yet" })).toBeInTheDocument();
       await waitFor(
         () => expect(invoke).toHaveBeenCalledWith("save_body", expect.objectContaining({ body: "新的正文的第一行。" })),
         { timeout: 2000 },
@@ -1051,7 +1338,7 @@ describe("App", () => {
       await renderWithTheArticleOpen();
       fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
 
-      fireEvent.click(screen.getByRole("button", { name: "＋ New article" }));
+      fireEvent.click(screen.getByRole("button", { name: "New article" }));
       fireEvent.change(screen.getByLabelText("Title"), { target: { value: "New Article" } });
       await act(async () => fireEvent.click(screen.getByRole("button", { name: "Create" })));
 
