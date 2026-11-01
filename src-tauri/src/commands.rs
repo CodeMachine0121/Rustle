@@ -1,5 +1,6 @@
 //! One file per channel; each slice replaces its own file.
 
+pub mod answer_close_request;
 pub mod create_article;
 pub mod list_articles;
 pub mod list_workspaces;
@@ -8,4 +9,5 @@ pub mod read_settings;
 pub mod save_body;
 pub mod save_clipboard_image;
 pub mod update_metadata;
+pub mod watch_close_requests;
 pub mod write_settings;

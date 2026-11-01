@@ -3,9 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { channels, type ChannelName } from "./channels";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  Channel: class {
+    onmessage: (message: null) => void = () => undefined;
+  },
+}));
 
-type ArgumentlessChannelName = Exclude<ChannelName, "readBody" | "saveBody">;
+type ArgumentlessChannelName = Exclude<
+  ChannelName,
+  "readBody" | "saveBody" | "watchCloseRequests" | "answerCloseRequest"
+>;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
@@ -65,9 +73,38 @@ describe("channels", () => {
     expect(result).toEqual({ ok: true, payload: savedBody });
   });
 
+  it("hands every close request the backend reports to the watcher", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+    const onCloseRequest = vi.fn();
+
+    await channels.watchCloseRequests(onCloseRequest);
+
+    const [commandName, args] = vi.mocked(invoke).mock.lastCall ?? [];
+    expect(commandName).toBe("watch_close_requests");
+    const closeRequests = (args as { onCloseRequest: { onmessage: (message: null) => void } })
+      .onCloseRequest;
+    closeRequests.onmessage(null);
+    closeRequests.onmessage(null);
+    expect(onCloseRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([true, false])("answers a close request with close = %s", async (close) => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await channels.answerCloseRequest(close);
+
+    expect(invoke).toHaveBeenLastCalledWith("answer_close_request", { close });
+  });
+
   it("offers exactly the channels listed in this test", () => {
     expect(Object.keys(channels).sort()).toEqual(
-      [...Object.keys(COMMAND_NAMES), "readBody", "saveBody"].sort(),
+      [
+        ...Object.keys(COMMAND_NAMES),
+        "readBody",
+        "saveBody",
+        "watchCloseRequests",
+        "answerCloseRequest",
+      ].sort(),
     );
   });
 });

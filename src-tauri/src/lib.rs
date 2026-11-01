@@ -12,17 +12,19 @@ pub mod navigation_policy;
 pub mod protocol_registry;
 pub mod protocols;
 pub mod vault_asset_scheme;
+pub mod window_close_guard;
 
 use rustle_domain::VaultScope;
 use rustle_infrastructure::{FileSystemArticleRepository, ResolvedVaultScope};
 use tauri::webview::NewWindowResponse;
-use tauri::{App, Builder, Runtime, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{App, Builder, Manager, Runtime, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use crate::channel_registry::ChannelRegistry;
 use crate::channels::channel_handlers;
 use crate::navigation_policy::{NavigationDecision, NavigationPolicy};
 use crate::protocol_registry::ProtocolRegistry;
 use crate::protocols::scheme_handlers;
+use crate::window_close_guard::{CloseRequestDecision, WindowCloseGuard};
 
 const MAIN_WINDOW_LABEL: &str = "main";
 const APP_PAGE: &str = "index.html";
@@ -51,6 +53,15 @@ pub fn configure<R: Runtime>(builder: Builder<R>, vault: VaultScope) -> Builder<
         .manage(FileSystemArticleRepository::in_vault(
             ResolvedVaultScope::new(vault),
         ))
+        .manage(WindowCloseGuard::default())
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && window.state::<WindowCloseGuard>().close_requested()
+                    == CloseRequestDecision::KeepOpenAndAskWebview
+            {
+                api.prevent_close();
+            }
+        })
         .invoke_handler(channels.into_invoke_handler())
 }
 

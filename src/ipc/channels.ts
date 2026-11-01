@@ -1,3 +1,5 @@
+import { Channel } from "@tauri-apps/api/core";
+
 import type { ArticleBody } from "./articleBody";
 import { callChannel } from "./callChannel";
 import type { SaveBodyRequest, SavedBody } from "./savedBody";
@@ -23,6 +25,14 @@ export const channels = {
   readSettings: () => callChannel<null>("read_settings"),
 
   writeSettings: () => callChannel<null>("write_settings"),
+
+  watchCloseRequests: (onCloseRequest: () => void) => {
+    const closeRequests = new Channel<null>();
+    closeRequests.onmessage = () => onCloseRequest();
+    return callChannel<null>("watch_close_requests", { onCloseRequest: closeRequests });
+  },
+
+  answerCloseRequest: (close: boolean) => callChannel<null>("answer_close_request", { close }),
 };
 
 export type ChannelName = keyof typeof channels;
