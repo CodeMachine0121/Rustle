@@ -1,15 +1,27 @@
+import { useState } from "react";
+
 import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
 import { NewWorkspaceField } from "./NewWorkspaceField";
+import { RenameWorkspaceField } from "./RenameWorkspaceField";
 import type { VaultSnapshot } from "./VaultSession";
 
 type WorkspaceColumnProps = {
   snapshot: VaultSnapshot;
   onSelect: (workspace: string) => void;
   onCreate: (typedName: string) => Promise<boolean>;
+  onRename: (workspace: string, typedName: string) => Promise<boolean>;
+  onDelete: (workspace: string) => void;
 };
 
-export function WorkspaceColumn({ snapshot, onSelect, onCreate }: WorkspaceColumnProps) {
-  const { workspaces, selectedWorkspace, workspaceListFailure } = snapshot;
+export function WorkspaceColumn({
+  snapshot,
+  onSelect,
+  onCreate,
+  onRename,
+  onDelete,
+}: WorkspaceColumnProps) {
+  const { workspaces, selectedWorkspace, workspaceListFailure, renameRejection } = snapshot;
+  const [renaming, setRenaming] = useState<string | null>(null);
   return (
     <>
       <NewWorkspaceField
@@ -27,12 +39,39 @@ export function WorkspaceColumn({ snapshot, onSelect, onCreate }: WorkspaceColum
       )}
       <ul className="column-list">
         {workspaces.map((workspace) => (
-          <li key={workspace.name}>
-            <WorkspaceRow
-              workspace={workspace}
-              isSelected={workspace.name === selectedWorkspace}
-              onSelect={onSelect}
-            />
+          <li key={workspace.name} className="column-item">
+            {renaming === workspace.name ? (
+              <RenameWorkspaceField
+                workspace={workspace.name}
+                rejection={renameRejection?.workspace === workspace.name ? renameRejection.reason : null}
+                onRename={(typedName) => onRename(workspace.name, typedName)}
+                onCancel={() => setRenaming(null)}
+              />
+            ) : (
+              <>
+                <WorkspaceRow
+                  workspace={workspace}
+                  isSelected={workspace.name === selectedWorkspace}
+                  onSelect={onSelect}
+                />
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    aria-label={`重新命名 ${workspace.name}`}
+                    onClick={() => setRenaming(workspace.name)}
+                  >
+                    重新命名
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`刪除 ${workspace.name}`}
+                    onClick={() => onDelete(workspace.name)}
+                  >
+                    刪除
+                  </button>
+                </div>
+              </>
+            )}
           </li>
         ))}
       </ul>

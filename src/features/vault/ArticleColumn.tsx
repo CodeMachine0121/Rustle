@@ -7,9 +7,12 @@ type ArticleColumnProps = {
   snapshot: VaultSnapshot;
   onSelect: (fileName: string) => void;
   onCreateArticle: () => void;
+  onEditMetadata: (article: ArticleSummary) => void;
+  onDelete: (article: ArticleSummary) => void;
 };
 
-export function ArticleColumn({ snapshot, onSelect, onCreateArticle }: ArticleColumnProps) {
+export function ArticleColumn(props: ArticleColumnProps) {
+  const { snapshot, onCreateArticle } = props;
   if (snapshot.selectedWorkspace === null) {
     return <p className="empty-state">選一個 workspace</p>;
   }
@@ -18,12 +21,12 @@ export function ArticleColumn({ snapshot, onSelect, onCreateArticle }: ArticleCo
       <button type="button" className="new-article-button" onClick={onCreateArticle}>
         ＋ 新文章
       </button>
-      <ArticleList snapshot={snapshot} onSelect={onSelect} onCreateArticle={onCreateArticle} />
+      <ArticleList {...props} />
     </>
   );
 }
 
-function ArticleList({ snapshot, onSelect, onCreateArticle }: ArticleColumnProps) {
+function ArticleList({ snapshot, onSelect, onCreateArticle, onEditMetadata, onDelete }: ArticleColumnProps) {
   const { articles, selectedArticle, articleListFailure } = snapshot;
   if (articleListFailure !== null) {
     return (
@@ -42,12 +45,24 @@ function ArticleList({ snapshot, onSelect, onCreateArticle }: ArticleColumnProps
   return (
     <ul className="column-list">
       {articles.map((article) => (
-        <li key={article.fileName}>
+        <li key={article.fileName} className="column-item">
           <ArticleRow
             article={article}
             isSelected={article.fileName === selectedArticle}
             onSelect={onSelect}
           />
+          <div className="row-actions">
+            <button
+              type="button"
+              aria-label={`編輯 ${article.title} 的 metadata`}
+              onClick={() => onEditMetadata(article)}
+            >
+              編輯 metadata
+            </button>
+            <button type="button" aria-label={`刪除 ${article.title}`} onClick={() => onDelete(article)}>
+              刪除
+            </button>
+          </div>
         </li>
       ))}
     </ul>

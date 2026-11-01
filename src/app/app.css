@@ -502,3 +502,48 @@ body {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 8px 4px;
+}
+
+.row-actions button {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.row-actions button:hover {
+  color: var(--color-text);
+  background: var(--color-selected);
+}
+
+.destructive-action {
+  color: var(--color-error);
+}
+
+.operation-failure-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-error);
+  font-size: 13px;
+  box-shadow: 0 6px 20px color-mix(in srgb, #000000 20%, transparent);
+}

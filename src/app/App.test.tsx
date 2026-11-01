@@ -123,7 +123,7 @@ describe("App", () => {
 
     await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
     expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("starts with nothing to type in when nothing was opened before", async () => {
@@ -142,13 +142,13 @@ describe("App", () => {
     await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
     const firstEditor = editorContent();
 
-    fireEvent.click(screen.getByRole("button", { name: /Tauri 與 Electron/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Tauri 與 Electron/ }));
     await waitFor(() => expect(editorContent()).toHaveTextContent("最近在選桌面框架。"));
     expect(editorContent()).toBe(firstEditor);
 
     fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
-    await screen.findByRole("button", { name: /Q3 回顧/ });
-    expect(screen.queryByRole("button", { name: /Zen of Writing/ })).not.toBeInTheDocument();
+    await screen.findByRole("button", { name: /^Q3 回顧/ });
+    expect(screen.queryByRole("button", { name: /^Zen of Writing/ })).not.toBeInTheDocument();
     expect(editorContent()).toBeNull();
     expect(screen.getByRole("button", { name: /^Work/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "false");
@@ -168,12 +168,12 @@ describe("App", () => {
     render(<App />);
     await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
 
-    fireEvent.click(screen.getByRole("button", { name: /Tauri 與 Electron/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Tauri 與 Electron/ }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Tauri 與 Electron/ })).toHaveAttribute("aria-pressed", "true"),
+      expect(screen.getByRole("button", { name: /^Tauri 與 Electron/ })).toHaveAttribute("aria-pressed", "true"),
     );
-    expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("remembers the article the user opened", async () => {
@@ -181,7 +181,7 @@ describe("App", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /^Blog/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Zen of Writing/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Zen of Writing/ }));
 
     await waitFor(() =>
       expect(invoke).toHaveBeenLastCalledWith("write_settings", {
@@ -270,11 +270,11 @@ describe("App", () => {
     }
     fireEvent.keyDown(content, { key: "Tab" });
 
-    fireEvent.click(screen.getByRole("button", { name: /Tauri 與 Electron/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Tauri 與 Electron/ }));
 
     expect(await screen.findByText("儲存失敗：No space left on device")).toBeInTheDocument();
     expect(editorContent()).toHaveTextContent("正文的第一行。");
-    expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("starts watching window close requests", () => {
@@ -323,7 +323,7 @@ describe("App", () => {
     it("replaces the empty state with the article clicked, and returns to it on another workspace", async () => {
       answerFromAVault({ workspace: "Work", article: null });
       render(<App />);
-      fireEvent.click(await screen.findByRole("button", { name: /Q3 回顧/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Q3 回顧/ }));
 
       expect(
         await within(previewRegion()).findByRole("heading", { name: "Q3 回顧" }),
@@ -426,7 +426,7 @@ describe("App", () => {
       tags: [],
     });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /New Article/ })).toHaveAttribute("aria-pressed", "true"),
+      expect(screen.getByRole("button", { name: /^New Article/ })).toHaveAttribute("aria-pressed", "true"),
     );
     expect(screen.getByLabelText("3 篇文章")).toBeInTheDocument();
     await waitFor(() => expect(editorContent()).toHaveFocus());
@@ -453,4 +453,117 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
   });
+
+  describe("metadata editing and deletion", () => {
+    function answerFromAVaultWith(answers: Record<string, (args: Record<string, string>) => unknown>) {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        const answer = answers[command];
+        return answer === undefined
+          ? answerFromTheVault?.(command, args)
+          : answer((args ?? {}) as Record<string, string>);
+      });
+    }
+
+    async function startInBlog() {
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    }
+
+    it("opens the metadata form of the row and writes what was saved", async () => {
+      answerFromAVaultWith({
+        update_metadata: (request) => ({
+          outcome: "updated",
+          article: { fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+        }),
+      });
+      await startInBlog();
+
+      fireEvent.click(screen.getByRole("button", { name: "編輯 Tauri 與 Electron 的 metadata" }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByLabelText("Title")).toHaveValue("Tauri 與 Electron");
+      fireEvent.change(within(dialog).getByLabelText("Title"), { target: { value: "新標題" } });
+      fireEvent.click(within(dialog).getByRole("button", { name: "儲存" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(invoke).toHaveBeenCalledWith("update_metadata", {
+        workspace: "Blog",
+        fileName: "tauri.md",
+        title: "新標題",
+        category: [],
+        tags: [],
+      });
+    });
+
+    it("asks before moving an article to the trash, saying where it goes and that images stay", async () => {
+      answerFromAVaultWith({ delete_article: () => null });
+      await startInBlog();
+
+      fireEvent.click(screen.getByRole("button", { name: "刪除 Tauri 與 Electron" }));
+
+      const confirmation = screen.getByRole("alertdialog");
+      expect(confirmation).toHaveTextContent("系統垃圾桶");
+      expect(confirmation).toHaveTextContent("圖片一張都不會被刪除");
+      expect(invoke).not.toHaveBeenCalledWith("delete_article", expect.anything());
+
+      fireEvent.click(within(confirmation).getByRole("button", { name: "刪除文章" }));
+
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+      expect(invoke).toHaveBeenCalledWith("delete_article", { workspace: "Blog", fileName: "tauri.md" });
+    });
+
+    it("says how many articles and images deleting a workspace takes, counted when asked", async () => {
+      answerFromAVaultWith({
+        count_workspace_contents: () => ({ articleCount: 2, imageCount: 2 }),
+        delete_workspace: () => ({ articleCount: 2, imageCount: 2 }),
+      });
+      await startInBlog();
+
+      fireEvent.click(screen.getByRole("button", { name: "刪除 Work" }));
+
+      const confirmation = await screen.findByRole("alertdialog");
+      expect(invoke).toHaveBeenCalledWith("count_workspace_contents", { workspace: "Work" });
+      expect(confirmation).toHaveTextContent("將刪除 2 篇文章與 2 張圖片。");
+      expect(confirmation).toHaveTextContent("整個 Work 資料夾會移到系統垃圾桶");
+
+      fireEvent.keyDown(confirmation, { key: "Escape" });
+
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalledWith("delete_workspace", expect.anything());
+    });
+
+    it("does not ask about a workspace it cannot count and says why instead", async () => {
+      answerFromAVaultWith({
+        count_workspace_contents: () => Promise.reject({ reason: "unexpected", message: "Permission denied" }),
+      });
+      await startInBlog();
+
+      fireEvent.click(screen.getByRole("button", { name: "刪除 Work" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("刪除 workspace 失敗：Permission denied");
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+
+    it("reports a failed article creation as such, not as an unreadable workspace, and lets it be dismissed", async () => {
+      answerFromAVaultWith({
+        create_article: () => Promise.reject({ reason: "unexpected", message: "'Blog/zen.md' already exists" }),
+      });
+      await startInBlog();
+      fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+      fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Zen" } });
+      fireEvent.click(screen.getByRole("button", { name: "建立" }));
+      await waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
+      fireEvent.click(screen.getByRole("button", { name: "取消" }));
+
+      const notice = screen.getByRole("alert");
+      expect(notice).toHaveTextContent("建立文章失敗：'Blog/zen.md' already exists");
+      expect(screen.queryByText(/讀不到/)).not.toBeInTheDocument();
+
+      fireEvent.click(within(notice).getByRole("button", { name: "關閉提示" }));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
 });
+
