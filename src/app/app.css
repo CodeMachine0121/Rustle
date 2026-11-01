@@ -18,6 +18,7 @@
   --color-code-comment: #a0a1a7;
   --color-code-title: #4078f2;
   --color-code-type: #c18401;
+  --color-editor-heading-fallback: #7a3db8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -38,6 +39,7 @@
     --color-code-comment: #7f848e;
     --color-code-title: #61afef;
     --color-code-type: #e5c07b;
+    --color-editor-heading-fallback: #c7a0f2;
   }
 }
 
