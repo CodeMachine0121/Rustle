@@ -1,0 +1,38 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+}
+
+.markdown-editor {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.markdown-editor .cm-editor {
+  height: 100%;
+  font-size: 16px;
+}
+
+.markdown-editor .cm-scroller {
+  overflow-x: hidden;
+  padding: 24px 32px;
+  line-height: 1.7;
+}
+
+.markdown-editor .cm-editor.cm-focused {
+  outline: none;
+}
