@@ -123,6 +123,20 @@ describe("Sidebar", () => {
     expect(within(section("TAGS")).getByRole("button", { name: /^work/ })).toHaveTextContent("2");
   });
 
+  it("keeps counting Completed while Active is chosen", async () => {
+    const { session } = await settingsSession();
+    const articles = [article("active"), article("active"), article("active"), article("completed")];
+    renderSidebar({ ...BLOG, articles, sidebarFilter: SidebarFilter.NONE.toggleStatus("active") }, session);
+
+    expect(rowsOf("STATUS").map((row) => row.textContent)).toEqual([
+      "Active3",
+      "On Hold0",
+      "Completed1",
+      "Dropped0",
+      "No Status0",
+    ]);
+  });
+
   it("asks for the status, the tag and All Notes that were clicked", async () => {
     const { session } = await settingsSession();
     const handlers = renderSidebar(BLOG, session);

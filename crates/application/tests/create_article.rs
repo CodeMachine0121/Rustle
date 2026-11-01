@@ -182,11 +182,11 @@ fn an_article_created_with_a_status_has_it() {
     let vault = Vault::create();
 
     let summary = vault
-        .create_article("Zen", Some(ArticleStatus::OnHold), &[])
+        .create_article("Zen", Some(ArticleStatus::Active), &[])
         .expect("created");
 
-    assert_eq!(summary.status, Some(ArticleStatus::OnHold));
-    assert!(vault.text_of("Blog/zen.md").contains("\nstatus: on-hold\n"));
+    assert_eq!(summary.status, Some(ArticleStatus::Active));
+    assert!(vault.text_of("Blog/zen.md").contains("\nstatus: active\n"));
 }
 
 #[test]
