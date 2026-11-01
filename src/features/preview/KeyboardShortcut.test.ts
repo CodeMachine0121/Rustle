@@ -31,6 +31,13 @@ describe("KeyboardShortcut", () => {
     expect(shortcut.matches(CMD_SHIFT_P)).toBe(false);
   });
 
+  it("reads Cmd as another name for Mod", () => {
+    const shortcut = KeyboardShortcut.fromSetting("Cmd+Alt+K");
+
+    expect(shortcut.matches(press({ metaKey: true, altKey: true, code: "KeyK" }))).toBe(true);
+    expect(shortcut.matches(CMD_SHIFT_P)).toBe(false);
+  });
+
   it("reads modifiers in any case and order, and digits", () => {
     const shortcut = KeyboardShortcut.fromSetting("shift + MOD + 1");
 
@@ -45,4 +52,16 @@ describe("KeyboardShortcut", () => {
       expect(shortcut.matches(CMD_SHIFT_P)).toBe(true);
     },
   );
+
+  it.each([
+    [undefined, "Shift+Cmd+P"],
+    ["Mod+Alt+K", "Option+Cmd+K"],
+    ["alt + shift + mod + k", "Option+Shift+Cmd+K"],
+    ["Mod+1", "Cmd+1"],
+    ["???", "Shift+Cmd+P"],
+    ["Cmd+Alt+K", "Option+Cmd+K"],
+    ["Cmd+Mod+K", "Shift+Cmd+P"],
+  ])("writes %j the way a Mac menu does: %s", (written, label) => {
+    expect(KeyboardShortcut.fromSetting(written).label).toBe(label);
+  });
 });

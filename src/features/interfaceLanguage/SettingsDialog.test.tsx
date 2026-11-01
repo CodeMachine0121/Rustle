@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
+import { KeyboardShortcut } from "../preview/KeyboardShortcut";
 import { FOLLOW_SYSTEM, ThemeCatalog, type ThemeChoice } from "../theme/ThemeCatalog";
 import { SettingsSession } from "../settings/SettingsSession";
 import { VimModeSession } from "../vim/VimModeSession";
@@ -19,6 +20,7 @@ function renderDialog(
   const onClose = vi.fn();
   const chooseTheme = vi.fn();
   const theme = { choice: themeChoice, themes: ThemeCatalog.shipped().themes, choose: chooseTheme };
+  const vimModes = new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }));
   render(
     <CompositionProvider state={composition}>
       <InterfaceLanguageProvider language={language}>
@@ -26,13 +28,14 @@ function renderDialog(
           language={language}
           onChoose={onChoose}
           theme={theme}
-          vimModes={new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }))}
+          vimModes={vimModes}
+          previewToggle={KeyboardShortcut.DEFAULT}
           onClose={onClose}
         />
       </InterfaceLanguageProvider>
     </CompositionProvider>,
   );
-  return { onChoose, onClose, chooseTheme };
+  return { onChoose, onClose, chooseTheme, vimModes };
 }
 
 function themeSelect(name = "主題"): HTMLSelectElement {
@@ -197,5 +200,78 @@ describe("SettingsDialog", () => {
     fireEvent.click(screen.getByRole("heading", { name: "語言" }));
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  describe("keyboard shortcuts", () => {
+    function rowsShown() {
+      return Array.from(screen.getByRole("dialog").querySelectorAll(".keymap-overview__row")).map(
+        (row) => row.textContent,
+      );
+    }
+
+    it("offers a 快捷鍵 button under the language, the theme and Vim mode", () => {
+      renderDialog("zh");
+
+      const button = screen.getByRole("button", { name: "快捷鍵" });
+      const vimSwitch = screen.getByRole("switch", { name: "Vim 模式" });
+      expect(vimSwitch.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("is named Keyboard Shortcuts in English", () => {
+      renderDialog("en");
+
+      expect(screen.getByRole("button", { name: "Keyboard Shortcuts" })).toBeInTheDocument();
+    });
+
+    it("replaces the settings with the list inside the same dialog", () => {
+      renderDialog("zh");
+
+      fireEvent.click(screen.getByRole("button", { name: "快捷鍵" }));
+
+      expect(screen.getByRole("dialog", { name: "快捷鍵" })).toBeInTheDocument();
+      expect(screen.queryByRole("radiogroup", { name: "語言" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "主題" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("switch", { name: "Vim 模式" })).not.toBeInTheDocument();
+    });
+
+    it("goes back to the settings unchanged, with the keyboard on the 快捷鍵 button", () => {
+      const { onChoose, onClose, chooseTheme, vimModes } = renderDialog("zh", new CompositionState(), "forest");
+      act(() => vimModes.setEnabled(true));
+      fireEvent.click(screen.getByRole("button", { name: "快捷鍵" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "返回設定" }));
+
+      expect(screen.getByRole("dialog", { name: "設定" })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: "中文" })).toHaveAttribute("aria-checked", "true");
+      expect(themeSelect().selectedOptions[0]?.textContent).toBe("森林");
+      expect(screen.getByRole("switch", { name: "Vim 模式" })).toHaveAttribute("aria-checked", "true");
+      expect(onChoose).not.toHaveBeenCalled();
+      expect(chooseTheme).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(vimModes.isEnabled).toBe(true);
+      expect(screen.getByRole("button", { name: "快捷鍵" })).toHaveFocus();
+    });
+
+    it("closes the whole dialog on Esc from the list", () => {
+      const { onClose } = renderDialog("zh");
+      fireEvent.click(screen.getByRole("button", { name: "快捷鍵" }));
+
+      fireEvent.keyDown(screen.getByRole("button", { name: "返回設定" }), { key: "Escape" });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows exactly the same rows whether Vim mode is on or off", () => {
+      const { vimModes } = renderDialog("zh");
+      fireEvent.click(screen.getByRole("button", { name: "快捷鍵" }));
+      const withVimOff = rowsShown();
+      fireEvent.click(screen.getByRole("button", { name: "返回設定" }));
+
+      act(() => vimModes.setEnabled(true));
+      fireEvent.click(screen.getByRole("button", { name: "快捷鍵" }));
+
+      expect(withVimOff.length).toBeGreaterThan(0);
+      expect(rowsShown()).toEqual(withVimOff);
+    });
   });
 });

@@ -18,6 +18,7 @@ import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
+import { usePreviewToggleShortcut } from "../features/preview/usePreviewToggleShortcut";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { Sidebar } from "../features/sidebar/Sidebar";
 import { browserThemeEnvironment } from "../features/theme/browserThemeEnvironment";
@@ -69,6 +70,7 @@ function VaultView() {
   const snapshot = useVaultSnapshot(session);
   const fontSize = useEditingSurfaceFontSizes(fontSizes);
   const previewPanel = usePreviewPanel(settings);
+  const previewToggle = usePreviewToggleShortcut(settings);
   const writing = useWritingLayout(layout, settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
   const theme = useTheme(themes);
@@ -156,6 +158,7 @@ function VaultView() {
             onChoose={interfaceLanguage.choose}
             theme={theme}
             vimModes={vimModes}
+            previewToggle={previewToggle}
           />
         }
         writing={writing}
