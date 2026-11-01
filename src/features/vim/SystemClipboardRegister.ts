@@ -29,6 +29,7 @@ export class SystemClipboardRegister implements EngineRegister {
   readonly #backend: SystemClipboardBackend;
   #content: RegisterContent = NOTHING;
   #written: RegisterContent | null = null;
+  #writesLanding: Promise<unknown> = Promise.resolve();
   insertModeChanges: InsertModeChanges[] = [];
   searchQueries: string[] = [];
 
@@ -78,8 +79,9 @@ export class SystemClipboardRegister implements EngineRegister {
     return this.#content.text;
   }
 
-  /** Looks at the clipboard again; an answer older than the latest write is dropped. */
+  /** Looks at the clipboard once the writes so far have landed; an answer older than a later write is dropped. */
   async refresh(): Promise<void> {
+    await this.#writesLanding;
     const writtenBefore = this.#written;
     const result = await this.#backend.readClipboardText();
     if (this.#written !== writtenBefore) {
@@ -124,6 +126,6 @@ export class SystemClipboardRegister implements EngineRegister {
   #write(content: RegisterContent): void {
     this.#content = content;
     this.#written = content;
-    void this.#backend.writeClipboardText(content.text);
+    this.#writesLanding = Promise.all([this.#writesLanding, this.#backend.writeClipboardText(content.text)]);
   }
 }

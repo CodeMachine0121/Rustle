@@ -365,6 +365,31 @@ describe("text copied elsewhere comes in with Vim's paste", () => {
 
     expect(text()).toBe("台積電台積電");
   });
+
+  it("a look at the clipboard right after a yank waits for the yank to land", async () => {
+    const clipboard = systemClipboard("舊的");
+    const { select, type, text, cursorAt, comeBackToTheWindow, editor } = await openEditor("台積電", clipboard);
+    const landings: Array<() => void> = [];
+    clipboard.backend.writeClipboardText.mockImplementationOnce(
+      (written) =>
+        new Promise((resolve) => {
+          landings.push(() => {
+            clipboard.copyElsewhere(written);
+            resolve({ ok: true, payload: null });
+          });
+        }),
+    );
+
+    select(0, 3);
+    type("y");
+    await comeBackToTheWindow();
+    landings.forEach((land) => land());
+    await settle();
+    cursorAt(editor.state.doc.length);
+    type("p");
+
+    expect(text()).toBe("台積電台積電");
+  });
 });
 
 describe("the clipboard is shared only while Vim is on", () => {
