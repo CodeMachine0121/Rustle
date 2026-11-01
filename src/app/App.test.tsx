@@ -757,7 +757,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("leaves Zen Mode on an Esc in the editor that nothing else takes", async () => {
+    it("stays in Zen Mode on an Esc in the editor that nothing else takes", async () => {
       await startWithZenOpen();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
       const content = editorContent();
@@ -767,8 +767,8 @@ describe("App", () => {
 
       fireEvent.keyDown(content, { key: "Escape" });
 
-      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
-      expect(section("文章")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
+      expect(section("文章")).not.toBeVisible();
     });
 
     it("never writes Zen Mode or preview only into the settings", async () => {
@@ -1904,7 +1904,7 @@ describe("App", () => {
       expect(saveStatusLine().lastElementChild).toHaveClass("save-indicator");
     });
 
-    it("takes the menu, then Insert, then Zen Mode, one Esc at a time", async () => {
+    it("takes the menu, then Insert, one Esc at a time, and never Zen Mode", async () => {
       answerWithVimMode(true);
       const { content, view } = await startEditing();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
@@ -1919,10 +1919,10 @@ describe("App", () => {
       expect([modeLabel(), isZen()]).toEqual(["NORMAL", true]);
 
       press(content, "Escape");
-      expect([modeLabel(), isZen()]).toEqual(["NORMAL", false]);
+      expect([modeLabel(), isZen()]).toEqual(["NORMAL", true]);
     });
 
-    it("cancels a pending operator and leaves Zen Mode with the same Esc, the text untouched", async () => {
+    it("cancels a pending operator with Esc and stays in Zen Mode, the text untouched", async () => {
       answerWithVimMode(true);
       const { content, view } = await startEditing();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
@@ -1931,20 +1931,20 @@ describe("App", () => {
       press(content, "Escape");
       press(content, "w");
 
-      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", false, "正文的第一行。"]);
+      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", true, "正文的第一行。"]);
     });
 
-    it("leaves Zen Mode on Esc with Vim off only after the menu is closed", async () => {
+    it("closes the snippet menu on Esc with Vim off and stays in Zen Mode on the next Esc", async () => {
       answerWithVimMode(undefined);
       const { content, view } = await startEditing();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
       act(() => view.dispatch({ changes: { from: 0, insert: "/" }, selection: { anchor: 1 }, userEvent: "input.type" }));
 
       press(content, "Escape");
-      expect(isZen()).toBe(true);
+      expect([view.dom.querySelector(".snippet-menu"), isZen()]).toEqual([null, true]);
 
       press(content, "Escape");
-      expect(isZen()).toBe(false);
+      expect(isZen()).toBe(true);
     });
 
     it("pastes what the system clipboard holds and yanks onto it, in a vault with Vim on", async () => {
