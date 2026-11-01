@@ -51,7 +51,7 @@ describe("KeymapOverview", () => {
   });
 
   it("writes the preview row with the key the app answers to", () => {
-    renderOverview("zh", KeyboardShortcut.fromSetting("Mod+Alt+K"));
+    renderOverview("zh", KeyboardShortcut.fromSetting("Cmd+Alt+K"));
 
     expect(keyFor("開關預覽")).toBe("Option+Cmd+K");
   });

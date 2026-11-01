@@ -7,8 +7,8 @@ const MODIFIERS = ["mod", "shift", "alt"];
 const LETTER_OR_DIGIT = /^[a-z0-9]$/i;
 
 /**
- * A key combination such as `Mod+Shift+P`: `Mod` (required, Cmd or Ctrl),
- * optionally `Shift` and `Alt`, and one letter or digit.
+ * A key combination such as `Mod+Shift+P`: `Mod` (required, Cmd or Ctrl;
+ * also written `Cmd`), optionally `Shift` and `Alt`, and one letter or digit.
  */
 export class KeyboardShortcut {
   static readonly DEFAULT = new KeyboardShortcut(true, false, "P");
@@ -28,7 +28,7 @@ export class KeyboardShortcut {
   static parse(text: string): KeyboardShortcut | null {
     const parts = text.split("+").map((part) => part.trim());
     const key = parts.pop() ?? "";
-    const modifiers = new Set(parts.map((part) => part.toLowerCase()));
+    const modifiers = new Set(parts.map((part) => part.toLowerCase().replace(/^cmd$/, "mod")));
     const isUsable =
       LETTER_OR_DIGIT.test(key) &&
       modifiers.size === parts.length &&
