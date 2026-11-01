@@ -53,6 +53,14 @@ describe("rendering a body", () => {
     expect(only(shown, "table tbody").querySelectorAll("tr")).toHaveLength(2);
   });
 
+  it("renders rows continued by Enter and the empty line left after them as one table", () => {
+    const shown = preview("| 甲 | 乙 |\n| --- | --- |\n| 丙 | 丁 |\n| 戊 | 己 |\n\n下一段");
+
+    const body = only(shown, "table tbody");
+    expect([...body.querySelectorAll("tr")].map((row) => row.textContent?.replace(/\s/g, ""))).toEqual(["丙丁", "戊己"]);
+    expect(only(shown, "p").textContent).toBe("下一段");
+  });
+
   it("renders task list items as checkbox marks that are not form controls", () => {
     const shown = preview("- [ ] 還沒做\n- [x] 做完了");
 
