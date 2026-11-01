@@ -312,15 +312,16 @@ describe("text copied elsewhere comes in with Vim's paste", () => {
     expect(text()).toBe("文章");
   });
 
-  it("a block taken here comes back as a block", async () => {
-    const clipboard = systemClipboard();
-    const { register, comeBackToTheWindow } = await openEditor("ab\ncd", clipboard);
+  it("a block cut here comes back as a block, even after the clipboard was looked at again", async () => {
+    const { type, press, text, cursorAt, comeBackToTheWindow } = await openEditor("ab\ncd", systemClipboard());
 
-    register.setText("a\nc", false, true);
+    press("v", { ctrlKey: true });
+    type("jd");
     await comeBackToTheWindow();
+    cursorAt(1);
+    type("p");
 
-    expect(register.toString()).toBe("a\nc");
-    expect(register.blockwise).toBe(true);
+    expect(text()).toBe("ba\ndc");
   });
 
   it("several lines from elsewhere come in as ordinary text, not a block", async () => {

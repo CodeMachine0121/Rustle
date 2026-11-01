@@ -1,4 +1,4 @@
-import { Compartment, Prec, type Extension, type StateEffect } from "@codemirror/state";
+import { Compartment, EditorState, Prec, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin, keymap, runScopeHandlers, type Command, type KeyBinding } from "@codemirror/view";
 import { getCM, Vim, vim, type CM5EditorInterface, type CodeMirrorV } from "@replit/codemirror-vim";
 
@@ -105,6 +105,8 @@ export class VimEditing {
         view.dom.addEventListener("keydown", keepFromVim, { capture: true });
         return { destroy: () => view.dom.removeEventListener("keydown", keepFromVim, { capture: true }) };
       }),
+      // Visual block mode is one selection per line it covers.
+      EditorState.allowMultipleSelections.of(true),
       Prec.low(vim()),
       this.#register?.extension() ?? [],
       Prec.low(
