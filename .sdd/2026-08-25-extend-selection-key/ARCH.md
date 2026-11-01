@@ -55,7 +55,7 @@ Read-only is deliberately **not** checked: a selection-only transaction is allow
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
 | `MarkdownEditor.editorExtensions` | Installs every editor extension | One more line: `new ExtendSelection(composition).extension()` |
-| `run` (`src-tauri/src/lib.rs`) | Production entry: `configure` + main window | On macOS: `.menu(application_menu).on_menu_event(close_window_on_request)` |
+| `run` (`src-tauri/src/lib.rs`) | Production entry: `configure` + main window | On macOS: `application_menu::install(builder)` (the menu and its close handler) |
 
 ---
 
