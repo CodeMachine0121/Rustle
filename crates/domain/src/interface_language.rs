@@ -8,3 +8,10 @@ pub enum InterfaceLanguage {
     #[serde(rename = "en")]
     English,
 }
+
+#[cfg_attr(any(test, feature = "mocks"), mockall::automock)]
+pub trait LanguagePreferences {
+    /// The operating system's preferred locales (`zh-Hant-TW`, `en-US`…),
+    /// most preferred first. Empty when the system does not say.
+    fn preferred_locales(&self) -> Vec<String>;
+}
