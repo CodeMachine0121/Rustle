@@ -13,8 +13,8 @@
 
   | Band | Who | How it is ordered |
   | :--- | :--- | :--- |
-  | 1. Rustle's keys | Tab/Shift+Tab and the Esc ladder (`TabIndentation`, capture listener), snippet menu (`Prec.highest`), table Enter, Mod-b/i, Mod-w (`Prec.high`), undo/redo (`historyKeymap`) | the editor's normal keymap handler, untouched |
-  | 2. Vim | `vim()` | installed at `Prec.low`, so its keydown handler runs after band 1 |
+  | 1. Rustle's keys | Tab/Shift+Tab and the snippet Esc claims (`TabIndentation`, capture listener), snippet menu (`Prec.highest`), table Enter, Mod-b/i, Mod-w (`Prec.high`), undo/redo (`historyKeymap`) | the editor's normal keymap handler, untouched |
+  | 2. Vim | `vim()` (its own Esc: Insert/Visual → Normal; Normal leaves Esc alone) | installed at `Prec.low`, so its keydown handler runs after band 1 |
   | 3. Typing keys | `defaultKeymap` (minus `Mod-i`) and `markdownKeymap` | with Vim on they move to a private keymap *scope* run by a `Prec.lowest` handler: Insert mode runs them exactly as before, Normal/Visual swallow them so nothing falls through to an edit (PRD §4 rule 4) |
 
   With Vim off, band 3 is the very same `keymap.of(...)` at its old position, so the editor is identical to today.
@@ -29,7 +29,7 @@
 | `crates/domain/src/settings.rs` + `settings/stored_settings.rs` | **Modify** | `Settings.vim_mode: bool` (default `false`, serialised as `vimMode` only when `true`); stored shape `Tolerant<bool>` so any non-boolean reads as off |
 | `src/ipc/settings.ts` | **Modify** | `vimMode?: boolean` |
 | `src/features/vim/VimModeSession.ts` | **Add** | App-wide owner of "is Vim on" (read from / written to `SettingsSession`) and "which mode is the editor in" (reported by the editor); subscribable |
-| `src/features/vim/VimEditing.ts` | **Add** | The CodeMirror side: installs Vim and the three bands, reports mode changes, holds the Insert→Visual rule and the Esc rung, reconfigures in place when the setting flips |
+| `src/features/vim/VimEditing.ts` | **Add** | The CodeMirror side: installs Vim and the three bands, reports mode changes, holds the Insert→Visual rule and keeps keys the input method owns in Insert mode away from Vim, reconfigures in place when the setting flips |
 | `src/features/vim/VimModeLabel.tsx` | **Add** | `NORMAL` / `INSERT` / `VISUAL` (never translated); renders nothing when Vim is off |
 | `src/features/vim/VimModeSetting.tsx` | **Add** | The settings row: a `role="switch"` button under 語言 and 主題 |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | Props `vimEnabled?`, `onVimModeChange?`; builds one `VimEditing` per editor; `markdown({ addKeymap: false })` and both stock keymaps go through `vimEditing.typingKeys(...)`; flipping `vimEnabled` dispatches `vimEditing.switchTo(...)` (no new state, undo kept) |
@@ -50,7 +50,7 @@
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
 | `VimModeSession` | Session (one per app, like `ThemeSession`) | Own "Vim on/off" as the settings say (`settings.vimMode === true`) and the last reported mode; `setEnabled(on)` writes through `SettingsSession.change`; `mode` is `null` while off, and is reset to `normal` whenever Vim turns on | `SettingsSession` | US-01 all, US-03 標籤 |
-| `VimEditing` | Editor integration (one per `MarkdownEditor`) | Turn the Vim setting into extensions: band 2 (`Prec.low(vim())`), band 3 slots (`typingKeys(bindings)` → a compartment per binding list), the mode tracker, the Esc rung and the Insert→Visual rule; `switchTo(enabled)` → reconfigure effects | `@replit/codemirror-vim` (`vim`, `getCM`, `Vim`), `indentationKeyClaims`, `CompositionState` | US-01 立即生效, US-02 all, US-04 all, US-05 rung 3 |
+| `VimEditing` | Editor integration (one per `MarkdownEditor`) | Turn the Vim setting into extensions: band 2 (`Prec.low(vim())`), band 3 slots (`typingKeys(bindings)` → a compartment per binding list), the mode tracker (`reportModesTo`), the Insert→Visual rule and the input-method guard; `switchTo(enabled)` → reconfigure effects | `@replit/codemirror-vim` (`vim`, `getCM`, `Vim`), `CompositionState` | US-01 立即生效, US-02 all, US-04 all, US-05 rung 3 |
 | `VimModeLabel` | Component | Show the session's mode in upper case; nothing when off | `VimModeSession` | US-03 all |
 | `VimModeSetting` | Component | The switch in the settings dialog | `VimModeSession`, `useMessages` | US-01 打開／關掉 |
 
@@ -58,8 +58,9 @@
 
 | Situation | Behaviour |
 | :--- | :--- |
-| Vim on, Esc, Insert or Visual (claim asked after the snippet menu and fields) | `Vim.handleKey(cm, "<Esc>")` → Normal (Visual drops its selection); key taken |
-| Vim on, Esc, Normal | not claimed; nothing in bands 2–3 takes a plain Esc, so it reaches the Zen rung |
+| Vim on, Esc, Insert or Visual (after the snippet menu and fields: their claims `preventDefault`, so Vim never sees that Esc) | Vim's own Esc → Normal (Visual drops its selection); key taken |
+| Vim on, Esc, Normal | Vim does not take it and band 3 drops its Esc binding, so it reaches the Zen rung |
+| A key the input method owns (composing, `isComposing`, key code 229) while in Insert mode | stopped at the editor root (capture) before Vim and the keymaps see it; `TabIndentation`, on the same root, still keeps Tab |
 | Insert mode and a user selection appears (`select*` user event, non-empty main range: mouse, Mod-w, Shift+arrows) | leave Insert without moving the cursor and enter Visual over that selection |
 | Visual and the selection becomes empty (click, Esc) | Normal (library behaviour) |
 | Arrow keys in Visual | move the selection's head, stay Visual (library) |
@@ -75,7 +76,7 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `MarkdownEditor` | One `EditorView`, extensions built per document | Holds a `VimEditing`; puts band 3 through `typingKeys`; adds the Vim slot **last** (so its Esc claim is asked after the snippet claim); an effect dispatches `switchTo` when `vimEnabled` changes |
+| `MarkdownEditor` | One `EditorView`, extensions built per document | Holds a `VimEditing`; puts band 3 through `typingKeys` (`historyKeymap` stays in band 1); adds the Vim slot; an effect dispatches `switchTo` when `vimEnabled` changes, another hands it `onVimModeChange` |
 | `TabIndentation` | Tab/Shift+Tab, Esc claims, Esc→Tab escape route | Esc → claims only; route and its timers/listeners removed |
 | `SaveStatusLine` | path · failure/warning · indicator | Optional middle `modeLabel` node between them |
 | `WritingLayout` / `useWritingLayout` | Arrangement + preview shortcut | `leaveZen()` + Esc listener (bubble, honours `defaultPrevented` and composition) |
@@ -94,21 +95,20 @@ flowchart TD
     AE -->|vimEnabled, onVimModeChange = VMS.report| ME[MarkdownEditor]
     ME --> VE[VimEditing]
     VE --> Lib[@replit/codemirror-vim]
-    VE -->|Esc rung| Claims[indentationKeyClaims]
-    TI[TabIndentation capture listener] --> Claims
+    TI[TabIndentation capture listener] --> Claims[indentationKeyClaims: snippet menu, fields]
     VMS -->|mode| Label[VimModeLabel in SaveStatusLine]
     VMS --> Setting[VimModeSetting in SettingsDialog]
     Esc[Esc nobody took] --> WL[WritingLayout.leaveZen]
 ```
 
-Key order inside the editor (top runs first): `TabIndentation` capture listener (Tab, Esc ladder rungs 1–3) → keymap handler (band 1) → Vim (band 2) → typing-keys scope (band 3) → browser default. The window bubble listener (rung 4) sees the key last.
+Key order inside the editor (top runs first): the input-method guard and `TabIndentation` (capture listeners on the editor root: Tab, Esc rungs 1–2) → keymap handler (band 1) → Vim (band 2, Esc rung 3) → typing-keys scope (band 3) → browser default. The window bubble listener (rung 4) sees the key last.
 
 ---
 
 ## 6. Extensibility & Handoff Notes
 
 - **Most likely next requirement:** more Rustle keys that must beat Vim (a keymap overview, a new shortcut), or a key that Vim must stop eating (the later "Tab always indents in Vim" request), or sharing Vim's registers with the system clipboard.
-- **Where it lands:** a new Rustle key is an ordinary `keymap.of` at default or higher precedence — it is in band 1 automatically and beats Vim with no Vim-specific code. Something that must take Esc first registers an `indentationKeyClaims` entry before the editor's Vim slot. Clipboard integration is `Vim.defineRegister` inside `VimEditing`.
+- **Where it lands:** a new Rustle key is an ordinary `keymap.of` at default or higher precedence — it is in band 1 automatically and beats Vim with no Vim-specific code. Something that must take Esc before Vim registers an `indentationKeyClaims` entry. Clipboard integration is `Vim.defineRegister` inside `VimEditing`.
 - **How to add it:** never touch the band order; never add a binding to `typingKeys` unless it is "what the editor does while typing".
 - **Patterns applied & why:** a session object for app-wide state (as `ThemeSession`, `WritingLayout`), compartments for in-place reconfiguration (as indentation), keymap *scopes* for the "after Vim, Insert only" band — the one CodeMirror mechanism that orders a keymap relative to a non-keymap handler without listing keys.
 - **Do not hardcode:** mode names come from one table (`VIM_MODE_LABELS`); never compare Vim's internal mode strings outside `VimEditing`.
@@ -127,12 +127,12 @@ Key order inside the editor (top runs first): `TabIndentation` capture listener 
 | US-01 每個 Vault 各記一份 | settings live in `<vault>/.rustle/settings.json` (existing) |
 | US-01 設定檔被人手改成看不懂的值 | `StoredSettings.vim_mode: Tolerant<bool>` |
 | US-02 從 Normal 進入 Insert | library (`i`) + mode tracker |
-| US-02 從 Insert 回到 Normal | Esc rung in `VimEditing` |
+| US-02 從 Insert 回到 Normal | band 2 (Vim's Esc) |
 | US-02 Normal 下拖出選取 → Visual | library external-selection rule + tracker |
 | US-02 Insert 下拖出選取 → Visual | `VimEditing` Insert→Visual rule |
 | US-02 選取消失就離開 Visual | library |
 | US-02 方向鍵在 Visual 移動選取的那一端 | library |
-| US-02 按 ESC 讓選取消失 | Esc rung |
+| US-02 按 ESC 讓選取消失 | band 2 (Vim's Esc) |
 | US-02 切換到另一篇文章時回到 Normal | `MarkdownEditor` new state → new Vim → tracker reports `normal` |
 | US-03 模式標籤住在那條線的中間 | `SaveStatusLine` middle slot + `VimModeLabel` |
 | US-03 兩種介面語言都不翻譯 | `VIM_MODE_LABELS` outside the message catalogs |
@@ -153,17 +153,17 @@ Key order inside the editor (top runs first): `TabIndentation` capture listener 
 | US-04 Visual 下預覽開關 | window capture listener in `useWritingLayout` (unchanged) |
 | US-04 任何模式下字體放回預設 | `EditingSurfaceFontSizes` window listener (unchanged) |
 | US-04 Vim 關著時這些鍵與今天完全相同 | `typingKeys` with Vim off = the original `keymap.of` |
-| US-05 片語選單開著時只關選單 | snippet claim asked before the Vim claim |
+| US-05 片語選單開著時只關選單 | snippet claim `preventDefault`s, so Vim never sees that Esc |
 | US-05 填空中只停止填空 | same |
-| US-05 選單與填空都沒有時回到 Normal | Vim Esc rung |
-| US-05 Visual 按 ESC 回 Normal 並取消選取 | Vim Esc rung |
+| US-05 選單與填空都沒有時回到 Normal | band 2 (Vim's Esc) |
+| US-05 Visual 按 ESC 回 Normal 並取消選取 | band 2 (Vim's Esc) |
 | US-05 已經在 Normal 且不在專注模式，ESC 什麼都不做 | no rung takes it; `leaveZen` not applicable |
 | US-05 已經在 Normal 且在專注模式，ESC 離開專注模式 | `useWritingLayout` Esc listener → `leaveZen` |
 | US-05 三層都有事時要按三次 | each rung `preventDefault`s, so the next rung waits for the next press |
-| US-05 Vim 關著時少了回到 Normal 那一層 | no Vim slot → claims are only the snippet's |
+| US-05 Vim 關著時少了回到 Normal 那一層 | no band 2 |
 | US-05 Vim 關著且選單開著時先關選單 | snippet claim `preventDefault` → Zen listener skips |
 | US-05 Vim 關著、什麼都沒開時什麼都不做 | nothing takes it |
-| US-05 輸入法組字中按 ESC | `TabIndentation` skips claims while composing; CodeMirror ignores key events during composition; Zen listener checks `ownsKey` |
+| US-05 輸入法組字中按 ESC | `VimEditing` input-method guard (Insert mode); `TabIndentation` skips claims while composing; Zen listener checks `ownsKey` |
 | US-06 ESC 之後按 Tab 不再跳出寫作區 | escape route removed from `TabIndentation` |
 
 ---
@@ -184,4 +184,6 @@ Decisions taken without the user (recorded in the PR as Assumptions):
 10. **The settings value** is written as `"vimMode": true`, and omitted when off (absent = off), matching the other "absent until chosen" fields.
 
 - **Risk:** the library hides the native selection and draws its own cursor; its colours are its own `baseTheme`. Accepted: the cursor and selection use the theme's tokens through `xcodeTheme` where the library exposes class names (`.cm-fat-cursor`).
+- **Risk:** the input-method guard stops IME-owned keys in Insert mode before CodeMirror's own keydown bookkeeping too (CodeMirror itself ignores keys while it counts a composition, so the difference is the key that starts one). Only with Vim on.
+- **Built differently from the first draft:** the draft had a Vim `indentationKeyClaims` entry for Esc; Vim's own Esc already does exactly that rung after the snippet claims, so the claim was dead code and was removed.
 - **Risk:** band 3 swallowing means `Cmd+A` does nothing in Normal/Visual — accepted by the PRD (§4 已知代價).
