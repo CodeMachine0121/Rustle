@@ -16,6 +16,8 @@
 
 - **新增或修改任何接 `/`、片段選單、挖空或 `Esc` 的處理（片段）**：全部 13 項重跑，T-13 逐條跑完。
 
+- **新增或修改 Vim 模式（`@replit/codemirror-vim` 或它在編輯區的按鍵順序）**：在設定裡打開 Vim 模式，全部 13 項在 Insert 模式（按 `i`）重跑，外加：Insert 模式組字中按 `Esc`，只取消組字、狀態列仍是 `INSERT`，再按一次 `Esc` 才變 `NORMAL`；Normal 模式下 `Shift+Cmd+K`、`Option+↑`、`Cmd+/`、`Cmd+Enter`、`Ctrl+H`、`Ctrl+D` 正文一字不變；Normal 模式下 `Tab` 縮排、在表格行按 `Enter` 多一列、`Cmd+B` 加粗、`Cmd+W` 選字且狀態列變 `VISUAL`、`Cmd+0` 字體回預設、`Shift+Cmd+P` 開關預覽；專注模式下 Insert 模式打 `/` 開選單後連按三次 `Esc`：關選單、回 `NORMAL`、離開專注模式。升級這個套件前後也要跑這一條。
+
 ## 準備
 
 1. `pnpm install`，然後 `pnpm tauri dev`（或執行已建置的 App）。
