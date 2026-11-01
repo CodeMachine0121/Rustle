@@ -533,6 +533,59 @@ describe("AutosaveSession", () => {
     });
   });
 
+  describe("races with leaving the article", () => {
+    it("does not save or reload anything without an open article", async () => {
+      await session.overwrite();
+      await session.reload();
+
+      expect(saveBody).not.toHaveBeenCalled();
+      expect(readBody).not.toHaveBeenCalled();
+    });
+
+    it("ignores the answer of a save for an article that was already left", async () => {
+      await openZen();
+      saveBody.mockResolvedValueOnce(DISK_FULL);
+      await typeAndAutosave("第一版");
+      await session.closeArticle();
+      const lateSave = deferred<ChannelResult<SavedBody>>();
+      saveBody.mockReturnValueOnce(lateSave.promise);
+      await typeAndAutosave("第二版");
+
+      await session.openArticle({ article: articleBody("other.md"), title: "另一篇" });
+      lateSave.resolve(DISK_FULL);
+      await advance(0);
+
+      expect(session.status).toMatchObject({ title: "另一篇", failureMessage: null });
+    });
+
+    it("ignores a reload that answers after another article was opened", async () => {
+      await openZen();
+      const lateRead = deferred<ChannelResult<ArticleBody>>();
+      readBody.mockReturnValueOnce(lateRead.promise);
+      const reloading = session.reload();
+      await advance(0);
+      expect(readBody).toHaveBeenCalledWith("Blog", "zen.md");
+
+      await session.openArticle({
+        article: articleBody("other.md", "另一篇的正文"),
+        title: "另一篇",
+      });
+      lateRead.resolve({ ok: true, payload: articleBody("zen.md", "上一篇的正文") });
+      await reloading;
+
+      expect(session.document.body).toBe("另一篇的正文");
+    });
+
+    it("closes the window after saving even without a way to release focus", async () => {
+      const plainSession = new AutosaveSession(composition, { saveBody, readBody });
+      await plainSession.openArticle({ article: articleBody("zen.md"), title: "寫作的禪" });
+      plainSession.changeBody("未存的正文");
+
+      await expect(plainSession.prepareToCloseWindow()).resolves.toBe("close");
+      plainSession.dispose();
+    });
+  });
+
   describe("status", () => {
     it("has no save status without an open article", () => {
       expect(session.status).toEqual({ kind: "noArticle" });
