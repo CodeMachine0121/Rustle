@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { FOLLOW_SYSTEM, ThemeCatalog, type ThemeChoice } from "../theme/ThemeCatalog";
+import { SettingsSession } from "../settings/SettingsSession";
+import { VimModeSession } from "../vim/VimModeSession";
 import type { InterfaceLanguage } from "./interfaceLanguage";
 import { InterfaceLanguageProvider } from "./InterfaceLanguageContext";
 import { SettingsDialog } from "./SettingsDialog";
@@ -20,7 +22,13 @@ function renderDialog(
   render(
     <CompositionProvider state={composition}>
       <InterfaceLanguageProvider language={language}>
-        <SettingsDialog language={language} onChoose={onChoose} theme={theme} onClose={onClose} />
+        <SettingsDialog
+          language={language}
+          onChoose={onChoose}
+          theme={theme}
+          vimModes={new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }))}
+          onClose={onClose}
+        />
       </InterfaceLanguageProvider>
     </CompositionProvider>,
   );
@@ -36,16 +44,26 @@ function options() {
 }
 
 describe("SettingsDialog", () => {
-  it("is a dialog headed 設定 with the language, then the theme, and the language's two options side by side", () => {
+  it("is a dialog headed 設定 with the language, the theme, then Vim mode, and the language's two options side by side", () => {
     renderDialog("zh");
 
     const dialog = screen.getByRole("dialog", { name: "設定" });
     expect(within(dialog).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual([
       "語言",
       "主題",
+      "Vim 模式",
     ]);
     expect(screen.getByRole("radiogroup", { name: "語言" })).toBeInTheDocument();
     expect(options()).toHaveLength(2);
+  });
+
+  it("keeps the dialog open when Vim mode is switched on", () => {
+    const { onClose } = renderDialog("zh");
+
+    fireEvent.click(screen.getByRole("switch", { name: "Vim 模式" }));
+
+    expect(screen.getByRole("switch", { name: "Vim 模式" })).toHaveAttribute("aria-checked", "true");
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("is headed Settings in English", () => {

@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { AutosaveSession } from "../autosave/AutosaveSession";
+import { SettingsSession } from "../settings/SettingsSession";
+import { VimModeSession } from "../vim/VimModeSession";
 import { EditorColumn } from "./EditorColumn";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 
@@ -12,7 +14,7 @@ const NOTHING_OPEN: VaultSnapshot = { ...INITIAL_VAULT_SNAPSHOT, selectedWorkspa
 function renderColumn(snapshot: VaultSnapshot, autosave = autosaveSession()) {
   return render(
     <CompositionProvider state={autosave.composition}>
-      <EditorColumn snapshot={snapshot} autosave={autosave.session} />
+      <EditorColumn snapshot={snapshot} autosave={autosave.session} vimModes={new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }))} />
     </CompositionProvider>,
   );
 }
