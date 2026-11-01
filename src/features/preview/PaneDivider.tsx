@@ -9,16 +9,18 @@ type PaneDividerProps = {
   width: PreviewWidth;
   /** While dragging: the screen follows, nothing is written. */
   onResize: (width: PreviewWidth) => void;
-  /** Once per release or key press: the width to remember. */
+  /** Once per release, key press or end of a held key: the width to remember. */
   onResizeEnd: (width: PreviewWidth) => void;
 };
 
 const ARROW_STEPS: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowRight: 1 };
+const PRIMARY_BUTTON = 0;
 
 /** The draggable line between the editor and the preview, measured against its parent. */
 export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) {
   const composition = useCompositionState();
   const dragRef = useRef<Drag | null>(null);
+  const heldKeyWidthRef = useRef<PreviewWidth | null>(null);
 
   const widthAt = (event: PointerEvent<HTMLDivElement>): PreviewWidth | null => {
     const drag = dragRef.current;
@@ -29,6 +31,9 @@ export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) 
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== PRIMARY_BUTTON) {
+      return;
+    }
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     dragRef.current = {
@@ -60,7 +65,22 @@ export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) 
       return;
     }
     event.preventDefault();
-    onResizeEnd(width.steppedBy(steps));
+    const next = width.steppedBy(steps);
+    if (event.repeat) {
+      heldKeyWidthRef.current = next;
+      onResize(next);
+      return;
+    }
+    heldKeyWidthRef.current = null;
+    onResizeEnd(next);
+  };
+
+  const handleHeldKeyRelease = () => {
+    const held = heldKeyWidthRef.current;
+    if (held !== null) {
+      heldKeyWidthRef.current = null;
+      onResizeEnd(held);
+    }
   };
 
   return (
@@ -78,6 +98,8 @@ export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) 
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onKeyDown={handleKeyDown}
+      onKeyUp={handleHeldKeyRelease}
+      onBlur={handleHeldKeyRelease}
     />
   );
 }

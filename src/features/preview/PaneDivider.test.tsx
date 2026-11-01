@@ -83,6 +83,45 @@ describe("PaneDivider", () => {
     expect(ratios(onResizeEnd)[0]).toBeCloseTo(ratio);
   });
 
+  it("follows a held arrow key on screen and remembers only where it stops", () => {
+    const { divider, onResize, onResizeEnd, ratios } = renderDivider();
+
+    fireEvent.keyDown(divider, { key: "ArrowRight", keyCode: 39 });
+    fireEvent.keyDown(divider, { key: "ArrowRight", keyCode: 39, repeat: true });
+    fireEvent.keyDown(divider, { key: "ArrowRight", keyCode: 39, repeat: true });
+
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyUp(divider, { key: "ArrowRight", keyCode: 39 });
+
+    expect(onResizeEnd).toHaveBeenCalledTimes(2);
+    expect(ratios(onResizeEnd)[1]).toBe(ratios(onResize)[1]);
+  });
+
+  it("remembers a held arrow key's width when focus leaves before the key is released", () => {
+    const { divider, onResizeEnd } = renderDivider();
+
+    fireEvent.keyDown(divider, { key: "ArrowLeft", keyCode: 37, repeat: true });
+    fireEvent.blur(divider);
+
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["middle", 1],
+    ["right", 2],
+  ])("does not start a drag on a %s click", (_button, button) => {
+    const { divider, onResize, onResizeEnd } = renderDivider();
+
+    fireEvent.pointerDown(divider, { pointerId: 1, clientX: 500, button });
+    fireEvent.pointerMove(divider, { pointerId: 1, clientX: 400, button });
+    fireEvent.pointerUp(divider, { pointerId: 1, clientX: 400, button });
+
+    expect(onResize).not.toHaveBeenCalled();
+    expect(onResizeEnd).not.toHaveBeenCalled();
+  });
+
   it("leaves arrow keys to the input method while composing", () => {
     const composition = new CompositionState();
     composition.start();
