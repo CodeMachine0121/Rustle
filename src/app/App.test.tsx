@@ -1063,4 +1063,112 @@ describe("App", () => {
       });
     });
   });
+
+  describe("finding articles", () => {
+    function answerFromAVaultThatSearchesBodies() {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        if (command === "search_bodies") {
+          return {
+            matches: [{ workspace: "Blog", fileName: "tauri.md", lineNumber: 1, lineText: "最近在選桌面框架。" }],
+            isTruncated: false,
+          };
+        }
+        return answerFromTheVault?.(command, args);
+      });
+    }
+
+    async function startWithZenOpen() {
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      const content = editorContent();
+      if (content === null) {
+        throw new Error("no editor");
+      }
+      return content;
+    }
+
+    it("goes to another workspace from the keyboard and opens its newest article", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const content = await startWithZenOpen();
+      const editorKeys = vi.fn();
+      content.addEventListener("keydown", editorKeys);
+      content.focus();
+
+      fireEvent.keyDown(content, { code: "KeyP", key: "p", metaKey: true });
+      const finder = await screen.findByRole("dialog", { name: "切換 workspace" });
+
+      expect(editorKeys).not.toHaveBeenCalled();
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+
+      fireEvent.change(within(finder).getByRole("textbox"), { target: { value: "work" } });
+      fireEvent.keyDown(within(finder).getByRole("textbox"), { key: "Enter" });
+
+      await waitFor(() => expect(editorContent()).toHaveTextContent("# Q3 回顧"));
+      expect(screen.getByRole("button", { name: /^Work/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("opens an article found by its title", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const content = await startWithZenOpen();
+
+      fireEvent.keyDown(content, { code: "KeyT", key: "t", metaKey: true });
+      const field = within(await screen.findByRole("dialog", { name: "用標題找文章" })).getByRole("textbox");
+      fireEvent.change(field, { target: { value: "tauri" } });
+      fireEvent.keyDown(field, { key: "Enter" });
+
+      await waitFor(() => expect(editorContent()).toHaveTextContent("最近在選桌面框架。"));
+      expect(screen.getByRole("button", { name: /^Tauri 與 Electron/ })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("opens the article of a body line found in the saved files", async () => {
+      answerFromAVaultThatSearchesBodies();
+      const content = await startWithZenOpen();
+
+      fireEvent.keyDown(content, { code: "KeyF", key: "f", metaKey: true, shiftKey: true });
+      const finder = await screen.findByRole("dialog", { name: "用內文找文章" });
+      fireEvent.change(within(finder).getByRole("textbox"), { target: { value: "桌面" } });
+      const row = await within(finder).findByRole("option", { name: /^Tauri 與 Electron第 1 行最近在選桌面框架。/ });
+      fireEvent.click(row);
+
+      await waitFor(() => expect(editorContent()).toHaveTextContent("最近在選桌面框架。"));
+      expect(invoke).toHaveBeenCalledWith("search_bodies", {
+        text: "桌面",
+        articles: [
+          { workspace: "Blog", fileName: "tauri.md" },
+          { workspace: "Blog", fileName: "zen-of-writing.md" },
+        ],
+      });
+    });
+
+    it("leaves everything as it was on Escape", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const content = await startWithZenOpen();
+      content.focus();
+
+      fireEvent.keyDown(content, { code: "KeyT", key: "t", metaKey: true });
+      const field = within(await screen.findByRole("dialog")).getByRole("textbox");
+      fireEvent.change(field, { target: { value: "tauri" } });
+      fireEvent.keyDown(field, { key: "Escape" });
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+      expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "true");
+      expect(content).toHaveFocus();
+    });
+
+    it("leaves Ctrl with the same letter to the editor", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const content = await startWithZenOpen();
+      const editorKeys = vi.fn();
+      content.addEventListener("keydown", editorKeys);
+
+      fireEvent.keyDown(content, { code: "KeyP", key: "p", ctrlKey: true });
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(editorKeys).toHaveBeenCalledTimes(1);
+    });
+  });
 });

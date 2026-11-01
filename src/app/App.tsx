@@ -6,6 +6,7 @@ import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
 import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialog";
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
+import { Finders } from "../features/finding/Finders";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { InterfaceLanguageProvider } from "../features/interfaceLanguage/InterfaceLanguageContext";
@@ -172,6 +173,17 @@ function VaultView() {
           onCancel={() => setWorkspaceToDelete(null)}
         />
       )}
+      <Finders
+        snapshot={snapshot}
+        order={articleOrder}
+        searchBodies={channels.searchBodies}
+        onOpenFoundArticle={(article, cursorLine) => void session.openFoundArticle(article, cursorLine)}
+        onGoTo={(destination) =>
+          void (destination.kind === "allNotes"
+            ? session.goToAllNotes(articleOrder)
+            : session.goToWorkspace(destination.workspace, articleOrder))
+        }
+      />
       <OperationFailureNotice
         failure={snapshot.operationFailure}
         onDismiss={() => session.dismissOperationFailure()}
