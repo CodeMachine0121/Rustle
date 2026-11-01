@@ -60,12 +60,16 @@ export class VimEditing {
     ];
   }
 
+  #isTyping(view: EditorView): boolean {
+    return getCM(view)?.state.vim?.insertMode === true;
+  }
+
   #typingKeymap(bindings: readonly KeyBinding[]): Extension {
     if (!this.#isEnabled) {
       return keymap.of(bindings);
     }
     const whileTyping = (command: Command | undefined, preventDefault: boolean): Command | undefined =>
-      command && ((view) => (isTyping(view) ? command(view) || preventDefault : true));
+      command && ((view) => (this.#isTyping(view) ? command(view) || preventDefault : true));
     return keymap.of(
       bindings
         .filter((binding) => binding.key !== "Escape")
@@ -90,7 +94,7 @@ export class VimEditing {
     return [
       ViewPlugin.define((view) => {
         const keepFromVim = (event: KeyboardEvent) => {
-          if (composition.ownsKey(event) && isTyping(view)) {
+          if (composition.ownsKey(event) && this.#isTyping(view)) {
             event.stopPropagation();
           }
         };
@@ -101,7 +105,13 @@ export class VimEditing {
       Prec.low(
         ViewPlugin.define((view) => {
           const editor = getCM(view);
-          const reportChange = (change: VimModeChange) => reportMode(vimModeOf(change.mode));
+          const reportChange = ({ mode }: VimModeChange) => {
+            if (mode === "insert" || mode === "replace") {
+              reportMode("insert");
+            } else {
+              reportMode(mode.startsWith("visual") ? "visual" : "normal");
+            }
+          };
           editor?.on("vim-mode-change", reportChange);
           reportMode("normal");
           return {
@@ -127,17 +137,6 @@ export class VimEditing {
   }
 }
 
-function isTyping(view: EditorView): boolean {
-  return getCM(view)?.state.vim?.insertMode === true;
-}
-
 function isVimEditor(editor: CM5EditorInterface): editor is CodeMirrorV {
   return editor.state.vim !== null && editor.state.vim !== undefined;
-}
-
-function vimModeOf(mode: string): VimMode {
-  if (mode === "insert" || mode === "replace") {
-    return "insert";
-  }
-  return mode.startsWith("visual") ? "visual" : "normal";
 }
