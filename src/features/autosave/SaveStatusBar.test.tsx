@@ -153,4 +153,24 @@ describe("SaveStatusBar", () => {
     expect(session.document.body).toBe("磁碟上的正文");
     expect(screen.getByText("已儲存")).toBeInTheDocument();
   });
+
+  it("keeps the warning and both choices after a switch is refused", async () => {
+    render(<SaveStatusBar session={session} />);
+    await openArticle();
+    await saveWith({
+      ok: true,
+      payload: { outcome: "modifiedElsewhere", lastKnownModifiedAt: ARTICLE.lastKnownModifiedAt },
+    });
+
+    const outcome = await act(() =>
+      session.openArticle({ article: { ...ARTICLE, fileName: "other.md" }, title: "另一篇" }),
+    );
+
+    expect(outcome).toBe("blockedByUnansweredWarning");
+    expect(screen.getByText("寫作的禪")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("檔案在外部被改動過");
+    expect(screen.getByRole("button", { name: "覆寫" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新載入" })).toBeInTheDocument();
+    expect(saveBody).toHaveBeenCalledTimes(1);
+  });
 });
