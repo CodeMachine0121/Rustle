@@ -4,6 +4,8 @@ use yaml_rust2::yaml::Hash;
 use crate::metadata_update::{CATEGORY_KEY, CREATED_AT_KEY, TAGS_KEY, TITLE_KEY, UPDATED_AT_KEY};
 use crate::vault_name::ArticleFileName;
 
+const MARKDOWN_EXTENSION: &str = ".md";
+
 /// What a front matter says about its article, read tolerantly: a missing or
 /// unusable title falls back to the file name and marks the metadata
 /// incomplete.
@@ -18,6 +20,12 @@ pub struct ArticleMetadata {
 }
 
 impl ArticleMetadata {
+    /// What can be said about an article whose contents are unknown: its
+    /// file name stands in for the title, and the metadata is incomplete.
+    pub fn from_file_name(file_name: &ArticleFileName) -> Self {
+        Self::read(None, file_name)
+    }
+
     /// `mapping` is `None` when the front matter is missing a usable mapping.
     pub(crate) fn read(mapping: Option<&Hash>, file_name: &ArticleFileName) -> Self {
         let field =
@@ -40,16 +48,52 @@ impl ArticleMetadata {
         let title = field(TITLE_KEY)
             .and_then(Yaml::as_str)
             .filter(|title| !title.trim().is_empty());
-        let file_name = file_name.as_str();
         Self {
             title: title
-                .unwrap_or_else(|| file_name.strip_suffix(".md").unwrap_or(file_name))
-                .to_owned(),
+                .map(str::to_owned)
+                .unwrap_or_else(|| Self::title_from(file_name)),
             created_at: text(CREATED_AT_KEY),
             updated_at: text(UPDATED_AT_KEY),
             category: list(CATEGORY_KEY),
             tags: list(TAGS_KEY),
             has_incomplete_metadata: title.is_none(),
         }
+    }
+
+    fn title_from(file_name: &ArticleFileName) -> String {
+        let name = file_name.as_str();
+        let extension_start = name.len().saturating_sub(MARKDOWN_EXTENSION.len());
+        match name.get(extension_start..) {
+            Some(extension) if extension.eq_ignore_ascii_case(MARKDOWN_EXTENSION) => {
+                name[..extension_start].to_owned()
+            }
+            _ => name.to_owned(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("unreadable.md", "unreadable")]
+    #[case("LEGACY.MD", "LEGACY")]
+    #[case("notes.Md", "notes")]
+    fn an_article_known_only_by_name_is_titled_by_it_and_incomplete(
+        #[case] file_name: &str,
+        #[case] title: &str,
+    ) {
+        let file_name = ArticleFileName::parse(file_name).expect("valid article file name");
+
+        assert_eq!(
+            ArticleMetadata::from_file_name(&file_name),
+            ArticleMetadata {
+                title: title.to_owned(),
+                has_incomplete_metadata: true,
+                ..ArticleMetadata::default()
+            }
+        );
     }
 }
