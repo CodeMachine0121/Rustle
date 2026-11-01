@@ -107,6 +107,7 @@ fn refusal(status: StatusCode) -> Response<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    #[cfg(unix)]
     use std::os::unix::fs::symlink;
     use std::path::PathBuf;
 
@@ -276,6 +277,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn refuses_an_images_folder_that_links_outside_the_vault() {
         let vault = Vault::create();
         let outside = vault.outside("elsewhere/x.png", "secret");
@@ -293,6 +295,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn serves_an_images_folder_that_links_inside_the_vault() {
         let vault = Vault::create();
         vault.file("Shared/x.png", "shared pixels");
