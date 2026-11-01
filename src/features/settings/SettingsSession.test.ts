@@ -8,6 +8,7 @@ const STORED_SETTINGS: Settings = {
   indentation: { style: "spaces", width: 4 },
   previewPanel: { isOpen: true, widthRatio: 0.4, toggleShortcut: "Mod+Alt+K" },
   lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+  sidebar: { collapsedSections: ["tags"] },
 };
 
 function settingsChannels(read: ChannelResult<Settings>) {

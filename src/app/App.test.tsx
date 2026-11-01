@@ -34,6 +34,7 @@ function answerFromAVault(
           indentation: { style: "spaces", width: 2 },
           previewPanel,
           lastOpened,
+          sidebar: { collapsedSections: [] },
         });
       case "list_workspaces":
         return Promise.resolve([
@@ -45,13 +46,18 @@ function answerFromAVault(
         return Promise.resolve(
           request.workspace === "Blog"
             ? [
-                { fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", category: [], tags: [], hasIncompleteMetadata: false },
-                { fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", category: [], tags: [], hasIncompleteMetadata: false },
+                { workspace: "Blog", fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", status: null, tags: [], hasIncompleteMetadata: false },
+                { workspace: "Blog", fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", status: null, tags: [], hasIncompleteMetadata: false },
               ]
             : request.workspace === "Work"
-              ? [{ fileName: "q3.md", title: "Q3 回顧", createdAt: "", category: [], tags: [], hasIncompleteMetadata: false }]
+              ? [{ workspace: "Work", fileName: "q3.md", title: "Q3 回顧", createdAt: "", status: null, tags: [], hasIncompleteMetadata: false }]
               : [],
         );
+      case "list_all_articles":
+        return Promise.resolve([
+          { workspace: "Blog", fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", status: "active", tags: ["work"], hasIncompleteMetadata: false },
+          { workspace: "Work", fileName: "q3.md", title: "Q3 回顧", createdAt: "", status: "completed", tags: ["work"], hasIncompleteMetadata: false },
+        ]);
       case "read_body":
         return Promise.resolve({
           workspace: request.workspace,
@@ -75,11 +81,12 @@ function answerFromAVault(
 }
 
 const CREATED_ARTICLE = {
+  workspace: "Blog",
   fileName: "new-article.md",
   title: "New Article",
   createdAt: "2026-08-20T14:32:05+08:00",
   updatedAt: "2026-08-20T14:32:05+08:00",
-  category: [],
+  status: null,
   tags: [],
   hasIncompleteMetadata: false,
 };
@@ -219,6 +226,7 @@ describe("App", () => {
             indentation: { style: "spaces", width: 2 },
             previewPanel: { isOpen: true, widthRatio: 0.5 },
             lastOpened: { workspace: null, article: null },
+            sidebar: { collapsedSections: [] },
           }),
     );
 
@@ -418,6 +426,7 @@ describe("App", () => {
           indentation: { style: "spaces", width: 2 },
           previewPanel: { isOpen: false, widthRatio: 0.5 },
           lastOpened: { workspace: "Work", article: "q3.md" },
+          sidebar: { collapsedSections: [] },
         },
       });
 
@@ -439,6 +448,7 @@ describe("App", () => {
           indentation: { style: "spaces", width: 2 },
           previewPanel: { isOpen: true, widthRatio: expect.closeTo(0.3) },
           lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+          sidebar: { collapsedSections: [] },
         },
       });
     });
@@ -517,7 +527,7 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalledWith("create_article", {
       workspace: "Blog",
       title: "New Article",
-      category: [],
+      status: null,
       tags: [],
     });
     await waitFor(() =>
@@ -556,8 +566,8 @@ describe("App", () => {
       vi.mocked(invoke).mockImplementation((command, args) =>
         command === "list_articles"
           ? Promise.resolve([
-              { fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", updatedAt: "", category: ["技術筆記"], tags: ["tauri"], hasIncompleteMetadata: false },
-              { fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", updatedAt: "", category: ["隨筆"], tags: [], hasIncompleteMetadata: false },
+              { workspace: "Blog", fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", updatedAt: "", status: "active", tags: ["tauri", "技術筆記"], hasIncompleteMetadata: false },
+              { workspace: "Blog", fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", updatedAt: "", status: null, tags: ["隨筆"], hasIncompleteMetadata: false },
             ])
           : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
       );
@@ -584,7 +594,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("offers the categories of articles the filter hides in the create article dialog", async () => {
+    it("offers the tags of articles the filter hides in the create article dialog", async () => {
       answerWithCategorizedArticles();
       render(<App />);
       await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
@@ -599,9 +609,9 @@ describe("App", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
       const dialog = screen.getByRole("dialog");
-      fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "隨" } });
+      fireEvent.change(within(dialog).getByLabelText("Tags"), { target: { value: "隨" } });
 
-      expect(within(dialog).getByRole("list", { name: "Category 候選" })).toHaveTextContent("隨筆");
+      expect(within(dialog).getByRole("list", { name: "Tags 候選" })).toHaveTextContent("隨筆");
     });
   });
 
@@ -626,7 +636,7 @@ describe("App", () => {
       answerFromAVaultWith({
         update_metadata: (request) => ({
           outcome: "updated",
-          article: { fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+          article: { workspace: request.workspace, fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", status: null, tags: [], hasIncompleteMetadata: false },
         }),
       });
       await startInBlog();
@@ -642,7 +652,7 @@ describe("App", () => {
         workspace: "Blog",
         fileName: "tauri.md",
         title: "新標題",
-        category: [],
+        status: null,
         tags: [],
       });
     });
@@ -654,11 +664,11 @@ describe("App", () => {
           written = true;
           return {
             outcome: "updated",
-            article: { fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+            article: { workspace: request.workspace, fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", status: null, tags: [], hasIncompleteMetadata: false },
           };
         },
         list_articles: () => [
-          { fileName: "zen-of-writing.md", title: written ? "新標題" : "Zen of Writing", createdAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+          { workspace: "Blog", fileName: "zen-of-writing.md", title: written ? "新標題" : "Zen of Writing", createdAt: "", status: null, tags: [], hasIncompleteMetadata: false },
         ],
         read_body: (request) => ({
           workspace: request.workspace,

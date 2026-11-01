@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS: Settings = {
   indentation: { style: "spaces", width: 2 },
   previewPanel: { isOpen: true, widthRatio: 0.5 },
   lastOpened: { workspace: null, article: null },
+  sidebar: { collapsedSections: [] },
 };
 
 /**

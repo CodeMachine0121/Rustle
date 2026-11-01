@@ -41,7 +41,7 @@ describe("EditorColumn", () => {
     );
 
     const { container } = renderColumn(
-      { ...NOTHING_OPEN, selectedArticle: "zen.md", body: "正文的第一行。", openedDocument: "Blog/zen.md" },
+      { ...NOTHING_OPEN, selectedArticle: { workspace: "Blog", fileName: "zen.md" }, body: "正文的第一行。", openedDocument: "Blog/zen.md" },
       autosave,
     );
 

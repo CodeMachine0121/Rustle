@@ -87,7 +87,7 @@ function VaultView() {
         articles={
           <ArticleColumn
             snapshot={snapshot}
-            onSelect={(fileName) => void session.selectArticle(fileName)}
+            onSelect={(article) => void session.selectArticle(article)}
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
             onEditMetadata={setArticleBeingEdited}
             onDelete={setArticleToDelete}
@@ -125,7 +125,7 @@ function VaultView() {
         <EditArticleMetadataDialog
           article={articleBeingEdited}
           vocabulary={vocabularyOf(snapshot.articles)}
-          onSave={(draft) => session.updateMetadata(articleBeingEdited.fileName, draft)}
+          onSave={(draft) => session.updateMetadata(articleBeingEdited, draft)}
           onClose={() => setArticleBeingEdited(null)}
         />
       )}
@@ -133,7 +133,7 @@ function VaultView() {
         <ArticleDeletionDialog
           title={articleToDelete.title}
           onConfirm={async () => {
-            await session.deleteArticle(articleToDelete.fileName);
+            await session.deleteArticle(articleToDelete);
             setArticleToDelete(null);
           }}
           onCancel={() => setArticleToDelete(null)}

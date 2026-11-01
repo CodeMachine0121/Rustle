@@ -142,6 +142,7 @@ describe("usePreviewPanel", () => {
         indentation: DEFAULT_SETTINGS.indentation,
         previewPanel: { isOpen: true, widthRatio: 0.65, toggleShortcut: "Mod+Alt+K" },
         lastOpened: { workspace: "Blog", article: "zen.md" },
+        sidebar: { collapsedSections: [] },
       });
     });
   });

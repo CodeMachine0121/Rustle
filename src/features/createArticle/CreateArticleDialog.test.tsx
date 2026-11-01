@@ -7,7 +7,7 @@ import type { ArticleVocabulary } from "../articleMetadata/articleVocabulary";
 import type { ArticleCreation, ArticleDraft } from "../vault/VaultSession";
 import { CreateArticleDialog } from "./CreateArticleDialog";
 
-const BLOG_VOCABULARY: ArticleVocabulary = { category: ["技術筆記", "桌面開發"], tags: ["electron"] };
+const BLOG_VOCABULARY: ArticleVocabulary = { tags: ["electron"] };
 
 function renderDialog({
   onCreate = vi.fn((draft: ArticleDraft): Promise<ArticleCreation> => {
@@ -48,18 +48,25 @@ function createButton() {
 }
 
 describe("CreateArticleDialog", () => {
-  it("has a Title field and two multi-value fields, Category and Tags", () => {
+  it("has a Title field, a Status choice and a multi-value Tags field, and no Category field", () => {
     renderDialog();
 
     expect(field("Title")).toHaveAttribute("type", "text");
-    expect(screen.getAllByRole("textbox")).toHaveLength(3);
-    for (const label of ["Category", "Tags"]) {
-      for (const value of ["一", "二"]) {
-        type(label, value);
-        fireEvent.keyDown(field(label), { key: "Enter" });
-      }
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("noStatus");
+    for (const value of ["一", "二"]) {
+      type("Tags", value);
+      fireEvent.keyDown(field("Tags"), { key: "Enter" });
     }
-    expect(screen.getAllByRole("button", { name: /^移除/ })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /^移除/ })).toHaveLength(2);
+  });
+
+  it("offers only the four statuses and No Status, with nothing to type a status into", () => {
+    renderDialog();
+
+    const options = screen.getAllByRole("option").map((option) => option.textContent);
+    expect(options).toEqual(["Active", "On Hold", "Completed", "Dropped", "No Status"]);
   });
 
   it("shows when the article is created as text, with no field to fill in", () => {
@@ -150,7 +157,7 @@ describe("CreateArticleDialog", () => {
     });
 
     expect(onCreate).toHaveBeenCalledTimes(1);
-    expect(onCreate).toHaveBeenCalledWith({ title: "台灣", category: [], tags: [] });
+    expect(onCreate).toHaveBeenCalledWith({ title: "台灣", status: null, tags: [] });
   });
 
   it("does not create on an Enter that says it belongs to a composition", () => {
@@ -194,39 +201,18 @@ describe("CreateArticleDialog", () => {
     expect(container.querySelector("form")).toBeNull();
   });
 
-  it("keeps the chips of Category and Tags apart", () => {
-    renderDialog();
-    type("Category", "技術筆記");
-    fireEvent.keyDown(field("Category"), { key: "Enter" });
-
-    type("Tags", "electron");
-    fireEvent.keyDown(field("Tags"), { key: "Enter" });
-
-    expect(screen.getAllByRole("button", { name: /^移除/ }).map((button) => button.getAttribute("aria-label"))).toEqual([
-      "移除 技術筆記",
-      "移除 electron",
-    ]);
-  });
-
-  it("offers the workspace's categories in Category and its tags in Tags", () => {
+  it("offers the tags the scope already uses while typing in Tags", () => {
     renderDialog();
 
-    type("Category", "e");
     type("Tags", "e");
 
-    expect(screen.queryByRole("list", { name: "Category 候選" })).not.toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Tags 候選" })).toHaveTextContent("electron");
-
-    type("Category", "開");
-
-    expect(screen.getByRole("list", { name: "Category 候選" })).toHaveTextContent("桌面開發");
   });
 
   it("sends the trimmed title and every chip", async () => {
     const { onCreate } = renderDialog();
     type("Title", "  Zen of Writing  ");
-    type("Category", "技術筆記");
-    fireEvent.keyDown(field("Category"), { key: "Enter" });
+    fireEvent.change(screen.getByRole("combobox", { name: "Status" }), { target: { value: "active" } });
     type("Tags", "electron");
     fireEvent.keyDown(field("Tags"), { key: "Enter" });
 
@@ -234,7 +220,7 @@ describe("CreateArticleDialog", () => {
 
     expect(onCreate).toHaveBeenCalledWith({
       title: "Zen of Writing",
-      category: ["技術筆記"],
+      status: "active",
       tags: ["electron"],
     });
   });
@@ -242,14 +228,13 @@ describe("CreateArticleDialog", () => {
   it("sends text not yet turned into a chip as a chip", async () => {
     const { onCreate } = renderDialog();
     type("Title", "Zen of Writing");
-    type("Category", "技術筆記");
     type("Tags", "electron");
 
     await act(async () => fireEvent.click(createButton()));
 
     expect(onCreate).toHaveBeenCalledWith({
       title: "Zen of Writing",
-      category: ["技術筆記"],
+      status: null,
       tags: ["electron"],
     });
   });

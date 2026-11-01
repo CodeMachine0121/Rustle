@@ -1,4 +1,5 @@
-import type { ArticleSummary } from "../../ipc/articleSummary";
+import type { ArticleStatus } from "../../ipc/articleStatus";
+import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
 import type { Channels } from "../../ipc/channels";
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import type { Settings } from "../../ipc/settings";
@@ -6,6 +7,8 @@ import type { WorkspaceContents } from "../../ipc/workspaceContents";
 import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
 import type { AutosaveSession } from "../autosave/AutosaveSession";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
+import { SidebarFilter } from "../sidebar/SidebarFilter";
+import type { StatusChoice } from "../sidebar/statusChoice";
 import {
   LEAVING_REFUSAL_MESSAGES,
   MODIFIED_ELSEWHERE_MESSAGE,
@@ -17,6 +20,7 @@ export type VaultChannels = Pick<
   Channels,
   | "listWorkspaces"
   | "listArticles"
+  | "listAllArticles"
   | "createWorkspace"
   | "createArticle"
   | "readBody"
@@ -30,7 +34,7 @@ export type VaultChannels = Pick<
 >;
 
 /** What the user typed into the create article dialog or the metadata form. */
-export type ArticleDraft = { title: string; category: string[]; tags: string[] };
+export type ArticleDraft = { title: string; status: ArticleStatus | null; tags: string[] };
 
 export type ArticleCreation = { outcome: "created" } | { outcome: "failed"; message: string };
 
@@ -48,9 +52,13 @@ const LETS_EVERY_ARTICLE_GO: ArticleHolder = {
 
 export type VaultSnapshot = {
   workspaces: WorkspaceSummary[];
+  /** `null` under All Notes, which shows every workspace's articles instead. */
   selectedWorkspace: string | null;
+  showsAllNotes: boolean;
+  /** The articles of the scope: the selected workspace, or every workspace under All Notes. */
   articles: ArticleSummary[];
-  selectedArticle: string | null;
+  sidebarFilter: SidebarFilter;
+  selectedArticle: ArticleLocation | null;
   body: string | null;
   openedDocument: string | null;
   indentation: Settings["indentation"];
@@ -67,7 +75,9 @@ export type VaultSnapshot = {
 export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   workspaces: [],
   selectedWorkspace: null,
+  showsAllNotes: false,
   articles: [],
+  sidebarFilter: SidebarFilter.NONE,
   selectedArticle: null,
   body: null,
   openedDocument: null,
@@ -81,11 +91,17 @@ export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   operationFailure: null,
 };
 
+export const CHOOSE_A_WORKSPACE_FIRST = "請先選一個 workspace";
+
+type Scope = { kind: "workspace"; workspace: string } | { kind: "allNotes" };
+
 /**
- * The one owner of what is selected in the vault. Every click goes through
- * here; an answer that arrives after a newer click is dropped, and each
- * selection is remembered in the settings for the next start. The open
- * article changes only when its holder lets the previous one go.
+ * The one owner of what is selected in the vault: the scope (one workspace
+ * or All Notes), the sidebar filter over it and the open article. Every
+ * click goes through here; an answer that arrives after a newer click is
+ * dropped, and each opened article is remembered in the settings for the
+ * next start. The open article changes only when its holder lets the
+ * previous one go. Changing the scope clears the sidebar filter.
  */
 export class VaultSession {
   readonly #channels: VaultChannels;
@@ -125,11 +141,11 @@ export class VaultSession {
       return;
     }
     const selection = this.#beginSelection();
-    if (!(await this.#openWorkspace(workspace, selection))) {
+    if (!(await this.#openScope({ kind: "workspace", workspace }, selection))) {
       return;
     }
     if (article !== null && this.#snapshot.articles.some(({ fileName }) => fileName === article)) {
-      await this.#openArticle(workspace, article, selection);
+      await this.#openArticle({ workspace, fileName: article }, selection);
     }
   }
 
@@ -138,20 +154,35 @@ export class VaultSession {
       return;
     }
     const selection = this.#beginSelection();
-    if (await this.#openWorkspace(workspace, selection)) {
+    if (await this.#openScope({ kind: "workspace", workspace }, selection)) {
       this.#remember(workspace, null);
     }
   }
 
-  async selectArticle(fileName: string): Promise<void> {
-    const workspace = this.#snapshot.selectedWorkspace;
-    if (workspace === null || this.#snapshot.openedDocument === `${workspace}/${fileName}`) {
+  /** Lists every workspace's articles; not remembered, as it is a way of looking rather than a place. */
+  async selectAllNotes(): Promise<void> {
+    if ((await this.#articleHolder.closeArticle()) !== "switched") {
+      return;
+    }
+    await this.#openScope({ kind: "allNotes" }, this.#beginSelection());
+  }
+
+  async selectArticle(article: ArticleLocation): Promise<void> {
+    if (this.#snapshot.openedDocument === documentOf(article)) {
       return;
     }
     const selection = this.#beginSelection();
-    if (await this.#openArticle(workspace, fileName, selection)) {
-      this.#remember(workspace, fileName);
+    if (await this.#openArticle(article, selection)) {
+      this.#remember(article.workspace, article.fileName);
     }
+  }
+
+  toggleStatusFilter(choice: StatusChoice): void {
+    this.#update({ sidebarFilter: this.#snapshot.sidebarFilter.toggleStatus(choice) });
+  }
+
+  toggleTagFilter(tag: string): void {
+    this.#update({ sidebarFilter: this.#snapshot.sidebarFilter.toggleTag(tag) });
   }
 
   /** Resolves to whether the workspace was created. */
@@ -179,7 +210,7 @@ export class VaultSession {
   async createArticle(draft: ArticleDraft): Promise<ArticleCreation> {
     const workspace = this.#snapshot.selectedWorkspace;
     if (workspace === null) {
-      return { outcome: "failed", message: "沒有選取 workspace" };
+      return { outcome: "failed", message: CHOOSE_A_WORKSPACE_FIRST };
     }
     const selection = this.#beginSelection();
     const result = await this.#channels.createArticle({ workspace, ...draft });
@@ -189,38 +220,33 @@ export class VaultSession {
     }
     this.dismissOperationFailure();
     await this.#loadWorkspaces();
-    const articles = await this.#channels.listArticles(workspace);
+    await this.#reloadArticles(selection);
     if (selection !== this.#latestSelection) {
       return { outcome: "created" };
     }
-    if (articles.ok) {
-      this.#update({ articles: articles.payload, articleListFailure: null });
-    }
-    const { fileName } = result.payload;
-    if (await this.#openArticle(workspace, fileName, selection, { focusEditor: true })) {
-      this.#remember(workspace, fileName);
+    const created = { workspace, fileName: result.payload.fileName };
+    if (await this.#openArticle(created, selection, { focusEditor: true })) {
+      this.#remember(workspace, created.fileName);
     }
     return { outcome: "created" };
   }
 
   /**
-   * Writes the title, categories and tags. The open article is saved and
-   * let go first, and opened again afterwards with its new modification
-   * time, so our own write is never taken for an outside change.
+   * Writes the title, status and tags into the article in its own
+   * workspace. The open article is saved and let go first, and opened
+   * again afterwards with its new modification time, so our own write is
+   * never taken for an outside change.
    */
-  async updateMetadata(fileName: string, draft: ArticleDraft): Promise<MetadataEdit> {
-    const workspace = this.#snapshot.selectedWorkspace;
-    if (workspace === null) {
-      return { outcome: "failed", message: "沒有選取 workspace" };
-    }
-    const wasOpen = this.#snapshot.openedDocument === `${workspace}/${fileName}`;
+  async updateMetadata(article: ArticleLocation, draft: ArticleDraft): Promise<MetadataEdit> {
+    const wasOpen = this.#snapshot.openedDocument === documentOf(article);
     const selection = this.#selectionFor(wasOpen);
     if (wasOpen && !(await this.#letGoOfOpenArticle("updateMetadata"))) {
       return this.#failedEdit();
     }
+    const { workspace, fileName } = article;
     const result = await this.#channels.updateMetadata({ workspace, fileName, ...draft });
-    await this.#reloadArticles(workspace, selection);
-    await this.#openAgain(workspace, wasOpen ? fileName : null, selection);
+    await this.#reloadArticles(selection);
+    await this.#openAgain(wasOpen ? article : null, selection);
     if (!result.ok) {
       this.#fail("updateMetadata", result.message);
       return this.#failedEdit();
@@ -234,56 +260,59 @@ export class VaultSession {
   }
 
   /** Moves the article to the system trash; the open one is saved first and nothing is left selected. */
-  async deleteArticle(fileName: string): Promise<void> {
-    const workspace = this.#snapshot.selectedWorkspace;
-    if (workspace === null) {
-      return;
-    }
-    const wasSelected = this.#snapshot.selectedArticle === fileName;
+  async deleteArticle(article: ArticleLocation): Promise<void> {
+    const wasSelected = isSameArticle(this.#snapshot.selectedArticle, article);
     const selection = this.#selectionFor(wasSelected);
     if (wasSelected && !(await this.#letGoOfOpenArticle("deleteArticle"))) {
       return;
     }
-    const result = await this.#channels.deleteArticle(workspace, fileName);
+    const result = await this.#channels.deleteArticle(article.workspace, article.fileName);
     if (!result.ok) {
       this.#fail("deleteArticle", result.message);
-      await this.#openAgain(workspace, wasSelected ? fileName : null, selection);
+      await this.#openAgain(wasSelected ? article : null, selection);
       return;
     }
     this.dismissOperationFailure();
     if (wasSelected) {
       this.#update({ selectedArticle: null });
-      this.#remember(workspace, null);
+      this.#remember(article.workspace, null);
     }
     await this.#loadWorkspaces();
-    await this.#reloadArticles(workspace, selection);
+    await this.#reloadArticles(selection);
   }
 
   /** Resolves to whether the workspace was renamed; a selected one stays selected under its new name. */
   async renameWorkspace(workspace: string, typedName: string): Promise<boolean> {
     this.#update({ renameRejection: null });
     const wasSelected = this.#snapshot.selectedWorkspace === workspace;
-    const openArticle = wasSelected ? this.#snapshot.selectedArticle : null;
-    const selection = this.#selectionFor(wasSelected);
-    if (wasSelected && !(await this.#letGoOfOpenArticle("renameWorkspace"))) {
+    const openArticle = this.#openArticleIn(workspace);
+    const touchesSelection = wasSelected || openArticle !== null;
+    const selection = this.#selectionFor(touchesSelection);
+    if (touchesSelection && !(await this.#letGoOfOpenArticle("renameWorkspace"))) {
       return false;
     }
     const result = await this.#channels.renameWorkspace(workspace, typedName);
     if (!result.ok) {
       this.#fail("renameWorkspace", result.message);
-      await this.#openAgain(workspace, openArticle, selection);
+      await this.#openAgain(openArticle, selection);
       return false;
     }
     if (result.payload.outcome === "rejected") {
       this.#update({ renameRejection: { workspace, reason: result.payload.reason } });
-      await this.#openAgain(workspace, openArticle, selection);
+      await this.#openAgain(openArticle, selection);
       return false;
     }
     this.dismissOperationFailure();
     const renamed = result.payload.workspace;
     await this.#loadWorkspaces();
     if (wasSelected && selection === this.#latestSelection) {
-      if (await this.#openWorkspace(renamed, selection)) {
+      if (await this.#openScope({ kind: "workspace", workspace: renamed }, selection)) {
+        this.#remember(renamed, null);
+      }
+    } else if (this.#snapshot.showsAllNotes) {
+      await this.#reloadArticles(selection);
+      if (openArticle !== null && selection === this.#latestSelection) {
+        this.#update({ selectedArticle: null });
         this.#remember(renamed, null);
       }
     }
@@ -303,15 +332,16 @@ export class VaultSession {
   /** Moves the whole workspace folder to the system trash; a selected one leaves nothing selected. */
   async deleteWorkspace(workspace: string): Promise<void> {
     const wasSelected = this.#snapshot.selectedWorkspace === workspace;
-    const openArticle = wasSelected ? this.#snapshot.selectedArticle : null;
-    const selection = this.#selectionFor(wasSelected);
-    if (wasSelected && !(await this.#letGoOfOpenArticle("deleteWorkspace"))) {
+    const openArticle = this.#openArticleIn(workspace);
+    const touchesSelection = wasSelected || openArticle !== null;
+    const selection = this.#selectionFor(touchesSelection);
+    if (touchesSelection && !(await this.#letGoOfOpenArticle("deleteWorkspace"))) {
       return;
     }
     const result = await this.#channels.deleteWorkspace(workspace);
     if (!result.ok) {
       this.#fail("deleteWorkspace", result.message);
-      await this.#openAgain(workspace, openArticle, selection);
+      await this.#openAgain(openArticle, selection);
       return;
     }
     this.dismissOperationFailure();
@@ -319,13 +349,20 @@ export class VaultSession {
       this.#update({
         selectedWorkspace: null,
         articles: [],
+        sidebarFilter: SidebarFilter.NONE,
         selectedArticle: null,
         articleListFailure: null,
         bodyFailure: null,
       });
       this.#remember(null, null);
+    } else if (openArticle !== null) {
+      this.#update({ selectedArticle: null });
+      this.#remember(null, null);
     }
     await this.#loadWorkspaces();
+    if (this.#snapshot.showsAllNotes) {
+      await this.#reloadArticles(selection);
+    }
   }
 
   dismissOperationFailure(): void {
@@ -345,15 +382,25 @@ export class VaultSession {
   }
 
   /** Opens the article an operation let go of, unless nothing was open or the user clicked elsewhere since. */
-  async #openAgain(workspace: string, fileName: string | null, selection: number): Promise<void> {
-    if (fileName !== null && selection === this.#latestSelection) {
-      await this.#openArticle(workspace, fileName, selection);
+  async #openAgain(article: ArticleLocation | null, selection: number): Promise<void> {
+    if (article !== null && selection === this.#latestSelection) {
+      await this.#openArticle(article, selection);
     }
   }
 
-  async #reloadArticles(workspace: string, selection: number): Promise<void> {
-    const articles = await this.#channels.listArticles(workspace);
-    if (selection !== this.#latestSelection || this.#snapshot.selectedWorkspace !== workspace) {
+  /** The open article when it lives in `workspace`. */
+  #openArticleIn(workspace: string): ArticleLocation | null {
+    const article = this.#snapshot.selectedArticle;
+    return article?.workspace === workspace ? article : null;
+  }
+
+  async #reloadArticles(selection: number): Promise<void> {
+    const scope = this.#scope();
+    if (scope === null) {
+      return;
+    }
+    const articles = await this.#listArticlesOf(scope);
+    if (selection !== this.#latestSelection || !isSameScope(this.#scope(), scope)) {
       return;
     }
     this.#update(
@@ -361,6 +408,20 @@ export class VaultSession {
         ? { articles: articles.payload, articleListFailure: null }
         : { articleListFailure: articles.message },
     );
+  }
+
+  #scope(): Scope | null {
+    if (this.#snapshot.showsAllNotes) {
+      return { kind: "allNotes" };
+    }
+    const workspace = this.#snapshot.selectedWorkspace;
+    return workspace === null ? null : { kind: "workspace", workspace };
+  }
+
+  #listArticlesOf(scope: Scope) {
+    return scope.kind === "allNotes"
+      ? this.#channels.listAllArticles()
+      : this.#channels.listArticles(scope.workspace);
   }
 
   #failedEdit(): MetadataEdit {
@@ -381,17 +442,19 @@ export class VaultSession {
     return true;
   }
 
-  async #openWorkspace(workspace: string, selection: number): Promise<boolean> {
+  async #openScope(scope: Scope, selection: number): Promise<boolean> {
     this.#update({
-      selectedWorkspace: workspace,
+      selectedWorkspace: scope.kind === "workspace" ? scope.workspace : null,
+      showsAllNotes: scope.kind === "allNotes",
       articles: [],
+      sidebarFilter: SidebarFilter.NONE,
       selectedArticle: null,
       body: null,
       openedDocument: null,
       articleListFailure: null,
       bodyFailure: null,
     });
-    const result = await this.#channels.listArticles(workspace);
+    const result = await this.#listArticlesOf(scope);
     if (selection !== this.#latestSelection) {
       return false;
     }
@@ -404,19 +467,19 @@ export class VaultSession {
   }
 
   async #openArticle(
-    workspace: string,
-    fileName: string,
+    article: ArticleLocation,
     selection: number,
     { focusEditor = false } = {},
   ): Promise<boolean> {
     const previousArticle = this.#snapshot.selectedArticle;
-    this.#update({ selectedArticle: fileName, bodyFailure: null });
-    const result = await this.#channels.readBody(workspace, fileName);
+    this.#update({ selectedArticle: article, bodyFailure: null });
+    const result = await this.#channels.readBody(article.workspace, article.fileName);
     if (selection !== this.#latestSelection) {
       return false;
     }
     const title =
-      this.#snapshot.articles.find((summary) => summary.fileName === fileName)?.title ?? fileName;
+      this.#snapshot.articles.find((summary) => isSameArticle(summary, article))?.title ??
+      article.fileName;
     const outcome = result.ok
       ? await this.#articleHolder.openArticle({ article: result.payload, title, focusEditor })
       : await this.#articleHolder.closeArticle();
@@ -431,7 +494,7 @@ export class VaultSession {
       this.#update({ body: null, openedDocument: null, bodyFailure: result.message });
       return false;
     }
-    this.#update({ body: result.payload.body, openedDocument: `${workspace}/${fileName}` });
+    this.#update({ body: result.payload.body, openedDocument: documentOf(article) });
     return true;
   }
 
@@ -453,4 +516,19 @@ export class VaultSession {
     this.#snapshot = { ...this.#snapshot, ...change };
     this.#listeners.forEach((listener) => listener());
   }
+}
+
+function documentOf({ workspace, fileName }: ArticleLocation): string {
+  return `${workspace}/${fileName}`;
+}
+
+function isSameArticle(first: ArticleLocation | null, second: ArticleLocation): boolean {
+  return first?.workspace === second.workspace && first.fileName === second.fileName;
+}
+
+function isSameScope(first: Scope | null, second: Scope): boolean {
+  if (first === null || first.kind !== second.kind) {
+    return false;
+  }
+  return first.kind === "allNotes" || (second.kind === "workspace" && first.workspace === second.workspace);
 }
