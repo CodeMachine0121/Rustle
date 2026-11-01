@@ -496,6 +496,57 @@ describe("App", () => {
       });
     });
 
+    it("keeps the open article after editing its metadata, under its new title, and saves after it without a warning", async () => {
+      let written = false;
+      answerFromAVaultWith({
+        update_metadata: (request) => {
+          written = true;
+          return {
+            outcome: "updated",
+            article: { fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+          };
+        },
+        list_articles: () => [
+          { fileName: "zen-of-writing.md", title: written ? "新標題" : "Zen of Writing", createdAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+        ],
+        read_body: (request) => ({
+          workspace: request.workspace,
+          fileName: request.fileName,
+          body: BODIES[request.fileName ?? ""] ?? "",
+          lastKnownModifiedAt: written ? "2026-08-20T09:00:00.000Z" : "2026-08-20T08:04:11.123Z",
+        }),
+        save_body: (request) => ({
+          outcome: request.lastKnownModifiedAt === "2026-08-20T09:00:00.000Z" ? "saved" : "modifiedElsewhere",
+          updatedAt: "2026-08-20T09:01:00.000Z",
+          lastKnownModifiedAt: "2026-08-20T09:01:00.100Z",
+        }),
+      });
+      await startInBlog();
+
+      fireEvent.click(screen.getByRole("button", { name: "編輯 Zen of Writing 的 metadata" }));
+      fireEvent.change(screen.getByLabelText("Title"), { target: { value: "新標題" } });
+      fireEvent.click(screen.getByRole("button", { name: "儲存" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+      await waitFor(() => expect(screen.getByRole("banner")).toHaveTextContent("新標題"));
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+      const content = editorContent();
+      if (content === null) {
+        throw new Error("the editor did not render its content area");
+      }
+      fireEvent.keyDown(content, { key: "Tab" });
+
+      await waitFor(
+        () =>
+          expect(invoke).toHaveBeenCalledWith(
+            "save_body",
+            expect.objectContaining({ lastKnownModifiedAt: "2026-08-20T09:00:00.000Z" }),
+          ),
+        { timeout: 2000 },
+      );
+      expect(await screen.findByText("已儲存")).toBeInTheDocument();
+    });
+
     it("asks before moving an article to the trash, saying where it goes and that images stay", async () => {
       answerFromAVaultWith({ delete_article: () => null });
       await startInBlog();
