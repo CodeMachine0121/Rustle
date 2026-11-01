@@ -8,6 +8,9 @@ pub mod commands;
 #[cfg(test)]
 mod content_security_policy;
 pub mod navigation_policy;
+pub mod protocol_registry;
+pub mod protocols;
+pub mod vault_asset_scheme;
 
 use tauri::{App, WebviewUrl, WebviewWindowBuilder};
 
