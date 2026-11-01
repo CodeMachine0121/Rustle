@@ -12,7 +12,8 @@ A local, offline Markdown writing app for someone who writes in Chinese every da
 | Rust | stable `1.95` (MSRV 1.90), edition 2024; `serde 1.0.229`, `serde_json 1.0.154`, `thiserror 2.0.21`, `url 2.5.8`, `tempfile 3.27.0`, `yaml-rust2 0.13.0` (domain: front matter parsing only) |
 | Rust tests | built-in harness, `rstest 0.28.0`, `tempfile`, `mockall 0.15.0` (domain `mocks` feature, e.g. `MockClock`), Tauri `test` feature (mock runtime) |
 | Frontend | TypeScript `6.0.3` (strict), React `19.3.1`, Vite `8.3.5`, CodeMirror 6 (`@codemirror/view 6.43.15`, `state 6.7.6`, `lang-markdown 6.5.2`, `language 6.13.1`, `commands 6.11.1`) |
-| Frontend tests / lint | Vitest `5.0.5` + happy-dom `21.0.4` + Testing Library; ESLint `9.39.5` + typescript-eslint `8.72.1` (`no-explicit-any` is an error) |
+| Preview rendering | `markdown-it 14.3.3`, `highlight.js 11.12.0` (`lib/common`), `dompurify 3.4.17` |
+| Frontend tests / lint | Vitest `5.0.5` + happy-dom `21.0.4` (jsdom `30.1.2` for files that run DOMPurify: `// @vitest-environment jsdom`, because happy-dom reports an empty node name to it) + Testing Library; ESLint `9.39.5` + typescript-eslint `8.72.1` (`no-explicit-any` is an error) |
 | Package manager | pnpm `11.3.0` |
 
 Upgrading Tauri or CodeMirror requires re-running `docs/ime-regression-checklist.md` first.
@@ -35,7 +36,7 @@ src/                          webview (React + CodeMirror)
   app/                        App shell (AppLayout: four columns) and global CSS with light/dark color tokens
   ipc/                        callChannel (the only invoke), channels (typed wrappers), ChannelResult
   shared/composition/         CompositionState, CompositionProvider/useCompositionState, CompositionAwareDebouncer
-  features/<feature>/         one folder per feature (editor/, vault/, autosave/)
+  features/<feature>/         one folder per feature (editor/, vault/, autosave/, settings/, preview/)
 docs/ime-regression-checklist.md  manual IME runbook + release checklist
 ```
 
@@ -69,13 +70,17 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 
 **Window close**: the backend holds `CloseRequested` and asks the webview over `watchCloseRequests`; the webview answers with `answerCloseRequest(close)`. Something else that must run before closing belongs in `AutosaveSession.prepareToCloseWindow` (or next to it in `watchWindowCloseRequests`), not in a second listener.
 
-**Settings**: `rustle_domain::Settings` has `indentation`, `previewPanel { isOpen, widthRatio }`, `lastOpened { workspace, article }` and no vault path. A new field = one field on `Settings` + one on the private tolerant shape in `settings/stored_settings.rs` (a wrong type or out-of-range value falls back to that field's default). `FileSystemSettingsRepository` keeps unknown keys, writes atomically and checks the location against the vault on every call. `readSettings` (a broken file reads as defaults) and `writeSettings(settings)` are wired; the webview type is `src/ipc/settings.ts`.
+**Settings**: `rustle_domain::Settings` has `indentation`, `previewPanel { isOpen, widthRatio, toggleShortcut? }`, `lastOpened { workspace, article }` and no vault path. A new field = one field on `Settings` + one on the private tolerant shape in `settings/stored_settings.rs` (a wrong type or out-of-range value falls back to that field's default). `FileSystemSettingsRepository` keeps unknown keys, writes atomically and checks the location against the vault on every call. `readSettings` (a broken file reads as defaults) and `writeSettings(settings)` are wired; the webview type is `src/ipc/settings.ts`. In the webview, **only `SettingsSession`** (`src/features/settings/`) holds the settings: read them with `useSettings(session)` and change them with `session.change((settings) => ({ ...settings, … }))`, which writes the whole latest settings (only when they were read). The app builds one and hands it to `VaultSession` and the preview; never keep a second copy.
 
 **Vault listing**: `WorkspaceRepository` (`vault_entries`, `workspace_entries`, `create`) answers raw `VaultEntry { name, kind: Folder | File | Unreachable }` lists, links already resolved and confined. What counts is decided only on `VaultEntry` (`as_workspace`, `as_article`, `compare_names`, `clashes_with`) and `WorkspaceNameRequest::judge`. A new listing rule is one method there. Channels: `listWorkspaces()`, `listArticles(workspace)`, `createWorkspace(name)` → `{ outcome: "created", workspace } | { outcome: "rejected", reason }` (a rejection is a value, not a failure).
 
 **Selection (webview)**: `src/features/vault/VaultSession.ts` is the single owner of the selected workspace/article, the lists, the body and the per-column failure lines; every click goes through `selectWorkspace` / `selectArticle`, a late answer to an older click is dropped, and each selection is written to `lastOpened`. Leaving the open article asks the `ArticleHolder` (autosave) first; clicking the open article again does nothing. Create-article and filtering plug in there. Bind with `useVaultSnapshot(session)`.
 
-**Layout**: `AppLayout({ workspaces, articles, editor, preview? })`; the preview slice passes `preview` and the region appears on the right.
+**Layout**: `AppLayout({ workspaces, articles, editor, preview? })` where `preview = { isOpen, content, onOpen, onClose }`: open → the `PREVIEW` region with a close button; folded → a `開啟預覽` handle at the edge and the editor takes the width. Width is still `flex: 1` (divider slice: `previewPanel.widthRatio`).
+
+**Preview**: the only way from a body to HTML is `renderPreviewHtml(body)` (`src/features/preview/`): markdown-it → DOMPurify → `recheckPreviewHtml`, all held to `PreviewHtmlPolicy` (allowed tags/attributes; `a[href]` relative/http/https/mailto, `img[src]` relative/`rustle:`). A new allowed tag, attribute or scheme is one line in the policy. Every block element carries its zero-based body line in `SOURCE_LINE_ATTRIBUTE` (`data-source-line`) — scroll sync reads that constant. Relative image sources are kept as written; the image slice rewrites them to `rustle:` (a markdown-it `image` rule in `renderMarkdown.ts`). What the preview shows comes from `PreviewedBody` (over `AutosaveSession.document` / `.body`): immediate on open, 150 ms after typing stops, never while composing. The toggle shortcut (`previewPanel.toggleShortcut`, default `Mod+Shift+P`, `Mod` = Cmd or Ctrl) is parsed by `KeyboardShortcut`.
+
+**No article open**: editor and preview both render `NoArticleState` (`src/features/vault/`); change the wording there only.
 
 **Editor body**: `MarkdownEditor` takes `body` and keeps one `EditorView` for the app's lifetime: a new body replaces the state in place (fresh undo history), waits while composing (latest wins), and the same body again is ignored. Leaving the editor ends a composition whose end event never came.
 
