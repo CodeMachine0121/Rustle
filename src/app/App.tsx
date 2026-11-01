@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
@@ -9,8 +9,7 @@ import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionD
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { InterfaceLanguageProvider } from "../features/interfaceLanguage/InterfaceLanguageContext";
-import { SettingsButton } from "../features/interfaceLanguage/SettingsButton";
-import { SettingsDialog } from "../features/interfaceLanguage/SettingsDialog";
+import { SettingsEntry } from "../features/interfaceLanguage/SettingsEntry";
 import { useInterfaceLanguage } from "../features/interfaceLanguage/useInterfaceLanguage";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
@@ -50,8 +49,6 @@ function VaultView() {
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
-  const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -78,11 +75,6 @@ function VaultView() {
   useEffect(() => () => previewedBody.dispose(), [previewedBody]);
 
   useEffect(() => () => imagePaste.dispose(), [imagePaste]);
-
-  const closeSettings = () => {
-    setIsSettingsOpen(false);
-    settingsButtonRef.current?.focus();
-  };
 
   return (
     <InterfaceLanguageProvider language={interfaceLanguage.language}>
@@ -114,11 +106,7 @@ function VaultView() {
           />
         }
         workspacesFooter={
-          <SettingsButton
-            buttonRef={settingsButtonRef}
-            isOpen={isSettingsOpen}
-            onToggle={() => (isSettingsOpen ? closeSettings() : setIsSettingsOpen(true))}
-          />
+          <SettingsEntry language={interfaceLanguage.language} onChoose={interfaceLanguage.choose} />
         }
         preview={{
           isOpen: previewPanel.isOpen,
@@ -174,13 +162,6 @@ function VaultView() {
         failure={snapshot.operationFailure}
         onDismiss={() => session.dismissOperationFailure()}
       />
-      {isSettingsOpen && (
-        <SettingsDialog
-          language={interfaceLanguage.language}
-          onChoose={interfaceLanguage.choose}
-          onClose={closeSettings}
-        />
-      )}
     </InterfaceLanguageProvider>
   );
 }
