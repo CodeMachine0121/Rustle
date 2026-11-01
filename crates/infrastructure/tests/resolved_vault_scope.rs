@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rustle_domain::{ArticleFileName, ImageFileName, VaultPathError, VaultScope, WorkspaceName};
 use rustle_infrastructure::ResolvedVaultScope;
@@ -7,7 +7,7 @@ use tempfile::TempDir;
 
 struct Vault {
     _directory: TempDir,
-    root: std::path::PathBuf,
+    root: PathBuf,
 }
 
 impl Vault {
@@ -46,7 +46,10 @@ fn locates_an_existing_article_at_its_real_location() {
         .scope()
         .article_path(&workspace("Blog"), &article("zen-of-writing.md"));
 
-    assert_eq!(path, Ok(vault.root.join("Blog/zen-of-writing.md")));
+    assert_eq!(
+        path.map(PathBuf::into_os_string),
+        Ok(vault.root.join("Blog/zen-of-writing.md").into_os_string())
+    );
 }
 
 #[test]
@@ -97,7 +100,7 @@ mod symlinks {
     use super::*;
     use std::os::unix::fs::symlink;
 
-    fn outside_folder(vault: &Vault) -> std::path::PathBuf {
+    fn outside_folder(vault: &Vault) -> PathBuf {
         let outside = vault
             .root
             .parent()

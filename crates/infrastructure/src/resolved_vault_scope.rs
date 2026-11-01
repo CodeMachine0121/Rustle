@@ -65,7 +65,12 @@ impl ResolvedVaultScope {
             .find_map(|ancestor| {
                 let real_ancestor = fs::canonicalize(ancestor).ok()?;
                 let missing_tail = path.strip_prefix(ancestor).ok()?;
-                Some(real_ancestor.join(missing_tail))
+                Some(
+                    real_ancestor
+                        .components()
+                        .chain(missing_tail.components())
+                        .collect(),
+                )
             })
             .unwrap_or_else(|| path.to_path_buf())
     }
