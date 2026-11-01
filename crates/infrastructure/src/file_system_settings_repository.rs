@@ -32,6 +32,14 @@ impl FileSystemSettingsRepository {
             .map(Some)
             .map_err(|error| SettingsError::Unreadable(error.to_string()))
     }
+
+    fn write_document(&self, document: &Map<String, Value>) -> io::Result<()> {
+        let text = serde_json::to_string_pretty(document)? + "\n";
+        if let Some(folder) = self.settings_file.parent() {
+            fs::create_dir_all(folder)?;
+        }
+        write_atomically(&self.settings_file, text.as_bytes())
+    }
 }
 
 impl SettingsRepository for FileSystemSettingsRepository {
@@ -44,24 +52,13 @@ impl SettingsRepository for FileSystemSettingsRepository {
     }
 
     fn save(&self, settings: &Settings) -> Result<(), SettingsError> {
-        let unwritable =
-            |error: &dyn std::fmt::Display| SettingsError::Unwritable(error.to_string());
         let mut document = self.read_document()?.unwrap_or_default();
-        let Value::Object(known_fields) =
-            serde_json::to_value(settings).map_err(|error| unwritable(&error))?
-        else {
-            return Err(SettingsError::Unwritable(
-                "settings are not a JSON object".to_owned(),
-            ));
-        };
-        document.extend(known_fields);
-
-        let mut text =
-            serde_json::to_string_pretty(&document).map_err(|error| unwritable(&error))?;
-        text.push('\n');
-        if let Some(folder) = self.settings_file.parent() {
-            fs::create_dir_all(folder).map_err(|error| unwritable(&error))?;
+        if let Value::Object(known_fields) = serde_json::to_value(settings)
+            .map_err(|error| SettingsError::Unwritable(error.to_string()))?
+        {
+            document.extend(known_fields);
         }
-        write_atomically(&self.settings_file, text.as_bytes()).map_err(|error| unwritable(&error))
+        self.write_document(&document)
+            .map_err(|error| SettingsError::Unwritable(error.to_string()))
     }
 }
