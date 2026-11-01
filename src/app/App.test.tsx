@@ -559,6 +559,62 @@ describe("App", () => {
     expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
   });
 
+  describe("sidebar", () => {
+    function articlesRegion() {
+      return screen.getByRole("region", { name: "ARTICLES" });
+    }
+
+    it("lists every workspace under All Notes and opens an article from its own workspace", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      fireEvent.click(screen.getByRole("button", { name: "All Notes" }));
+      const q3 = await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      expect(q3).toHaveTextContent("Work");
+      expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(q3);
+
+      await waitFor(() => expect(editorContent()).toHaveTextContent("Q3 回顧"));
+      expect(invoke).toHaveBeenCalledWith("read_body", { workspace: "Work", fileName: "q3.md" });
+    });
+
+    it("narrows the list to the status clicked in the sidebar and clears it on another scope", async () => {
+      answerFromAVault({ workspace: null, article: null });
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      const statusSection = screen.getByRole("region", { name: "STATUS" });
+      expect(within(statusSection).getByRole("button", { name: /^Completed/ })).toHaveTextContent("1");
+
+      fireEvent.click(within(statusSection).getByRole("button", { name: /^Active/ }));
+
+      expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
+      expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
+
+      expect(await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ })).toBeInTheDocument();
+      expect(within(statusSection).getByRole("button", { name: /^Active/ })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("keeps the workspace and the list when the workspace section is folded", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      fireEvent.click(screen.getByRole("button", { name: /^WORKSPACES/ }));
+
+      expect(screen.queryByRole("button", { name: /^Blog/ })).not.toBeInTheDocument();
+      expect(within(articlesRegion()).getAllByRole("button", { name: /^(Tauri|Zen)/ })).toHaveLength(2);
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+      expect(invoke).toHaveBeenLastCalledWith("write_settings", {
+        settings: expect.objectContaining({ sidebar: { collapsedSections: ["workspaces"] } }),
+      });
+    });
+  });
+
   describe("article list controls", () => {
     function answerWithCategorizedArticles() {
       answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
