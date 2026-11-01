@@ -4,7 +4,8 @@ import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
 import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
-import { ConfirmDeletionDialog } from "../features/deletion/ConfirmDeletionDialog";
+import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialog";
+import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
@@ -111,37 +112,25 @@ function VaultView() {
         />
       )}
       {articleToDelete !== null && (
-        <ConfirmDeletionDialog
-          heading={`刪除「${articleToDelete.title}」？`}
-          confirmLabel="刪除文章"
+        <ArticleDeletionDialog
+          title={articleToDelete.title}
           onConfirm={async () => {
             await session.deleteArticle(articleToDelete.fileName);
             setArticleToDelete(null);
           }}
           onCancel={() => setArticleToDelete(null)}
-        >
-          <p>這篇文章會移到系統垃圾桶，之後還可以從垃圾桶還原。</p>
-          <p>
-            它用到的圖片一張都不會被刪除——images/ 是整個 workspace 共用的，同一張圖可能還被別篇引用。
-          </p>
-        </ConfirmDeletionDialog>
+        />
       )}
       {workspaceToDelete !== null && (
-        <ConfirmDeletionDialog
-          heading={`刪除 workspace「${workspaceToDelete.workspace}」？`}
-          confirmLabel="刪除 workspace"
+        <WorkspaceDeletionDialog
+          workspace={workspaceToDelete.workspace}
+          contents={workspaceToDelete.contents}
           onConfirm={async () => {
             await session.deleteWorkspace(workspaceToDelete.workspace);
             setWorkspaceToDelete(null);
           }}
           onCancel={() => setWorkspaceToDelete(null)}
-        >
-          <p>
-            將刪除 {workspaceToDelete.contents.articleCount} 篇文章與{" "}
-            {workspaceToDelete.contents.imageCount} 張圖片。
-          </p>
-          <p>整個 {workspaceToDelete.workspace} 資料夾會移到系統垃圾桶，之後還可以從垃圾桶還原。</p>
-        </ConfirmDeletionDialog>
+        />
       )}
       <OperationFailureNotice
         failure={snapshot.operationFailure}
