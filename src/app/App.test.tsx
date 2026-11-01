@@ -453,4 +453,60 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
   });
+
+  describe("article list controls", () => {
+    function answerWithCategorizedArticles() {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation((command, args) =>
+        command === "list_articles"
+          ? Promise.resolve([
+              { fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", updatedAt: "", category: ["技術筆記"], tags: ["tauri"], hasIncompleteMetadata: false },
+              { fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", updatedAt: "", category: ["隨筆"], tags: [], hasIncompleteMetadata: false },
+            ])
+          : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
+      );
+    }
+
+    function filterTheList(text: string) {
+      const field = screen.getByRole("textbox", { name: "篩選文章" });
+      fireEvent.change(field, { target: { value: text } });
+      fireEvent.keyDown(field, { key: "Enter", keyCode: 13 });
+    }
+
+    it("filters and orders without calling any channel and keeps the open article", async () => {
+      answerWithCategorizedArticles();
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      vi.mocked(invoke).mockClear();
+
+      filterTheList("技術");
+      expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveTextContent("不符合篩選");
+      fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
+
+      expect(invoke).not.toHaveBeenCalled();
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+      expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("offers the categories of articles the filter hides in the create article dialog", async () => {
+      answerWithCategorizedArticles();
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      fireEvent.click(screen.getByRole("button", { name: /^Blog/ }));
+      await waitFor(() => expect(editorContent()).toBeNull());
+      await screen.findByRole("button", { name: /Zen of Writing/ });
+
+      filterTheList("技術");
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: /Zen of Writing/ })).not.toBeInTheDocument(),
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+      const dialog = screen.getByRole("dialog");
+      fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "隨" } });
+
+      expect(within(dialog).getByRole("list", { name: "Category 候選" })).toHaveTextContent("隨筆");
+    });
+  });
 });
