@@ -13,6 +13,8 @@ pub mod protocol_registry;
 pub mod protocols;
 pub mod vault_asset_scheme;
 
+use rustle_domain::VaultScope;
+use rustle_infrastructure::{FileSystemArticleRepository, ResolvedVaultScope};
 use tauri::webview::NewWindowResponse;
 use tauri::{App, Builder, Runtime, Url, WebviewUrl, WebviewWindowBuilder};
 
@@ -26,7 +28,8 @@ const MAIN_WINDOW_LABEL: &str = "main";
 const APP_PAGE: &str = "index.html";
 
 pub fn run() {
-    configure(Builder::default())
+    let home = std::env::home_dir().expect("Rustle keeps its vault in the home directory");
+    configure(Builder::default(), VaultScope::at_default_location(&home))
         .setup(|app| {
             open_main_window(app)?;
             Ok(())
@@ -35,15 +38,19 @@ pub fn run() {
         .expect("Rustle failed to start");
 }
 
-/// Installs the channel and protocol registries. Assembly mistakes (a
-/// channel without a handler, a scheme registered twice) stop the app here.
-pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
+/// Installs the vault-backed state and the channel and protocol registries.
+/// Assembly mistakes (a channel without a handler, a scheme registered
+/// twice) stop the app here.
+pub fn configure<R: Runtime>(builder: Builder<R>, vault: VaultScope) -> Builder<R> {
     let channels =
         ChannelRegistry::new(channel_handlers()).expect("every channel has exactly one handler");
     let protocols =
         ProtocolRegistry::new(scheme_handlers()).expect("every scheme has exactly one handler");
     protocols
         .install(builder)
+        .manage(FileSystemArticleRepository::in_vault(
+            ResolvedVaultScope::new(vault),
+        ))
         .invoke_handler(channels.into_invoke_handler())
 }
 

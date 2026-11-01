@@ -1,6 +1,6 @@
 use std::fmt;
 
-use rustle_domain::VaultPathError;
+use rustle_domain::{ArticleRepositoryError, VaultPathError};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -60,6 +60,15 @@ impl From<VaultPathError> for CommandError {
     }
 }
 
+impl From<ArticleRepositoryError> for CommandError {
+    fn from(error: ArticleRepositoryError) -> Self {
+        match error {
+            ArticleRepositoryError::OutsideVault(outside) => outside.into(),
+            unreadable @ ArticleRepositoryError::Unreadable { .. } => Self::unexpected(unreadable),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,11 +77,11 @@ mod tests {
 
     #[test]
     fn an_unimplemented_channel_names_itself() {
-        let error = CommandError::not_implemented(Channel::ReadBody);
+        let error = CommandError::not_implemented(Channel::SaveBody);
 
         assert_eq!(
             serde_json::to_value(&error).expect("serializable"),
-            json!({ "reason": "notImplemented", "message": "the readBody channel is not implemented yet" })
+            json!({ "reason": "notImplemented", "message": "the saveBody channel is not implemented yet" })
         );
     }
 
@@ -84,6 +93,26 @@ mod tests {
 
         assert_eq!(error.reason(), FailureReason::OutsideVault);
         assert!(error.to_string().contains(".."));
+    }
+
+    #[test]
+    fn an_article_outside_the_vault_is_reported_as_outside_the_vault() {
+        let rejected = WorkspaceName::parse("..").expect_err("'..' is rejected");
+
+        let error = CommandError::from(ArticleRepositoryError::OutsideVault(rejected));
+
+        assert_eq!(error.reason(), FailureReason::OutsideVault);
+    }
+
+    #[test]
+    fn an_unreadable_article_is_unexpected_and_names_the_article() {
+        let error = CommandError::from(ArticleRepositoryError::Unreadable {
+            article: "Blog/missing.md".to_owned(),
+            reason: "No such file or directory".to_owned(),
+        });
+
+        assert_eq!(error.reason(), FailureReason::Unexpected);
+        assert!(error.to_string().contains("Blog/missing.md"));
     }
 
     #[test]

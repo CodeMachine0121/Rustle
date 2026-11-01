@@ -2872,12 +2872,15 @@ name = "rustle"
 version = "0.1.0"
 dependencies = [
  "rstest",
+ "rustle-application",
  "rustle-domain",
+ "rustle-infrastructure",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tempfile",
  "thiserror 2.0.21",
  "url",
 ]
