@@ -24,7 +24,7 @@
 | `src/features/editor/xcodeTheme.ts` | **Add** | The writing area's Xcode highlight style + monospaced editor theme, colours as CSS tokens |
 | `src/features/vault/NewWorkspaceEntry.tsx` + `NewWorkspaceDialog.tsx` | **Add** (replace `NewWorkspaceField.tsx`) | Plus icon in the WORKSPACES header → dialog with name, 建立, 取消 |
 | `src/app/AppLayout.tsx` | **Modify** | Takes the layout snapshot and the controls; drops the preview handle and ✕; hides (not unmounts) sidebar/articles in Zen and the editor in preview only |
-| `src/app/App.tsx` | **Modify** | Builds one `WritingLayout`; wraps the autosave holder given to `VaultSession` with `revealEditorWhenRefused`; wires the new entries (app integration commit) |
+| `src/app/App.tsx` | **Modify** | Builds one `WritingLayout`; wraps the autosave holder given to `VaultSession` with `revealEditorWhenNeeded`; wires the new entries (app integration commit) |
 | `src/features/autosave/AutosaveSession.ts` | **Modify** | `AutosaveStatus` carries `workspace`, `fileName` and `indicator: "saving" \| "saved" \| "failed"` instead of `title` |
 | `src/features/autosave/AutosavedEditor.tsx` | **Modify** | Statusline below the editor instead of a bar above |
 | `src/features/vault/ArticleColumn.tsx` | **Modify** | No sort select; funnel filter + new-article icon in one always-present row; card metadata line (status → date → tags → markers) left-aligned; pencil top-right, trash bottom-right; empty-workspace guide is text, not a button |
@@ -49,7 +49,7 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `WritingLayout` | Session class (subscribe / snapshot, like `VaultSession`) | Decide the arrangement: `snapshot = { viewMode, isZen, controlsLiveIn: "editor" \| "preview" }`. `choose(mode)` (editor only → writes `isOpen=false`; side by side → `isOpen=true`; preview only → `isOpen=true` + transient flag), `toggleZen()`, `togglePreviewFromShortcut()` (preview only → side by side; otherwise flips `isOpen`), `revealEditor()` (preview only → side by side; nothing to write, the settings already say the preview is open), `revealEditorWhenRefused(holder)` (an `ArticleHolder` that calls `revealEditor` on any non-`switched` answer), `takeControlsFocus()` (true once after a button choice moved the controls to the other header) | `SettingsSession` | US-07 all, US-08 enter/leave/view modes/restart, US-05 "只有預覽時被擋下" |
+| `WritingLayout` | Session class (subscribe / snapshot, like `VaultSession`) | Decide the arrangement: `snapshot = { viewMode, isZen, controlsLiveIn: "editor" \| "preview" }`. `choose(mode)` (editor only → writes `isOpen=false`; side by side → `isOpen=true`; preview only → `isOpen=true` + transient flag), `toggleZen()`, `togglePreviewFromShortcut()` (preview only → side by side; otherwise flips `isOpen`), `revealEditor()` (preview only → side by side; nothing to write, the settings already say the preview is open), `revealEditorWhenNeeded(holder)` (an `ArticleHolder` that calls `revealEditor` on any non-`switched` answer, and when an opened article asks for the editor's focus, e.g. a newly created one), the transient preview only flag is cleared whenever the settings report the preview closed, `takeControlsFocus()` (true once after a button choice moved the controls to the other header) | `SettingsSession` | US-07 all, US-08 enter/leave/view modes/restart, US-05 "只有預覽時被擋下" |
 | `useWritingLayout(layout, settings)` | Hook | `useSyncExternalStore` over the layout; installs the configured preview shortcut (capture phase, `CompositionState.ownsKey` first) → `togglePreviewFromShortcut` | `WritingLayout`, `KeyboardShortcut` | US-07 shortcut scenarios |
 | `ZenButton` / `ViewModeButtons` | Components | Zen: `Maximize2` ↔ `Minimize2`, `aria-pressed`. View modes: three `aria-pressed` icon buttons in a `role="group"`; on mount, take the keyboard if `layout.takeControlsFocus()` | `WritingLayout` | US-07, US-08 keyboard path |
 | `SaveStatusLine` | Component | `footer` under the editor: `ArticlePath` (`workspace ❯ fileName`; workspace shrinks with an ellipsis, file name never) + `SaveIndicator` (`LoaderCircle` spinning / green `Check` / warning `CircleAlert`, same box size) + failure text + outside-change warning with 覆寫 / 重新載入. Nothing rendered while no article is open | `AutosaveSession` | US-05 all, US-10 colours |
@@ -78,7 +78,7 @@ flowchart TD
     App --> WritingLayout
     App --> AppLayout
     WritingLayout --> SettingsSession
-    App -->|revealEditorWhenRefused autosave| VaultSession
+    App -->|revealEditorWhenNeeded autosave| VaultSession
     AppLayout --> ZenButton & ViewModeButtons
     ZenButton & ViewModeButtons --> WritingLayout
     AppLayout --> EditorColumn --> AutosavedEditor --> MarkdownEditor & SaveStatusLine
@@ -125,7 +125,7 @@ flowchart TD
 | US-05 開始打字就轉圈 | `AutosaveSession` `indicator: "saving"` from `changeBody` |
 | US-05 存完換回綠勾並留著 | `AutosaveSession` `indicator: "saved"` after the save, no timer |
 | US-05 沒有打開任何文章 | `SaveStatusLine` renders nothing for `noArticle` |
-| US-05 只有預覽時被擋下 | `WritingLayout.revealEditorWhenRefused` around the autosave holder |
+| US-05 只有預覽時被擋下 | `WritingLayout.revealEditorWhenNeeded` around the autosave holder |
 | US-05 麵包屑裝不下 | `ArticlePath` CSS (workspace ellipsis, file name `flex-shrink: 0`) |
 | US-05 儲存失敗 | `indicator: "failed"` + failure text on `SaveStatusLine` |
 | US-05 檔案在 Rustle 之外被改過 | warning + 覆寫 / 重新載入 on `SaveStatusLine` |
@@ -161,7 +161,8 @@ flowchart TD
 6. **Plus icon for workspaces** sits in the WORKSPACES section header (an `action` beside the fold toggle), not inside the list.
 7. **Zen hides, not removes,** the sidebar and article column (`hidden`): filter text and fold state come back as they were ("回到進入 Zen Mode 之前的樣子") and hidden controls are out of the Tab order.
 8. **Focus after moving the controls:** only a click/key on a view-mode button that moves the controls to the other header hands the keyboard to the chosen button in its new place; the shortcut and Zen never move focus.
-9. **Revealing the editor on refusal** covers every leave that goes through the holder (article click, scope change, operations that let the article go). It does not write settings.
+9. **Revealing the editor on refusal** covers every leave that goes through the holder (article click, scope change, operations that let the article go). It does not write settings. A newly created article opened in preview only also brings the editor back, since it hands the keyboard to the editor (not covered by the PRD; chosen so the writer can type at once).
 10. **Settings gear** stays as it is: it is already a stroke-only line drawing in `currentColor`. The chip remove `×` in the metadata form is the one character-as-icon left, so it becomes a line icon.
 11. **Risk:** CSS-only behaviour (corners, ellipsis, colours, spinner animation) is not measurable in happy-dom; tests pin structure/classes and `docs/ime-regression-checklist.md` is unaffected.
 12. **One icon button:** `IconButton` (added while improving the slice) is the only way an icon-only button is drawn, so label, tooltip and `aria-hidden` cannot drift apart.
+13. **One create request at a time:** the new-workspace dialog ignores a submit while the previous one is still answering, so a quick double Enter cannot leave a stale refusal behind.
