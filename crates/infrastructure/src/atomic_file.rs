@@ -16,6 +16,36 @@ pub fn write_atomically(path: &Path, contents: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
+/// Creates `path` with `contents` only when nothing has its name yet and
+/// flushes it (and on Unix its folder) to disk. A file that could not be
+/// fully written is removed again.
+pub(crate) fn create_new_durably(path: &Path, contents: &[u8]) -> io::Result<()> {
+    let mut file = fs::File::options()
+        .write(true)
+        .create_new(true)
+        .open(path)?;
+    let written = file
+        .write_all(contents)
+        .and_then(|()| file.sync_all())
+        .and_then(|()| sync_folder_of(path));
+    if written.is_err() {
+        drop(file);
+        let _ = fs::remove_file(path);
+    }
+    written
+}
+
+#[cfg(unix)]
+fn sync_folder_of(path: &Path) -> io::Result<()> {
+    path.parent()
+        .map_or(Ok(()), |folder| fs::File::open(folder)?.sync_all())
+}
+
+#[cfg(not(unix))]
+fn sync_folder_of(_path: &Path) -> io::Result<()> {
+    Ok(())
+}
+
 /// [`write_atomically`], but only while `path` still has the modification
 /// time the caller expects. It is checked before the temporary file is
 /// written and again right before the rename. The returned modification
