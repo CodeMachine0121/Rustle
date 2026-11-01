@@ -27,26 +27,13 @@ export class TableRowContinuation {
       return false;
     }
     const line = state.doc.lineAt(cursor.head);
-    const row = TableRow.parse(line.text);
-    if (row === null) {
-      return false;
-    }
-    if (row.isBlank && cursor.head > line.from + row.prefix.length) {
-      view.dispatch({
-        changes: { from: line.from, to: line.to, insert: row.prefix },
-        selection: { anchor: line.from + row.prefix.length },
-        annotations: isolateHistory.of("full"),
-        userEvent: "input",
-        scrollIntoView: true,
-      });
-      return true;
-    }
-    if (cursor.head !== line.to) {
+    const edit = TableRow.parse(line.text)?.enterAt(cursor.head - line.from) ?? null;
+    if (edit === null) {
       return false;
     }
     view.dispatch({
-      changes: { from: line.to, insert: `\n${row.nextRow}` },
-      selection: { anchor: line.to + 1 + row.firstCellOffset },
+      changes: { from: line.from + edit.from, to: line.from + edit.to, insert: edit.insert },
+      selection: { anchor: line.from + edit.cursor },
       annotations: isolateHistory.of("full"),
       userEvent: "input",
       scrollIntoView: true,
