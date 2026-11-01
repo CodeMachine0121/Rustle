@@ -4,6 +4,7 @@ import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
 import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import type { VimModeSession } from "../vim/VimModeSession";
+import type { VimNormalCommand } from "../vim/VimNormalCommand";
 import { NoArticleState } from "./NoArticleState";
 import type { VaultSnapshot } from "./VaultSession";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
@@ -16,6 +17,7 @@ type EditorColumnProps = {
   fontSizePixels?: number;
   vimModes: VimModeSession;
   vimRegister?: SystemClipboardRegister;
+  vimNormalCommands?: readonly VimNormalCommand[];
 };
 
 export function EditorColumn({
@@ -26,6 +28,7 @@ export function EditorColumn({
   fontSizePixels,
   vimModes,
   vimRegister,
+  vimNormalCommands,
 }: EditorColumnProps) {
   const { openedDocument, indentation, bodyFailure } = snapshot;
   const messages = useMessages();
@@ -48,6 +51,7 @@ export function EditorColumn({
       fontSizePixels={fontSizePixels}
       vimModes={vimModes}
       vimRegister={vimRegister}
+      vimNormalCommands={vimNormalCommands}
     />
   );
 }
