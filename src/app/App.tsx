@@ -6,7 +6,7 @@ export function App() {
   return (
     <CompositionProvider>
       <main className="app">
-        <MarkdownEditor initialBody={SAMPLE_BODY} />
+        <MarkdownEditor body={SAMPLE_BODY} />
       </main>
     </CompositionProvider>
   );
