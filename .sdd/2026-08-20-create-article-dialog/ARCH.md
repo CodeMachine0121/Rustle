@@ -64,7 +64,7 @@
 | `ChipInput` | component | chips + text box: Enter/`,` add (never while the IME owns the key), Backspace on empty removes last, × removes one, candidates shown only while typing, click adds; reports composition to the shared state | TC-04~TC-11, TC-15~TC-18, TC-28~TC-32 |
 | `chipValues` | module | `withChip(values, typed)` (trim, ignore blank, ignore duplicate) and `candidatesFor(vocabulary, typed, chosen)` (case-insensitive substring, minus chosen) | TC-09, TC-10, TC-12~TC-18 |
 | `ArticleVocabulary` | function | the workspace's distinct categories and tags from the listed `ArticleSummary` rows | TC-12~TC-14, TC-18 |
-| `CreateArticleDialog` | component | `role="dialog"`, no `<form>`; Title focused on open; 「建立於 …」 text; Create disabled + reason when the title is blank; Enter in Title submits once; Esc/取消 close unless composing; pending chip text collected on submit; failure shown, dialog kept | TC-01~TC-03, TC-19~TC-24, TC-26, TC-27, TC-30, TC-33, TC-38~TC-41 |
+| `CreateArticleDialog` | component | `role="dialog"`, no `<form>`; Title focused on open; 「建立於 …」 text; Create disabled + reason when the title is blank; Enter in Title submits once; Esc/取消 close unless composing or a create is in flight (取消 disabled meanwhile, so a sent create cannot open an article after the writer cancelled); pending chip text collected on submit; failure shown, dialog kept | TC-01~TC-03, TC-19~TC-24, TC-26, TC-27, TC-30, TC-33, TC-38~TC-41 |
 | `VaultSession.createArticle` | method | no workspace → no request; call channel; reload workspaces and articles; open with `focusEditor`; remember; returns `{ outcome: "created" } \| { outcome: "failed", message }` | TC-38, TC-39, TC-42, TC-51~TC-54 |
 
 ---

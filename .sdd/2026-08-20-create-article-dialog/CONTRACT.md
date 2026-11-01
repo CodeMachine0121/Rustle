@@ -100,7 +100,7 @@ Oracle: Acceptance Criteria (64 clauses). `AC-nn` = PRD scenario `TC-nn`.
 
 | Code | Description | Verdict |
 | :--- | :--- | :--- |
-| `file_system_article_repository.rs` `write_new_file` | Removes a half-written new file when writing or flushing fails | Undocumented; supports BRIEF §5.5 ("can try again"): a retry is not pushed to `-2` by a leftover. Not testable without fault injection (the only uncovered changed Rust lines) |
+| `file_system_article_repository.rs` `create` | Removes a half-written new file when writing or flushing fails | Undocumented; supports BRIEF §5.5 ("can try again"): a retry is not pushed to `-2` by a leftover. Not testable without fault injection (the only uncovered changed Rust lines) |
 | `VaultSession.createArticle` | Drops the post-creation open when another selection happened meanwhile | Undocumented; same "latest click wins" rule as every other selection |
 | `CreateArticleDialog` | Disables 「建立」 while a request is in flight | Supports AC-27's "只送出一次" |
 | `ArticleSummary.updatedAt` in `listArticles` | Every listed row now also carries `updatedAt` | Added for AC-49; additive, nothing renders it yet |
