@@ -756,7 +756,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("stays in Zen Mode when Esc hands the keyboard away from the editor", async () => {
+    it("leaves Zen Mode on an Esc in the editor that nothing else takes", async () => {
       await startWithZenOpen();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
       const content = editorContent();
@@ -766,8 +766,8 @@ describe("App", () => {
 
       fireEvent.keyDown(content, { key: "Escape" });
 
-      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
-      expect(section("文章")).not.toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
+      expect(section("文章")).toBeVisible();
     });
 
     it("never writes Zen Mode or preview only into the settings", async () => {
