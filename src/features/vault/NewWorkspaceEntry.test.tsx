@@ -89,6 +89,23 @@ describe("NewWorkspaceEntry", () => {
     expect(field).toHaveValue("Blog");
   });
 
+  it("asks to create the workspace once while the first request is still answering", async () => {
+    const answers: ((isCreated: boolean) => void)[] = [];
+    const onCreate = vi.fn(() => new Promise<boolean>((resolve) => answers.push(resolve)));
+    renderEntry(onCreate);
+    const field = openDialog();
+    fireEvent.change(field, { target: { value: "Notes" } });
+
+    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "建立" }));
+
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    await act(async () => answers.forEach((answer) => answer(false)));
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onCreate).toHaveBeenCalledTimes(2);
+  });
+
   it("shows inside the dialog why a workspace could not be created", async () => {
     const { rerender } = renderEntry(vi.fn(() => Promise.resolve(false)));
     const field = openDialog();

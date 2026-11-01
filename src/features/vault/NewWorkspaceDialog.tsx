@@ -22,6 +22,7 @@ export function NewWorkspaceDialog({ rejection, failure, onCreate, onClose }: Ne
   const messages = useMessages();
   const headingId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
   const [typedName, setTypedName] = useState("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -30,8 +31,14 @@ export function NewWorkspaceDialog({ rejection, failure, onCreate, onClose }: Ne
   }, []);
 
   const submit = async () => {
+    if (isSubmittingRef.current) {
+      return;
+    }
+    isSubmittingRef.current = true;
     setHasSubmitted(true);
-    if (await onCreate(typedName)) {
+    const isCreated = await onCreate(typedName);
+    isSubmittingRef.current = false;
+    if (isCreated) {
       onClose();
     }
   };
