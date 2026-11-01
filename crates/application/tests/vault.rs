@@ -585,3 +585,18 @@ fn skips_a_workspace_that_cannot_be_read_and_lists_the_others() {
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).expect("unlocked");
     assert_eq!(listed, [("Blog".to_owned(), "a.md".to_owned())]);
 }
+
+#[cfg(unix)]
+#[test]
+fn skips_a_workspace_that_links_outside_the_vault_and_lists_the_others() {
+    let vault = Vault::create();
+    vault.folder("Blog").file("Blog/a.md", "a");
+    let outside = vault.outside();
+    fs::write(outside.join("secret.md"), "secret").expect("file outside the vault");
+    std::os::unix::fs::symlink(&outside, vault.root.join("Escaped")).expect("symlink");
+
+    assert_eq!(
+        vault.list_all_articles(),
+        [("Blog".to_owned(), "a.md".to_owned())]
+    );
+}
