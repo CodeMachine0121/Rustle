@@ -32,7 +32,7 @@ export class ThemeCatalog {
 
   /** What a remembered name means today: a theme in the catalog, or following the system. */
   choiceFor(remembered: string | null | undefined): ThemeChoice {
-    return this.themes.some((theme) => theme.id === remembered) ? (remembered as string) : FOLLOW_SYSTEM;
+    return this.themes.find((theme) => theme.id === remembered)?.id ?? FOLLOW_SYSTEM;
   }
 
   /** The theme to paint; following the system is the light or the dark theme. */
