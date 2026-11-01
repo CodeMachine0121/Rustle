@@ -21,7 +21,7 @@
 | `src/features/snippets/snippetTemplate.json` | **Add** | The template to copy for a tenth snippet |
 | `src/features/snippets/Snippet.ts` | **Add** | Parse + validate one snippet file; its expansion (text without field names, field offsets); name-prefix match |
 | `src/features/snippets/SnippetCatalog.ts` | **Add** | The shipped snippets (glob, file-name order, unusable files left out); `matching(query)` |
-| `src/features/snippets/slashTrigger.ts` | **Add** | `slashOpensSnippetMenu(state, position)`: "may a `/` typed here open the menu?" (previous char, indented-code depth, fenced/indented code node, table row). A function, not a class: it has no state and ESLint refuses a static-only class |
+| `src/features/snippets/slashTrigger.ts` | **Add** | `slashOpeningSnippetMenu(transaction)`: where the slash is when a transaction is a lone typed `/` that may open the menu (typed not pasted, previous char, indented-code depth, fenced/indented code node, table row), else `null`. A function, not a class: it has no state and ESLint refuses a static-only class |
 | `src/features/snippets/SnippetFields.ts` | **Add** | The one group of waiting fields: a CodeMirror state field mapped through edits, next / previous / end, the thin marker decorations |
 | `src/features/snippets/SnippetMenu.ts` | **Add** | The open menu: state field (slash position, query, highlighted row), tooltip DOM (listbox), arrows / Enter / click, expansion |
 | `src/features/snippets/SnippetExpansion.ts` | **Add** | The one public entry: `new SnippetExpansion(composition, catalog, menuLabel).extension()` bundling menu + fields + its claim on Tab and Esc |
@@ -44,9 +44,9 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `Snippet` | Domain model | `Snippet.parse(file: unknown): Snippet \| null` — `null` unless `name` is a non-blank string and `template` a string whose every `{{` closes with `}}` on the same line around a non-blank name (no stray `{{`/`}}`). `name`; `matches(query)` (case-insensitive name prefix); `expansion` → `{ text, fields: readonly { from, to }[] }` with every `{{name}}` removed (fields empty, in document order, same names independent) | — | US-03 all, US-06 讀不出來的那一份不上架, US-02 篩選 |
 | `SnippetCatalog` | Domain model | `snippets` in file-name order, unusable files left out; `matching(query)`; `static shipped()` globs `./snippets/*.json` | `Snippet` | US-01 九列, US-06 all |
-| `slashOpensSnippetMenu` | Rule function (`slashTrigger.ts`) | Whether a `/` inserted at `position` of `state` opens the menu: previous char is line start / space / tab; the blank prefix is narrower than 4 columns when the slash starts the line's text; the position is not inside a `FencedCode` / `CodeBlock` node; the line is not a `TableRow` | `syntaxTree`, `TableRow` | US-01 trigger scenarios |
+| `slashOpeningSnippetMenu` | Rule function (`slashTrigger.ts`) | Whether a transaction is a lone typed `/` that opens the menu, and where: previous char is line start / space / tab; the blank prefix is narrower than 4 columns when the slash starts the line's text; the position is not inside a `FencedCode` / `CodeBlock` node; the line is not a `TableRow` | `syntaxTree`, `TableRow` | US-01 trigger scenarios |
 | `SnippetFields` | Editor state (field + effects + decorations) | Holds at most one `WaitingFields { fields, active, span }`; maps it through every change (a field grows as you type in it); ends it when the main cursor leaves the span, on undo/redo, on a new expansion (replaced) or on `end`; `move(view, direction)` selects the next/previous field (last + forward ends and puts the cursor at the snippet's end); marker widgets on empty fields, frozen while the view is composing | `Snippet.expansion` | US-03, US-04 all, US-05 Esc 結束填空 |
-| `SnippetMenu` | Editor state + tooltip | Opens through a transaction extender when a single typed `/` (not a composition input, composition idle) passes `slashOpensSnippetMenu`; holds `{ slashAt, highlighted }`; closes when the cursor leaves `slashAt+1…`, the selection is not a cursor, the slash is gone, the query matches nothing, or a composition input arrives; draws a `role="listbox"` tooltip under the cursor (CodeMirror flips it above when there is no room); ↑/↓/Enter at `Prec.highest` (never while the input method owns the key); `mousedown` on a row expands; `expand` replaces `/query` with the expansion in one isolated history event and starts its fields | `SnippetCatalog`, `slashOpensSnippetMenu`, `SnippetFields`, `CompositionState` | US-01, US-02, US-03 一步 undo, US-04 第二份片段 |
+| `SnippetMenu` | Editor state + tooltip | Opens through a transaction extender when a single typed `/` (not a composition input, composition idle) passes `slashOpeningSnippetMenu`; holds `{ slashAt, highlighted }`; closes when the cursor leaves `slashAt+1…`, the selection is not a cursor, the slash is gone, the query matches nothing, or a composition input arrives; draws a `role="listbox"` tooltip under the cursor (CodeMirror flips it above when there is no room); ↑/↓/Enter at `Prec.highest` (never while the input method owns the key); `mousedown` on a row expands; `expand` replaces `/query` with the expansion in one isolated history event and starts its fields | `SnippetCatalog`, `slashOpeningSnippetMenu`, `SnippetFields`, `CompositionState` | US-01, US-02, US-03 一步 undo, US-04 第二份片段 |
 | `SnippetExpansion` | Facade (deep module) | The only thing `MarkdownEditor` sees: `extension()` = menu + fields + an `indentationKeyClaims` entry (Tab: fields waiting → move; Esc: menu open → close, else fields waiting → end, else not claimed) | all of the above | R-2, R-3 |
 | `indentationKeyClaims` / `IndentationKeyClaim` | Facet in `TabIndentation.ts` | `{ claimTab(view, backward): boolean; claimEscape(view): boolean }` asked by `TabKeyListener` before indenting / arming | `TabIndentation` | US-04 / US-05 Tab & Esc routing, US-07 照舊 |
 
@@ -74,7 +74,7 @@ flowchart TD
     Expansion --> Fields[SnippetFields]
     Expansion -- claim --> Facet[indentationKeyClaims]
     Facet --> Tab[TabIndentation TabKeyListener]
-    Menu --> Trigger[slashOpensSnippetMenu] --> Row[TableRow.parse] & Tree[syntaxTree]
+    Menu --> Trigger[slashOpeningSnippetMenu] --> Row[TableRow.parse] & Tree[syntaxTree]
     Menu --> Catalog
     Menu -- start effect --> Fields
     Menu --> Composition[CompositionState]
@@ -86,7 +86,7 @@ flowchart TD
 
 - **Most likely next requirement:** more shipped snippets (code block, quote, task list); then snippets the writer keeps in the vault.
 - **Where it lands:** a tenth snippet = copy `snippetTemplate.json` to `snippets/10-<name>.json`; no code changes (the glob finds it, file-name order places it). Vault snippets = another `{ fileName: content }` record handed to `SnippetCatalog`'s constructor (probably over a new channel); `shipped()` is only one source.
-- **Loosening the table rule** (PRD §7 says it is the most likely to be revisited): one condition in `slashOpensSnippetMenu`; a narrower menu inside tables would be a `matching` variant on the catalog.
+- **Loosening the table rule** (PRD §7 says it is the most likely to be revisited): one condition in `slashOpeningSnippetMenu`; a narrower menu inside tables would be a `matching` variant on the catalog.
 - **Another key that must come before indentation** (a future popup wanting Tab or Esc): register one more `indentationKeyClaims` entry; never add a second Tab listener. Esc is now three layers deep — read `SnippetExpansion`'s claim before giving it a fourth job.
 - **Patterns applied & why:** data files + one parser (the axis of change is "more snippets"); a facade so the editor installs one thing; a facet as the seam between the generic Tab owner and anything claiming Tab first (keeps `TabIndentation` ignorant of snippets).
 - **Do not hardcode:** the snippet list or order, any colour, the field syntax outside `Snippet`.
@@ -98,13 +98,13 @@ flowchart TD
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| 在空行行首叫出片段選單 | `SnippetMenu` (open) + `slashOpensSnippetMenu` + `SnippetCatalog.shipped()` order |
-| 前面是空白字元也叫得出來 | `slashOpensSnippetMenu` (previous char blank) |
-| 行首只有縮排空白時照樣叫得出來 | `slashOpensSnippetMenu` (blank prefix < 4 columns) |
-| 縮排深到 Markdown 認為那是程式碼，就不觸發 | `slashOpensSnippetMenu` (blank prefix ≥ 4 columns / `CodeBlock`) |
-| 打網址時一次都不誤觸 | `slashOpensSnippetMenu` (previous char `:` / `/`) |
-| 程式碼區塊裡不觸發 | `slashOpensSnippetMenu` (`FencedCode`) |
-| 表格裡不觸發 | `slashOpensSnippetMenu` (`TableRow.parse`) |
+| 在空行行首叫出片段選單 | `SnippetMenu` (open) + `slashOpeningSnippetMenu` + `SnippetCatalog.shipped()` order |
+| 前面是空白字元也叫得出來 | `slashOpeningSnippetMenu` (previous char blank) |
+| 行首只有縮排空白時照樣叫得出來 | `slashOpeningSnippetMenu` (blank prefix < 4 columns) |
+| 縮排深到 Markdown 認為那是程式碼，就不觸發 | `slashOpeningSnippetMenu` (blank prefix ≥ 4 columns / `CodeBlock`) |
+| 打網址時一次都不誤觸 | `slashOpeningSnippetMenu` (previous char `:` / `/`) |
+| 程式碼區塊裡不觸發 | `slashOpeningSnippetMenu` (`FencedCode`) |
+| 表格裡不觸發 | `slashOpeningSnippetMenu` (`TableRow.parse`) |
 | 組字中打斜線什麼都不發生 | `SnippetMenu` opener ignores composition inputs and a composing `CompositionState`; no tooltip is created |
 | 全形斜線是標點，不是命令 | `SnippetMenu` opener accepts only `"/"` |
 | 畫面底部沒有位置時選單畫在游標上方 | CodeMirror tooltip positioning (flips above); verified manually (no layout in happy-dom) |
