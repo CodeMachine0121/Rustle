@@ -132,6 +132,18 @@ describe("SettingsDialog", () => {
     expect(themeSelect("Theme").selectedOptions[0]?.textContent).toBe("Forest");
   });
 
+  it("offers the themes in a native menu the keyboard reaches and works, named by its heading", () => {
+    renderDialog("zh");
+    const select = themeSelect();
+
+    expect(select).toBeInstanceOf(HTMLSelectElement);
+    expect(select).toBeEnabled();
+    expect(select.tabIndex).toBeGreaterThanOrEqual(0);
+    expect(select).toHaveAccessibleName("主題");
+    select.focus();
+    expect(select).toHaveFocus();
+  });
+
   it("chooses a theme and stays open", () => {
     const { onClose, chooseTheme } = renderDialog("zh");
 
