@@ -45,7 +45,7 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `KeyboardShortcut` | Parses and matches the preview toggle | `get label(): string` (`[Option+][Shift+]Cmd+<KEY>`) |
+| `KeyboardShortcut` | Parses and matches the preview toggle | `get label(): string` (`[Option+][Shift+]Cmd+<KEY>`); `Cmd` read as another name for `Mod` |
 | `SettingsDialog` | Three settings sections | `page` state; 快捷鍵 button; renders `KeymapOverview` instead of the sections on the keymap page |
 | `useWritingLayout` | Owns the preview listener and its parsing | Parsing moved to `usePreviewToggleShortcut` |
 
@@ -104,7 +104,7 @@ Decisions taken autonomously (the user was away):
 1. **Key names are words, not symbols.** The BRIEF asked for `⌘B`/`⇥`; the finalized PRD (US-03) overrides it: `Cmd+B`, `Tab`, `Shift+Cmd+P`. The PRD wins.
 2. **The 尋找 group is included.** The finding slice (already on `main`) exported `FINDING_SHORTCUTS` and the catalog sentences for this list and specified a fourth group after the three; drawing it is that slice's contract. The PRD's "three groups top to bottom" still holds for the first three.
 3. **`Cmd+,` (settings key) is not listed.** That slice is not on `main`; it will add one row.
-4. **"設定說開關預覽是 Cmd+Alt+K"** is read as the setting text `Mod+Alt+K` — the format the preview slice defined (`Mod` = Cmd or Ctrl). `KeyboardShortcut` does not accept `Cmd` as a modifier, and per the PRD's rule four the list must show what the app actually answers to, so a setting literally written `Cmd+Alt+K` shows `Shift+Cmd+P`. Widening the parser was out of scope.
+4. **"設定說開關預覽是 Cmd+Alt+K"** is taken literally. The preview slice's setting format only knew `Mod` (Cmd or Ctrl), so `Cmd+Alt+K` used to be unreadable and fall back to the default. `KeyboardShortcut.parse` now also reads `Cmd` as another name for `Mod` (still matching Cmd or Ctrl), so the window answers to `Option+Cmd+K` and the row says so. No preview-panel scenario names `Cmd` as invalid, so its contract is unchanged.
 5. **Modifier order** follows macOS menus: Option, Shift, Cmd (`Mod+Shift+Alt+K` → `Option+Shift+Cmd+K`).
 6. **Back control:** a left-arrow `IconButton` with the readable name 返回設定 / "Back to Settings" (PRD §5). On return, focus lands on the 快捷鍵 button; on entering the list, on the back button.
 7. **Row nouns** are the PRD §4 table words; the PRD's "逐層擴大選取" in scenarios is the same row as the table's 擴大選取. 字體回預設 does not mention the hovered surface (BRIEF open decision: rows are nouns, PRD rule five).
