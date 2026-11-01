@@ -46,6 +46,7 @@ pub(super) struct StoredSettings {
     interface_language: Tolerant<Option<InterfaceLanguage>>,
     sidebar: Tolerant<StoredSidebar>,
     font_size: Tolerant<StoredFontSize>,
+    theme: Tolerant<Option<String>>,
 }
 
 #[derive(Deserialize, Default)]
@@ -136,6 +137,7 @@ impl From<StoredSettings> for Settings {
             interface_language: stored.interface_language.or(None),
             sidebar: stored.sidebar.or_default().into(),
             font_size: stored.font_size.or_default().into(),
+            theme: stored.theme.or(None),
         }
     }
 }
