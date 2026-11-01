@@ -273,3 +273,51 @@ fn a_folder_named_only_with_spaces_cannot_be_reached() {
         Ok(vec![VaultEntry::new("   ", VaultEntryKind::Unreachable)])
     );
 }
+
+#[test]
+fn lists_the_images_folder_of_a_workspace() {
+    let vault = Vault::create();
+    vault.folder("Blog/images/2026");
+    vault.file("Blog/images/1.png");
+
+    let entries = vault
+        .workspaces()
+        .image_entries(&workspace("Blog"))
+        .expect("listed");
+
+    assert_eq!(
+        sorted(entries),
+        vec![
+            VaultEntry::new("1.png", VaultEntryKind::File),
+            VaultEntry::new("2026", VaultEntryKind::Folder),
+        ]
+    );
+}
+
+#[test]
+fn a_workspace_without_an_images_folder_has_no_image_entries() {
+    let vault = Vault::create();
+    vault.folder("Blog");
+
+    assert_eq!(
+        vault.workspaces().image_entries(&workspace("Blog")),
+        Ok(Vec::new())
+    );
+}
+
+#[test]
+fn never_renames_onto_an_existing_entry() {
+    let vault = Vault::create();
+    vault.folder("Blog");
+    vault.folder("Work");
+
+    let refused = vault
+        .workspaces()
+        .rename(&workspace("Blog"), &workspace("Work"));
+
+    assert!(matches!(
+        refused,
+        Err(WorkspaceRepositoryError::NotRenamed { .. })
+    ));
+    assert!(vault.root.join("Blog").is_dir());
+}

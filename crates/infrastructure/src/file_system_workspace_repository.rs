@@ -3,8 +3,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use rustle_domain::{
-    ArticleFileName, VaultEntry, VaultEntryKind, VaultPathError, WorkspaceName,
-    WorkspaceRepository, WorkspaceRepositoryError,
+    ArticleFileName, IMAGES_FOLDER_NAME, ImageFileName, VaultEntry, VaultEntryKind, VaultPathError,
+    WorkspaceName, WorkspaceRepository, WorkspaceRepositoryError,
 };
 
 use crate::resolved_vault_scope::ResolvedVaultScope;
@@ -71,6 +71,20 @@ impl WorkspaceRepository for FileSystemWorkspaceRepository {
         })
     }
 
+    fn image_entries(
+        &self,
+        workspace: &WorkspaceName,
+    ) -> Result<Vec<VaultEntry>, WorkspaceRepositoryError> {
+        let folder = self
+            .vault
+            .workspace_path(workspace)?
+            .join(IMAGES_FOLDER_NAME);
+        Self::entries_of(&folder, |name| {
+            self.vault
+                .image_path(workspace, &ImageFileName::parse(name)?)
+        })
+    }
+
     fn create(&self, workspace: &WorkspaceName) -> Result<(), WorkspaceRepositoryError> {
         let unwritable = |error: io::Error| WorkspaceRepositoryError::Unwritable {
             workspace: workspace.to_string(),
@@ -79,5 +93,25 @@ impl WorkspaceRepository for FileSystemWorkspaceRepository {
         fs::create_dir_all(self.vault.root()).map_err(unwritable)?;
         let folder = self.vault.workspace_path(workspace)?;
         fs::create_dir(folder).map_err(unwritable)
+    }
+
+    fn rename(
+        &self,
+        workspace: &WorkspaceName,
+        new_name: &WorkspaceName,
+    ) -> Result<(), WorkspaceRepositoryError> {
+        let not_renamed = |reason: String| WorkspaceRepositoryError::NotRenamed {
+            workspace: workspace.to_string(),
+            new_name: new_name.to_string(),
+            reason,
+        };
+        let from = self.vault.workspace_path(workspace)?;
+        let to = self.vault.workspace_path(new_name)?;
+        if fs::symlink_metadata(&to).is_ok() {
+            return Err(not_renamed(
+                "a folder or file with that name exists".to_owned(),
+            ));
+        }
+        fs::rename(from, to).map_err(|error| not_renamed(error.to_string()))
     }
 }
