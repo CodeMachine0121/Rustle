@@ -20,7 +20,7 @@
 | `src/features/editor/ExtendSelection.ts` | **Add** | Key owner for `Mod-w`: refuses while composing; main cursor empty with a word → each empty range takes its word; otherwise `selectParentSyntax`; when that finds nothing larger for a non-empty selection, the whole body |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | Installs `new ExtendSelection(composition).extension()` next to `EmphasisShortcuts`; the comment about the retired `Mod-i` now says where the behaviour went |
 | `src-tauri/src/application_menu.rs` | **Add** | `application_menu(app)`: `Menu::default` with every stock Close Window item replaced, in place, by a `MenuItem` (`close-window`, same text, `Shift+CmdOrCtrl+W`); `close_window_on_request(app, event)` closes the main window through `Window::close` (so the existing `CloseRequested` guard runs exactly as before) |
-| `src-tauri/src/lib.rs` | **Modify** | `configure` installs the menu and its event handler on macOS only (`#[cfg(target_os = "macos")]`) |
+| `src-tauri/src/lib.rs` | **Modify** | `run` installs the menu and its event handler on macOS only (`#[cfg(target_os = "macos")]`). Not `configure`: native menus build only on the main thread, and every integration test builds a mock app through `configure` on a test thread |
 | `docs/ime-regression-checklist.md` | **Modify** | One extra line: Cmd+W while composing must leave the candidate window and the selection alone |
 | `.sdd/PROJECT.md` | **Modify** | New seam: the application menu, and the `Mod-w` key owner |
 | `InlineEmphasis` / `EmphasisShortcuts` | **Not touched** | They already call `state.wordAt`; sharing the call is sharing the rule |
@@ -55,7 +55,7 @@ Read-only is deliberately **not** checked: a selection-only transaction is allow
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
 | `MarkdownEditor.editorExtensions` | Installs every editor extension | One more line: `new ExtendSelection(composition).extension()` |
-| `configure` (`src-tauri/src/lib.rs`) | Installs state, channels, protocols, close guard | On macOS: `.menu(application_menu).on_menu_event(close_window_on_request)` |
+| `run` (`src-tauri/src/lib.rs`) | Production entry: `configure` + main window | On macOS: `.menu(application_menu).on_menu_event(close_window_on_request)` |
 
 ---
 
@@ -127,5 +127,6 @@ Decisions taken without the user (recorded in the PR as Assumptions):
 2. **Both close rows.** The stock macOS menu has Close Window in **File** and in **Window**, both on Cmd+W. Both are rebound (same position, same text), otherwise Cmd+W would still close the window. The PRD's "only this cell" is read as "only the close-window rows".
 3. **Closing goes through `Window::close`**, which raises `CloseRequested`, so the autosave close guard runs exactly as with the stock `performClose:`. With no main window the row does nothing.
 4. **macOS only.** The menu is installed under `#[cfg(target_os = "macos")]`; the editor binds `Mod-w`, so on other platforms Ctrl+W in the editor also grows the selection while the stock menu keeps Ctrl+W elsewhere (PRD §6: only macOS is guaranteed).
-5. **The menu row cannot be exercised by an automated keypress** (the mock runtime has no native menu bar). Tests pin the built menu (rows, ids, texts) and the event → close path; pressing the real keys is a release-checklist item.
+5. **The menu row cannot be exercised by an automated keypress** (the mock runtime has no native menu bar, and its `close` leaves no trace a test can read). `tests/application_menu.rs` (no harness: native menus need the main thread) pins the built menu against `Menu::default` row by row, the ids and the accelerator; the event → close path and pressing the real keys are in `docs/ime-regression-checklist.md`.
+6. **Recognising the stock close row**: a freshly built item still reports its mnemonic (`C&lose Window`) while a row read back from a menu does not, so the comparison drops `&`.
 - **Risk:** a custom `MenuItem` loses the native "disabled when no key window" state of `performClose:`. Acceptable: with one window, pressing it with no window does nothing.
