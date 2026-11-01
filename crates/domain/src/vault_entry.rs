@@ -3,7 +3,6 @@ use std::cmp::Ordering;
 use crate::vault_name::{ArticleFileName, WorkspaceName};
 use crate::vault_scope::IMAGES_FOLDER_NAME;
 
-const ARTICLE_EXTENSION: &str = ".md";
 const HIDDEN_NAME_PREFIX: char = '.';
 
 /// What a folder entry is, judged by what it points to when it is a link.
@@ -47,11 +46,12 @@ impl VaultEntry {
 
     /// A file with a `.md` extension in any case and a name before it.
     pub fn as_article(&self) -> Option<ArticleFileName> {
-        let is_listable =
-            self.kind == VaultEntryKind::File && Self::has_article_extension(&self.name);
-        is_listable
-            .then(|| ArticleFileName::parse(&self.name).ok())
-            .flatten()
+        if self.kind != VaultEntryKind::File {
+            return None;
+        }
+        ArticleFileName::parse(&self.name)
+            .ok()
+            .filter(|article| article.markdown_stem().is_some())
     }
 
     /// Alphabetical ignoring case, so `a`, `b`, `C` stay in that order; names
@@ -74,14 +74,6 @@ impl VaultEntry {
 
     pub(crate) fn is_reserved(name: &str) -> bool {
         name.eq_ignore_ascii_case(IMAGES_FOLDER_NAME)
-    }
-
-    fn has_article_extension(name: &str) -> bool {
-        let extension_start = name.len().saturating_sub(ARTICLE_EXTENSION.len());
-        name.len() > ARTICLE_EXTENSION.len()
-            && name
-                .get(extension_start..)
-                .is_some_and(|extension| extension.eq_ignore_ascii_case(ARTICLE_EXTENSION))
     }
 }
 

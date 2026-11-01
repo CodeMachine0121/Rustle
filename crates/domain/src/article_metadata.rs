@@ -4,8 +4,6 @@ use yaml_rust2::yaml::Hash;
 use crate::metadata_update::{CATEGORY_KEY, CREATED_AT_KEY, TAGS_KEY, TITLE_KEY, UPDATED_AT_KEY};
 use crate::vault_name::ArticleFileName;
 
-const MARKDOWN_EXTENSION: &str = ".md";
-
 /// What a front matter says about its article, read tolerantly: a missing or
 /// unusable title falls back to the file name and marks the metadata
 /// incomplete.
@@ -49,25 +47,17 @@ impl ArticleMetadata {
             .and_then(Yaml::as_str)
             .filter(|title| !title.trim().is_empty());
         Self {
-            title: title
-                .map(str::to_owned)
-                .unwrap_or_else(|| Self::title_from(file_name)),
+            title: title.map(str::to_owned).unwrap_or_else(|| {
+                file_name
+                    .markdown_stem()
+                    .unwrap_or(file_name.as_str())
+                    .to_owned()
+            }),
             created_at: text(CREATED_AT_KEY),
             updated_at: text(UPDATED_AT_KEY),
             category: list(CATEGORY_KEY),
             tags: list(TAGS_KEY),
             has_incomplete_metadata: title.is_none(),
-        }
-    }
-
-    fn title_from(file_name: &ArticleFileName) -> String {
-        let name = file_name.as_str();
-        let extension_start = name.len().saturating_sub(MARKDOWN_EXTENSION.len());
-        match name.get(extension_start..) {
-            Some(extension) if extension.eq_ignore_ascii_case(MARKDOWN_EXTENSION) => {
-                name[..extension_start].to_owned()
-            }
-            _ => name.to_owned(),
         }
     }
 }
