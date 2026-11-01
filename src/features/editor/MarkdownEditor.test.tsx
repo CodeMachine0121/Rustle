@@ -608,6 +608,19 @@ describe("MarkdownEditor marks and emphasis", () => {
     expect(editor.state.doc.toString()).toBe("看[今天的天氣](https://example.com)這裡");
   });
 
+  it("finds the same word under the cursor for the extend selection key as for bold", () => {
+    const body = "這是重點，那不是 and more";
+    const { content, editor } = editorOn(body, EditorSelection.single(3));
+
+    pressShortcut(content, "w");
+    const selected = editor.state.sliceDoc(editor.state.selection.main.from, editor.state.selection.main.to);
+    editor.dispatch({ selection: EditorSelection.single(3) });
+    pressShortcut(content, "b");
+
+    expect(editor.state.doc.toString()).toBe(body.replace(selected, `**${selected}**`));
+    expect(selected).toBe("這是重點");
+  });
+
   it("selects nothing with the italic shortcut while composing", () => {
     const { content, editor } = editorOn("看[連結](https://example.com)這裡", EditorSelection.single(3));
     fireEvent.compositionStart(content);
