@@ -3,6 +3,7 @@ import { MarkdownEditor } from "../editor/MarkdownEditor";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
 import { ImagePasteStatusLine } from "../imagePaste/ImagePasteStatusLine";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
+import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import { useVimEnabled } from "../vim/useVimModeSession";
 import { VimModeLabel } from "../vim/VimModeLabel";
 import type { VimModeSession } from "../vim/VimModeSession";
@@ -17,6 +18,7 @@ type AutosavedEditorProps = {
   imagePaste?: ImagePaste;
   fontSizePixels?: number;
   vimModes: VimModeSession;
+  vimRegister?: SystemClipboardRegister;
 };
 
 /**
@@ -32,6 +34,7 @@ export function AutosavedEditor({
   imagePaste,
   fontSizePixels,
   vimModes,
+  vimRegister,
 }: AutosavedEditorProps) {
   const editorDocument = useEditorDocument(session);
   const vimEnabled = useVimEnabled(vimModes);
@@ -50,6 +53,7 @@ export function AutosavedEditor({
         scrollSynchronizer={scrollSynchronizer}
         fontSizePixels={fontSizePixels}
         vimEnabled={vimEnabled}
+        vimRegister={vimRegister}
         onVimModeChange={vimModes.report}
       />
       <SaveStatusLine session={session} modeLabel={<VimModeLabel session={vimModes} />} />

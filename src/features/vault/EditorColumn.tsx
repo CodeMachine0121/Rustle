@@ -2,6 +2,7 @@ import { AutosavedEditor } from "../autosave/AutosavedEditor";
 import type { AutosaveSession } from "../autosave/AutosaveSession";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
+import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import type { VimModeSession } from "../vim/VimModeSession";
 import { NoArticleState } from "./NoArticleState";
 import type { VaultSnapshot } from "./VaultSession";
@@ -14,6 +15,7 @@ type EditorColumnProps = {
   imagePaste?: ImagePaste;
   fontSizePixels?: number;
   vimModes: VimModeSession;
+  vimRegister?: SystemClipboardRegister;
 };
 
 export function EditorColumn({
@@ -23,6 +25,7 @@ export function EditorColumn({
   imagePaste,
   fontSizePixels,
   vimModes,
+  vimRegister,
 }: EditorColumnProps) {
   const { openedDocument, indentation, bodyFailure } = snapshot;
   const messages = useMessages();
@@ -44,6 +47,7 @@ export function EditorColumn({
       imagePaste={imagePaste}
       fontSizePixels={fontSizePixels}
       vimModes={vimModes}
+      vimRegister={vimRegister}
     />
   );
 }

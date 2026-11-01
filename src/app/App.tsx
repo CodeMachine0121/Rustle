@@ -30,6 +30,7 @@ import { OperationFailureNotice } from "../features/vault/OperationFailureNotice
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
+import { SystemClipboardRegister } from "../features/vim/SystemClipboardRegister";
 import { VimModeSession } from "../features/vim/VimModeSession";
 import { useWritingLayout } from "../features/writingLayout/useWritingLayout";
 import { ViewModeButtons, ZenButton } from "../features/writingLayout/WritingControls";
@@ -64,6 +65,7 @@ function VaultView() {
   const [fontSizes] = useState(() => new EditingSurfaceFontSizes(settings, composition));
   const [themes] = useState(() => new ThemeSession(settings, browserThemeEnvironment()));
   const [vimModes] = useState(() => new VimModeSession(settings));
+  const [vimRegister] = useState(() => new SystemClipboardRegister(channels));
   const snapshot = useVaultSnapshot(session);
   const fontSize = useEditingSurfaceFontSizes(fontSizes);
   const previewPanel = usePreviewPanel(settings);
@@ -145,6 +147,7 @@ function VaultView() {
             imagePaste={imagePaste}
             fontSizePixels={fontSize.editor.pixels}
             vimModes={vimModes}
+            vimRegister={vimRegister}
           />
         }
         sidebarFooter={

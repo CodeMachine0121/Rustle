@@ -1946,6 +1946,38 @@ describe("App", () => {
       expect(isZen()).toBe(false);
     });
 
+    it("cuts what Vim deletes onto the system clipboard and pastes what the clipboard holds", async () => {
+      answerWithVimMode(true);
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) =>
+        command === "read_clipboard_text" ? { text: "營收成長" } : answer?.(command, args),
+      );
+      const { content, view } = await startEditing();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve));
+      });
+
+      press(content, "p");
+      expect(view.state.doc.toString()).toBe("正營收成長文的第一行。");
+
+      press(content, "0");
+      press(content, "x");
+      expect(invoke).toHaveBeenCalledWith("write_clipboard_text", { text: "正" });
+    });
+
+    it("never touches the system clipboard while Vim is off", async () => {
+      answerWithVimMode(undefined);
+      await startEditing();
+      act(() => {
+        window.dispatchEvent(new Event("focus"));
+      });
+
+      const clipboardCalls = vi
+        .mocked(invoke)
+        .mock.calls.filter(([command]) => command === "read_clipboard_text" || command === "write_clipboard_text");
+      expect(clipboardCalls).toEqual([]);
+    });
+
     it("does nothing on Esc in Normal mode outside Zen Mode", async () => {
       answerWithVimMode(true);
       const { content, view } = await startEditing();
