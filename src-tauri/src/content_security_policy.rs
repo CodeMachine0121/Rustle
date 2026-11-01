@@ -2,6 +2,8 @@
 /// (`http://rustle.localhost`) webviews spell it.
 const VAULT_ASSET_SOURCES: [&str; 2] = ["rustle:", "http://rustle.localhost"];
 const DEV_SERVER_SOURCES: [&str; 2] = ["ws://localhost:1420", "http://localhost:1420"];
+// Vite's React refresh needs one inline preamble script while developing.
+const DEV_SCRIPT_SOURCES: [&str; 1] = ["'unsafe-inline'"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentSecurityPolicy {
@@ -34,6 +36,7 @@ impl ContentSecurityPolicy {
     pub fn development() -> Self {
         let mut policy = Self::production();
         policy.allow("connect-src", &DEV_SERVER_SOURCES);
+        policy.allow("script-src", &DEV_SCRIPT_SOURCES);
         policy
     }
 
@@ -112,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn development_adds_only_the_local_dev_server_connection() {
+    fn development_adds_only_the_dev_server_connection_and_its_inline_preamble() {
         let production = directives(&ContentSecurityPolicy::production());
         let development = directives(&ContentSecurityPolicy::development());
 
@@ -120,8 +123,12 @@ mod tests {
             sources(&development, "connect-src"),
             ["ws://localhost:1420", "http://localhost:1420"]
         );
+        assert_eq!(
+            sources(&development, "script-src"),
+            ["'self'", "'unsafe-inline'"]
+        );
         for (directive, production_sources) in &production {
-            if directive != "connect-src" {
+            if directive != "connect-src" && directive != "script-src" {
                 assert_eq!(
                     sources(&development, directive),
                     production_sources.as_slice()
