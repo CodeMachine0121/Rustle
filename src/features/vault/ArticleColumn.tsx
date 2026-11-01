@@ -1,13 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
-import {
-  ARTICLE_ORDERS,
-  articleOrderNamed,
-  arrangeArticles,
-  DEFAULT_ARTICLE_ORDER,
-  type ArticleOrder,
-} from "./articleArrangement";
+import { ARTICLE_ORDERS, articleOrderNamed, arrangeArticles, type ArticleOrder } from "./articleArrangement";
 import { ArticleFilterField } from "./ArticleFilterField";
 import { isSameArticle } from "./articleLocation";
 import type { VaultSnapshot } from "./VaultSession";
@@ -17,6 +11,9 @@ const LEADING_DATE = /^\d{4}-\d{2}-\d{2}/;
 
 type ArticleColumnProps = {
   snapshot: VaultSnapshot;
+  /** The app's one article order: the finders list in it too. */
+  order: ArticleOrder;
+  onOrderChange: (order: ArticleOrder) => void;
   onSelect: (article: ArticleSummary) => void;
   onCreateArticle: () => void;
   onEditMetadata: (article: ArticleSummary) => void;
@@ -25,13 +22,13 @@ type ArticleColumnProps = {
 
 /**
  * The scope's articles, filtered and ordered on screen only: the
- * snapshot's list, the selection and the files stay as they are. Under All
+ * snapshot's list, the selection and the files stay as they are. The
+ * filter text is the column's own; the order is the app's. Under All
  * Notes a new article is refused, as it would have no workspace to go in.
  */
 export function ArticleColumn(props: ArticleColumnProps) {
-  const { snapshot, onCreateArticle } = props;
+  const { snapshot, order, onOrderChange, onCreateArticle } = props;
   const [filterText, setFilterText] = useState("");
-  const [order, setOrder] = useState<ArticleOrder>(DEFAULT_ARTICLE_ORDER);
   const [creationRefusedIn, setCreationRefusedIn] = useState<VaultSnapshot["articles"] | null>(null);
   const messages = useMessages();
   if (snapshot.selectedWorkspace === null && !snapshot.showsAllNotes) {
@@ -52,7 +49,7 @@ export function ArticleColumn(props: ArticleColumnProps) {
         <select
           aria-label={messages.sortOrder}
           value={order}
-          onChange={(event) => setOrder(articleOrderNamed(event.target.value))}
+          onChange={(event) => onOrderChange(articleOrderNamed(event.target.value))}
         >
           {ARTICLE_ORDERS.map((value) => (
             <option key={value} value={value}>
@@ -69,12 +66,12 @@ export function ArticleColumn(props: ArticleColumnProps) {
           {messages.noWorkspaceSelected}
         </p>
       )}
-      <ArticleList {...props} onCreateArticle={createArticle} filterText={filterText} order={order} />
+      <ArticleList {...props} onCreateArticle={createArticle} filterText={filterText} />
     </>
   );
 }
 
-type ArticleListProps = ArticleColumnProps & { filterText: string; order: ArticleOrder };
+type ArticleListProps = ArticleColumnProps & { filterText: string };
 
 function ArticleList({
   snapshot,

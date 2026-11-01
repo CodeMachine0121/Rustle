@@ -17,6 +17,7 @@ import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { Sidebar } from "../features/sidebar/Sidebar";
+import { DEFAULT_ARTICLE_ORDER, type ArticleOrder } from "../features/vault/articleArrangement";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { OperationFailureNotice } from "../features/vault/OperationFailureNotice";
@@ -50,6 +51,7 @@ function VaultView() {
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
+  const [articleOrder, setArticleOrder] = useState<ArticleOrder>(DEFAULT_ARTICLE_ORDER);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -101,6 +103,8 @@ function VaultView() {
         articles={
           <ArticleColumn
             snapshot={snapshot}
+            order={articleOrder}
+            onOrderChange={setArticleOrder}
             onSelect={(article) => void session.selectArticle(article)}
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
             onEditMetadata={setArticleBeingEdited}

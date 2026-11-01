@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { useState, type ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { ArticleColumn } from "./ArticleColumn";
+import { DEFAULT_ARTICLE_ORDER } from "./articleArrangement";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 
@@ -37,6 +39,11 @@ const BLOG: VaultSnapshot = {
   articles: [NO_TITLE, TAURI],
 };
 
+function ArticleColumnWithOrder(props: Omit<ComponentProps<typeof ArticleColumn>, "order" | "onOrderChange">) {
+  const [order, setOrder] = useState(DEFAULT_ARTICLE_ORDER);
+  return <ArticleColumn {...props} order={order} onOrderChange={setOrder} />;
+}
+
 function renderColumn(
   snapshot: VaultSnapshot,
   onSelect = vi.fn(),
@@ -45,7 +52,7 @@ function renderColumn(
 ) {
   render(
     <CompositionProvider>
-      <ArticleColumn
+      <ArticleColumnWithOrder
         snapshot={snapshot}
         onSelect={onSelect}
         onCreateArticle={onCreateArticle}
@@ -184,7 +191,7 @@ function renderControlledColumn(snapshot: VaultSnapshot) {
   const onCreateArticle = vi.fn();
   render(
     <CompositionProvider state={composition}>
-      <ArticleColumn
+      <ArticleColumnWithOrder
         snapshot={snapshot}
         onSelect={onSelect}
         onCreateArticle={onCreateArticle}

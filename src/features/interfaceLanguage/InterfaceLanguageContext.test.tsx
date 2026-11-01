@@ -49,6 +49,8 @@ function columns() {
       />
       <ArticleColumn
         snapshot={TRAVEL}
+        order="createdNewestFirst"
+        onOrderChange={vi.fn()}
         onSelect={vi.fn()}
         onCreateArticle={vi.fn()}
         onEditMetadata={vi.fn()}
