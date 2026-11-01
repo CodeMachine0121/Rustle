@@ -55,7 +55,7 @@ export class TabIndentation {
     if (this.#composition.isComposing || state.readOnly) {
       return false;
     }
-    const lineChanges = coveredLines(state).flatMap((line) => rewrite(line) ?? []);
+    const lineChanges = this.#coveredLines(state).flatMap((line) => rewrite(line) ?? []);
     if (lineChanges.length === 0) {
       return false;
     }
@@ -74,19 +74,19 @@ export class TabIndentation {
     });
     return true;
   }
-}
 
-function coveredLines(state: EditorState): Line[] {
-  const lineNumbers = new Set<number>();
-  for (const range of state.selection.ranges) {
-    const first = state.doc.lineAt(range.from).number;
-    const endLine = state.doc.lineAt(range.to);
-    const last = !range.empty && range.to === endLine.from ? endLine.number - 1 : endLine.number;
-    for (let number = first; number <= last; number += 1) {
-      lineNumbers.add(number);
+  #coveredLines(state: EditorState): Line[] {
+    const lineNumbers = new Set<number>();
+    for (const range of state.selection.ranges) {
+      const first = state.doc.lineAt(range.from).number;
+      const endLine = state.doc.lineAt(range.to);
+      const last = !range.empty && range.to === endLine.from ? endLine.number - 1 : endLine.number;
+      for (let number = first; number <= last; number += 1) {
+        lineNumbers.add(number);
+      }
     }
+    return [...lineNumbers].sort((left, right) => left - right).map((number) => state.doc.line(number));
   }
-  return [...lineNumbers].sort((left, right) => left - right).map((number) => state.doc.line(number));
 }
 
 class TabKeyListener {
