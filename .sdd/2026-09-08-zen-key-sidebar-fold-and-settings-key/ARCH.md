@@ -84,6 +84,7 @@ flowchart TD
 - **Patterns applied & why:** a facet carries the commands per editor because engine mappings are global while editors are not; the action looks up the command of the editor the key arrived in.
 - **Do not hardcode:** Zen logic inside `VimEditing` (it knows only "keys → run").
 - **Known debt / deferred:** no unified key arbitration (the PRD-accepted `Mod+,` vs custom preview shortcut collision remains).
+- **Settings key over another dialog (post-review decision, not covered by the PRD):** `Cmd+,`/`Ctrl+,` does nothing while another modal dialog (`aria-modal="true"`) is open, so two modals never stack; it still closes the settings dialog itself. Auto-repeat of a held key is ignored so holding the keys does not flip the dialog.
 
 ---
 
