@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { FONT_SIZE_SURFACE_ATTRIBUTE, type FontSizeSurface } from "../features/fontSize/EditingSurfaceFontSizes";
 import { useMessages } from "../features/interfaceLanguage/InterfaceLanguageContext";
 import { PaneDivider } from "../features/preview/PaneDivider";
 import type { PreviewWidth } from "../features/preview/PreviewWidth";
@@ -57,6 +58,7 @@ export function AppLayout({ sidebar, articles, editor, preview, writing, control
           className="editor-region"
           hidden={viewMode === "previewOnly"}
           controls={controlsFor("editor")}
+          fontSizeSurface="editor"
         >
           {editor}
         </LayoutRegion>
@@ -70,6 +72,7 @@ export function AppLayout({ sidebar, articles, editor, preview, writing, control
             className="preview-region"
             flexBasis={viewMode === "sideBySide" ? `${preview.width.ratio * 100}%` : "100%"}
             controls={controlsFor("preview")}
+            fontSizeSurface="preview"
           >
             {preview.content}
           </LayoutRegion>
@@ -86,12 +89,23 @@ type LayoutRegionProps = {
   hidden?: boolean;
   controls?: WritingControls;
   flexBasis?: string;
+  fontSizeSurface?: FontSizeSurface;
   children: ReactNode;
 };
 
-function LayoutRegion({ title, label, className, hidden = false, controls, flexBasis, children }: LayoutRegionProps) {
+function LayoutRegion({
+  title,
+  label,
+  className,
+  hidden = false,
+  controls,
+  flexBasis,
+  fontSizeSurface,
+  children,
+}: LayoutRegionProps) {
   return (
     <section
+      {...{ [FONT_SIZE_SURFACE_ATTRIBUTE]: fontSizeSurface }}
       className={`layout-region ${className}`}
       aria-label={label}
       hidden={hidden}

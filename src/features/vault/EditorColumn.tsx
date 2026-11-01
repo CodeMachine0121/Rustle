@@ -11,9 +11,16 @@ type EditorColumnProps = {
   autosave: AutosaveSession;
   scrollSynchronizer?: ScrollSynchronizer;
   imagePaste?: ImagePaste;
+  fontSizePixels?: number;
 };
 
-export function EditorColumn({ snapshot, autosave, scrollSynchronizer, imagePaste }: EditorColumnProps) {
+export function EditorColumn({
+  snapshot,
+  autosave,
+  scrollSynchronizer,
+  imagePaste,
+  fontSizePixels,
+}: EditorColumnProps) {
   const { openedDocument, indentation, bodyFailure } = snapshot;
   const messages = useMessages();
   if (bodyFailure !== null) {
@@ -32,6 +39,7 @@ export function EditorColumn({ snapshot, autosave, scrollSynchronizer, imagePast
       indentation={indentation}
       scrollSynchronizer={scrollSynchronizer}
       imagePaste={imagePaste}
+      fontSizePixels={fontSizePixels}
     />
   );
 }

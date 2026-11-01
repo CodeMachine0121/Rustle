@@ -10,25 +10,37 @@ import type { ScrollSynchronizer } from "./ScrollSynchronizer";
 type PreviewPanelProps = {
   previewedBody: PreviewedBody;
   scrollSynchronizer?: ScrollSynchronizer;
+  fontSizePixels?: number;
 };
 
-/** The rendered body; while one is shown it is the preview side of the scroll sync. */
-export function PreviewPanel({ previewedBody, scrollSynchronizer }: PreviewPanelProps) {
+/**
+ * The rendered body; while one is shown it is the preview side of the scroll
+ * sync. Everything in the article is sized relative to `fontSizePixels`.
+ */
+export function PreviewPanel({ previewedBody, scrollSynchronizer, fontSizePixels }: PreviewPanelProps) {
   const body = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.body);
   const workspace = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.workspace);
   if (body === null) {
     return <NoArticleState />;
   }
-  return <PreviewContent body={body} workspace={workspace} scrollSynchronizer={scrollSynchronizer} />;
+  return (
+    <PreviewContent
+      body={body}
+      workspace={workspace}
+      scrollSynchronizer={scrollSynchronizer}
+      fontSizePixels={fontSizePixels}
+    />
+  );
 }
 
 type PreviewContentProps = {
   body: string;
   workspace: string | null;
   scrollSynchronizer?: ScrollSynchronizer;
+  fontSizePixels?: number;
 };
 
-function PreviewContent({ body, workspace, scrollSynchronizer }: PreviewContentProps) {
+function PreviewContent({ body, workspace, scrollSynchronizer, fontSizePixels }: PreviewContentProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const messages = useMessages();
   const html = useMemo(() => renderPreviewHtml(body, workspace), [body, workspace]);
@@ -47,6 +59,7 @@ function PreviewContent({ body, workspace, scrollSynchronizer }: PreviewContentP
       <article
         className="preview-content"
         aria-label={messages.previewContent}
+        style={fontSizePixels === undefined ? undefined : { fontSize: `${fontSizePixels}px` }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>

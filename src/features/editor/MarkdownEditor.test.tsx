@@ -605,4 +605,61 @@ describe("MarkdownEditor marks and emphasis", () => {
     expect(editor.state.doc.toString()).toBe("看[連結](https://example.com)這裡");
     expect(editor.state.selection.main.empty).toBe(true);
   });
+  describe("font size", () => {
+    function renderSized(fontSizePixels: number | undefined, state = new CompositionState()) {
+      const body = "# 寫作的禪";
+      const editor = (pixels: number | undefined) => (
+        <CompositionProvider state={state}>
+          <MarkdownEditor documentKey="Blog/zen.md" body={body} fontSizePixels={pixels} />
+        </CompositionProvider>
+      );
+      const rendered = render(editor(fontSizePixels));
+      const content = rendered.container.querySelector(".cm-content");
+      const view = content instanceof HTMLElement ? EditorView.findFromDOM(content) : null;
+      if (!(content instanceof HTMLElement) || view === null) {
+        throw new Error("the editor did not render");
+      }
+      return { content, view, resize: (pixels: number) => rendered.rerender(editor(pixels)) };
+    }
+
+    it("draws its text at the size it was given", () => {
+      const { view } = renderSized(18.5);
+
+      expect(view.dom.style.fontSize).toBe("18.5px");
+    });
+
+    it("resizes in place, keeping unsaved text, the cursor and the undo history", () => {
+      const { content, view, resize } = renderSized(15);
+      view.dispatch({ changes: { from: view.state.doc.length, insert: "\n還沒存的字" } });
+      view.dispatch({ selection: EditorSelection.cursor(3) });
+      const measure = vi.spyOn(view, "requestMeasure");
+
+      resize(22);
+
+      expect(EditorView.findFromDOM(content)).toBe(view);
+      expect(view.dom.style.fontSize).toBe("22px");
+      expect(measure).toHaveBeenCalled();
+      expect(view.state.doc.toString()).toBe("# 寫作的禪\n還沒存的字");
+      expect(view.state.selection.main.head).toBe(3);
+      undo(view);
+      expect(view.state.doc.toString()).toBe("# 寫作的禪");
+    });
+
+    it("resizes while the input method is composing", () => {
+      const state = new CompositionState();
+      const { view, resize } = renderSized(15, state);
+      state.start();
+
+      resize(20);
+
+      expect(view.dom.style.fontSize).toBe("20px");
+      expect(state.isComposing).toBe(true);
+    });
+
+    it("leaves the size to the stylesheet when given none", () => {
+      const { view } = renderSized(undefined);
+
+      expect(view.dom.style.fontSize).toBe("");
+    });
+  });
 });
