@@ -7,6 +7,7 @@ import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import { useVimEnabled } from "../vim/useVimModeSession";
 import { VimModeLabel } from "../vim/VimModeLabel";
 import type { VimModeSession } from "../vim/VimModeSession";
+import type { VimNormalCommand } from "../vim/VimNormalCommand";
 import type { AutosaveSession } from "./AutosaveSession";
 import { SaveStatusLine } from "./SaveStatusLine";
 import { useEditorDocument } from "./useAutosaveSession";
@@ -19,6 +20,7 @@ type AutosavedEditorProps = {
   fontSizePixels?: number;
   vimModes: VimModeSession;
   vimRegister?: SystemClipboardRegister;
+  vimNormalCommands?: readonly VimNormalCommand[];
 };
 
 /**
@@ -35,6 +37,7 @@ export function AutosavedEditor({
   fontSizePixels,
   vimModes,
   vimRegister,
+  vimNormalCommands,
 }: AutosavedEditorProps) {
   const editorDocument = useEditorDocument(session);
   const vimEnabled = useVimEnabled(vimModes);
@@ -54,6 +57,7 @@ export function AutosavedEditor({
         fontSizePixels={fontSizePixels}
         vimEnabled={vimEnabled}
         vimRegister={vimRegister}
+        vimNormalCommands={vimNormalCommands}
         onVimModeChange={vimModes.report}
       />
       <SaveStatusLine session={session} modeLabel={<VimModeLabel session={vimModes} />} />

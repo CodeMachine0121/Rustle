@@ -757,7 +757,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("leaves Zen Mode on an Esc in the editor that nothing else takes", async () => {
+    it("stays in Zen Mode on an Esc in the editor that nothing else takes", async () => {
       await startWithZenOpen();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
       const content = editorContent();
@@ -767,8 +767,20 @@ describe("App", () => {
 
       fireEvent.keyDown(content, { key: "Escape" });
 
-      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
-      expect(section("文章")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
+      expect(section("文章")).not.toBeVisible();
+    });
+
+    it("keeps the editor, its unsaved text, cursor and undo history through the sidebar fold and the settings key", async () => {
+      await startWithZenOpen();
+      const view = typeUnsavedText();
+
+      fireEvent.click(screen.getByRole("button", { name: "收起側邊欄" }));
+      fireEvent.keyDown(view.contentDOM, { key: ",", code: "Comma", metaKey: true });
+      fireEvent.keyDown(screen.getByRole("dialog", { name: "設定" }), { key: ",", code: "Comma", metaKey: true });
+      fireEvent.click(screen.getByRole("button", { name: "打開側邊欄" }));
+
+      expectUntouched(view);
     });
 
     it("never writes Zen Mode or preview only into the settings", async () => {
@@ -992,6 +1004,83 @@ describe("App", () => {
       expect(within(screen.getByRole("region", { name: "狀態" })).queryByRole("button", { name: /^進行中/ })).toBeNull();
       expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
       expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
+    });
+
+    it("folds the sidebar away from the articles' header, keeping the scope, the filter and the list", async () => {
+      answerFromAVault({ workspace: null, article: null });
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "所有文章" }));
+      await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      fireEvent.click(within(screen.getByRole("region", { name: "狀態" })).getByRole("button", { name: /^進行中/ }));
+      const rowsBefore = within(articlesRegion()).getAllByRole("button", { name: /^(Tauri|Zen|Q3)/ }).length;
+
+      fireEvent.click(within(articlesRegion()).getByRole("button", { name: "收起側邊欄" }));
+
+      expect(screen.queryByRole("navigation")).toBeNull();
+      expect(within(articlesRegion()).getAllByRole("button", { name: /^(Tauri|Zen|Q3)/ })).toHaveLength(rowsBefore);
+      expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
+      expect(invoke).toHaveBeenLastCalledWith("write_settings", {
+        settings: expect.objectContaining({ sidebar: { collapsedSections: [], isFolded: true } }),
+      });
+
+      fireEvent.click(within(articlesRegion()).getByRole("button", { name: "打開側邊欄" }));
+
+      expect(screen.getByRole("navigation")).toBeVisible();
+      expect(within(screen.getByRole("region", { name: "狀態" })).getByRole("button", { name: /^進行中/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(screen.getByRole("button", { name: "所有文章" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("starts with the sidebar folded when it was folded last time", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        const answered = await answer?.(command, args);
+        return command === "read_settings"
+          ? { ...(answered as object), sidebar: { collapsedSections: [], isFolded: true } }
+          : answered;
+      });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      expect(screen.queryByRole("navigation")).toBeNull();
+      expect(within(articlesRegion()).getByRole("button", { name: "打開側邊欄" })).toBeVisible();
+    });
+
+    it("keeps the sidebar folded after leaving Zen Mode, and shows no fold button in Zen Mode", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      fireEvent.click(within(articlesRegion()).getByRole("button", { name: "收起側邊欄" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      expect(screen.queryByRole("button", { name: /側邊欄/ })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      expect(screen.queryByRole("navigation")).toBeNull();
+      expect(within(articlesRegion()).getByRole("button", { name: "打開側邊欄" })).toBeVisible();
+    });
+
+    it.each([
+      ["the sidebar is folded", () => fireEvent.click(screen.getByRole("button", { name: "收起側邊欄" }))],
+      ["Zen Mode is on", () => fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }))],
+    ])("opens and closes the settings on Cmd+, while %s", async (_, hideTheGear) => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      hideTheGear();
+      const content = editorContent();
+      if (content === null) {
+        throw new Error("no editor");
+      }
+
+      fireEvent.keyDown(content, { key: ",", code: "Comma", metaKey: true });
+      expect(screen.getByRole("dialog", { name: "設定" })).toBeVisible();
+
+      fireEvent.keyDown(screen.getByRole("dialog", { name: "設定" }), { key: ",", code: "Comma", metaKey: true });
+      expect(screen.queryByRole("dialog", { name: "設定" })).toBeNull();
     });
 
     it("keeps the workspace and the list when the workspace section is folded", async () => {
@@ -1838,6 +1927,57 @@ describe("App", () => {
       return screen.getByRole("button", { name: "Zen Mode" }).getAttribute("aria-pressed") === "true";
     }
 
+    it("enters Zen Mode on zz in Normal mode and leaves it on the next zz, the text untouched", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+
+      press(content, "z");
+      press(content, "z");
+      expect(isZen()).toBe(true);
+      expect(screen.queryByRole("navigation")).toBeNull();
+      expect(screen.queryByRole("region", { name: "文章" })).toBeNull();
+
+      press(content, "z");
+      press(content, "z");
+      expect(isZen()).toBe(false);
+      expect(screen.getByRole("region", { name: "文章" })).toBeVisible();
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+      expect(EditorView.findFromDOM(content)).toBe(view);
+      expect(editorContent()).toBe(content);
+    });
+
+    it("keeps Zen Mode as it is on zz in Insert mode", async () => {
+      answerWithVimMode(true);
+      const { content } = await startEditing();
+      press(content, "i");
+
+      press(content, "z");
+      press(content, "z");
+
+      expect([modeLabel(), isZen()]).toEqual(["INSERT", false]);
+    });
+
+    it("keeps Zen Mode as it is on zz in Visual mode, the selection kept", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+      act(() => view.dispatch({ selection: { anchor: 0, head: 2 }, userEvent: "select.pointer" }));
+
+      press(content, "z");
+      press(content, "z");
+
+      expect([modeLabel(), isZen(), view.state.selection.main.empty]).toEqual(["VISUAL", false, false]);
+    });
+
+    it("keeps Zen Mode as it is on zz with Vim off", async () => {
+      answerWithVimMode(undefined);
+      const { content } = await startEditing();
+
+      press(content, "z");
+      press(content, "z");
+
+      expect(isZen()).toBe(false);
+    });
+
     it("is off for a vault that never mentioned it, with nothing between the path and the indicator", async () => {
       answerWithVimMode(undefined);
       await startEditing();
@@ -1904,7 +2044,7 @@ describe("App", () => {
       expect(saveStatusLine().lastElementChild).toHaveClass("save-indicator");
     });
 
-    it("takes the menu, then Insert, then Zen Mode, one Esc at a time", async () => {
+    it("takes the menu, then Insert, one Esc at a time, and never Zen Mode", async () => {
       answerWithVimMode(true);
       const { content, view } = await startEditing();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
@@ -1919,10 +2059,10 @@ describe("App", () => {
       expect([modeLabel(), isZen()]).toEqual(["NORMAL", true]);
 
       press(content, "Escape");
-      expect([modeLabel(), isZen()]).toEqual(["NORMAL", false]);
+      expect([modeLabel(), isZen()]).toEqual(["NORMAL", true]);
     });
 
-    it("cancels a pending operator and leaves Zen Mode with the same Esc, the text untouched", async () => {
+    it("cancels a pending operator with Esc and stays in Zen Mode, the text untouched", async () => {
       answerWithVimMode(true);
       const { content, view } = await startEditing();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
@@ -1931,20 +2071,20 @@ describe("App", () => {
       press(content, "Escape");
       press(content, "w");
 
-      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", false, "正文的第一行。"]);
+      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", true, "正文的第一行。"]);
     });
 
-    it("leaves Zen Mode on Esc with Vim off only after the menu is closed", async () => {
+    it("closes the snippet menu on Esc with Vim off and stays in Zen Mode on the next Esc", async () => {
       answerWithVimMode(undefined);
       const { content, view } = await startEditing();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
       act(() => view.dispatch({ changes: { from: 0, insert: "/" }, selection: { anchor: 1 }, userEvent: "input.type" }));
 
       press(content, "Escape");
-      expect(isZen()).toBe(true);
+      expect([view.dom.querySelector(".snippet-menu"), isZen()]).toEqual([null, true]);
 
       press(content, "Escape");
-      expect(isZen()).toBe(false);
+      expect(isZen()).toBe(true);
     });
 
     it("pastes what the system clipboard holds and yanks onto it, in a vault with Vim on", async () => {

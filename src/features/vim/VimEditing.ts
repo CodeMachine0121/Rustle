@@ -1,13 +1,18 @@
-import { Compartment, EditorState, Prec, type Extension, type StateEffect } from "@codemirror/state";
+import { Compartment, EditorState, Facet, Prec, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin, keymap, runScopeHandlers, type Command, type KeyBinding } from "@codemirror/view";
 import { getCM, Vim, vim, type CM5EditorInterface, type CodeMirrorV } from "@replit/codemirror-vim";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
 import type { SystemClipboardRegister } from "./SystemClipboardRegister";
 import type { VimMode } from "./VimModeSession";
+import type { VimNormalCommand } from "./VimNormalCommand";
 
 /** Keys the editor owns while typing; with Vim on they run after Vim, under this scope. */
 const TYPING_SCOPE = "rustleTyping";
+
+/** The engine's key map is shared by every editor; each editor answers a mapped key with its own command. */
+const normalCommands = Facet.define<VimNormalCommand>();
+const keysMappedInTheEngine = new Set<string>();
 
 type VimModeChange = { mode: string };
 
@@ -25,19 +30,41 @@ type VimModeChange = { mode: string };
  * input method composes in Insert mode the key is the input method's: Vim
  * never sees it. Given a `SystemClipboardRegister`, Vim's unnamed register
  * is the system clipboard while Vim is on.
+ *
+ * Each `VimNormalCommand` takes its keys in Normal mode only, and never while
+ * an input method composes; Insert and Visual keep what those keys always did.
  */
 export class VimEditing {
   readonly #composition: CompositionState;
   readonly #register: SystemClipboardRegister | undefined;
+  readonly #normalCommands: readonly VimNormalCommand[];
   #reportMode: (mode: VimMode) => void = () => {};
   readonly #vimSlot = new Compartment();
   readonly #typingSlots = new Map<readonly KeyBinding[], Compartment>();
   #isEnabled: boolean;
 
-  constructor(composition: CompositionState, isEnabled: boolean, register?: SystemClipboardRegister) {
+  constructor(
+    composition: CompositionState,
+    isEnabled: boolean,
+    register?: SystemClipboardRegister,
+    commands: readonly VimNormalCommand[] = [],
+  ) {
     this.#composition = composition;
     this.#isEnabled = isEnabled;
     this.#register = register;
+    this.#normalCommands = commands;
+    for (const { keys } of commands) {
+      if (keysMappedInTheEngine.has(keys)) {
+        continue;
+      }
+      keysMappedInTheEngine.add(keys);
+      const action = `rustle ${keys}`;
+      Vim.defineAction(action, (editor) => {
+        const view: EditorView = editor.cm6;
+        view.state.facet(normalCommands).find((command) => command.keys === keys)?.run();
+      });
+      Vim.mapCommand(keys, "action", action, {}, { context: "normal" });
+    }
   }
 
   /** Every mode the editor enters from now on, starting with Normal each time Vim starts. */
@@ -109,6 +136,16 @@ export class VimEditing {
       EditorState.allowMultipleSelections.of(true),
       Prec.low(vim()),
       this.#register?.extension() ?? [],
+      this.#normalCommands.map(({ keys, run }) =>
+        normalCommands.of({
+          keys,
+          run: () => {
+            if (!composition.isComposing) {
+              run();
+            }
+          },
+        }),
+      ),
       Prec.low(
         ViewPlugin.define((view) => {
           const editor = getCM(view);

@@ -29,6 +29,8 @@ export const CHINESE_MESSAGES = {
   previewTitle: "預覽",
   previewRegion: "預覽區",
   zenMode: "Zen Mode",
+  hideSidebar: "收起側邊欄",
+  showSidebar: "打開側邊欄",
   viewModesGroup: "檢視模式",
   viewModes: {
     editorOnly: "只有編輯",
@@ -61,6 +63,7 @@ export const CHINESE_MESSAGES = {
   togglePreview: "開關預覽",
   resetFontSize: "字體回預設",
   closeWindow: "關閉視窗",
+  toggleSettings: "開關設定",
 
   vaultUnreadable: (reason: string) => `讀不到 vault：${reason}`,
   firstWorkspace: "建立你的第一個 workspace",
@@ -195,6 +198,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   previewTitle: "PREVIEW",
   previewRegion: "Preview",
   zenMode: "Zen Mode",
+  hideSidebar: "Hide sidebar",
+  showSidebar: "Show sidebar",
   viewModesGroup: "View mode",
   viewModes: {
     editorOnly: "Editor only",
@@ -227,6 +232,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   togglePreview: "Toggle preview",
   resetFontSize: "Reset font size",
   closeWindow: "Close window",
+  toggleSettings: "Toggle settings",
 
   vaultUnreadable: (reason) => `Cannot read the vault: ${reason}`,
   firstWorkspace: "Create your first workspace",

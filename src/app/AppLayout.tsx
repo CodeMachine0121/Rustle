@@ -19,6 +19,12 @@ export type WritingControls = {
   viewModeButtons: ReactNode;
 };
 
+/** Whether the sidebar is folded away, and the button that folds it, shown at the head of the articles. */
+export type SidebarFoldSlot = {
+  isFolded: boolean;
+  button: ReactNode;
+};
+
 type AppLayoutProps = {
   sidebar: ReactNode;
   articles: ReactNode;
@@ -27,28 +33,49 @@ type AppLayoutProps = {
   writing: WritingLayoutSnapshot;
   controls: WritingControls;
   sidebarFooter?: ReactNode;
+  sidebarFold?: SidebarFoldSlot;
 };
 
 /**
  * The four columns, left to right: the sidebar (its sections carry their
  * own titles) with the settings entry at its foot, the articles, the editor and
  * the preview. The view mode decides which of the editor and the preview
- * share the writing area; Zen Mode hides the first two columns. Hidden
+ * share the writing area; Zen Mode hides the first two columns, and a folded
+ * sidebar hides only the first, without Zen Mode ever changing the fold. Hidden
  * columns stay mounted, so the editor keeps its text, cursor, undo history
  * and composition through every change.
  */
-export function AppLayout({ sidebar, articles, editor, preview, writing, controls, sidebarFooter }: AppLayoutProps) {
+export function AppLayout({
+  sidebar,
+  articles,
+  editor,
+  preview,
+  writing,
+  controls,
+  sidebarFooter,
+  sidebarFold,
+}: AppLayoutProps) {
   const messages = useMessages();
   const { viewMode, isZen, controlsLiveIn } = writing;
   const controlsFor = (region: WritingLayoutSnapshot["controlsLiveIn"]) =>
     region === controlsLiveIn ? controls : undefined;
   return (
     <main className="app-layout">
-      <nav className="layout-region sidebar-region" aria-label={messages.sidebar} hidden={isZen}>
+      <nav
+        className="layout-region sidebar-region"
+        aria-label={messages.sidebar}
+        hidden={isZen || sidebarFold?.isFolded === true}
+      >
         <div className="region-body">{sidebar}</div>
         {sidebarFooter !== undefined && <div className="region-footer">{sidebarFooter}</div>}
       </nav>
-      <LayoutRegion title={messages.articlesTitle} label={messages.articlesRegion} className="articles-region" hidden={isZen}>
+      <LayoutRegion
+        title={messages.articlesTitle}
+        label={messages.articlesRegion}
+        className="articles-region"
+        hidden={isZen}
+        leadingControl={sidebarFold?.button}
+      >
         {articles}
       </LayoutRegion>
       <div className="writing-area">
@@ -88,6 +115,7 @@ type LayoutRegionProps = {
   className: string;
   hidden?: boolean;
   controls?: WritingControls;
+  leadingControl?: ReactNode;
   flexBasis?: string;
   fontSizeSurface?: FontSizeSurface;
   children: ReactNode;
@@ -99,6 +127,7 @@ function LayoutRegion({
   className,
   hidden = false,
   controls,
+  leadingControl,
   flexBasis,
   fontSizeSurface,
   children,
@@ -112,6 +141,7 @@ function LayoutRegion({
       style={flexBasis === undefined ? undefined : { flexBasis }}
     >
       <div className="region-header">
+        {leadingControl}
         {controls?.zenButton}
         <h2 className="region-title">{title}</h2>
         {controls?.viewModeButtons}

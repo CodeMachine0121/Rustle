@@ -7,7 +7,8 @@ export type Settings = {
   lastOpened: { workspace: string | null; article: string | null };
   /** Absent until the user chooses one. */
   interfaceLanguage?: InterfaceLanguage;
-  sidebar: { collapsedSections: SidebarSection[] };
+  /** `isFolded` is absent (or anything but `true` in the file) while the sidebar is shown. */
+  sidebar: { collapsedSections: SidebarSection[]; isFolded?: boolean };
   /** Pixels as last written; absent or out of range means the webview's own rule decides. */
   fontSize?: { editor?: number; preview?: number };
   /** The chosen theme's id, or `followSystem`; absent until chosen. Only the webview knows which ids exist. */

@@ -79,12 +79,6 @@ export class WritingLayout {
     this.#publish();
   }
 
-  leaveZen(): void {
-    if (this.#isZen) {
-      this.toggleZen();
-    }
-  }
-
   /** Brings the editor back from preview only; the settings already say the preview is open. */
   revealEditor(): void {
     if (this.#showsOnlyPreview) {

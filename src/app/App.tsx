@@ -21,6 +21,8 @@ import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { usePreviewToggleShortcut } from "../features/preview/usePreviewToggleShortcut";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { Sidebar } from "../features/sidebar/Sidebar";
+import { SidebarFoldButton } from "../features/sidebar/SidebarFoldButton";
+import { useSidebarFold } from "../features/sidebar/useSidebarFold";
 import { browserThemeEnvironment } from "../features/theme/browserThemeEnvironment";
 import { ThemeSession } from "../features/theme/ThemeSession";
 import { useTheme } from "../features/theme/useTheme";
@@ -33,6 +35,7 @@ import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
 import { SystemClipboardRegister } from "../features/vim/SystemClipboardRegister";
 import { VimModeSession } from "../features/vim/VimModeSession";
+import type { VimNormalCommand } from "../features/vim/VimNormalCommand";
 import { useWritingLayout } from "../features/writingLayout/useWritingLayout";
 import { ViewModeButtons, ZenButton } from "../features/writingLayout/WritingControls";
 import { WritingLayout } from "../features/writingLayout/WritingLayout";
@@ -67,11 +70,15 @@ function VaultView() {
   const [themes] = useState(() => new ThemeSession(settings, browserThemeEnvironment()));
   const [vimModes] = useState(() => new VimModeSession(settings));
   const [vimRegister] = useState(() => new SystemClipboardRegister(channels));
+  const [vimNormalCommands] = useState<readonly VimNormalCommand[]>(() => [
+    { keys: "zz", run: () => layout.toggleZen() },
+  ]);
   const snapshot = useVaultSnapshot(session);
   const fontSize = useEditingSurfaceFontSizes(fontSizes);
   const previewPanel = usePreviewPanel(settings);
   const previewToggle = usePreviewToggleShortcut(settings);
   const writing = useWritingLayout(layout, settings);
+  const sidebarFold = useSidebarFold(settings);
   const interfaceLanguage = useInterfaceLanguage(settings, channels);
   const theme = useTheme(themes);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
@@ -150,6 +157,7 @@ function VaultView() {
             fontSizePixels={fontSize.editor.pixels}
             vimModes={vimModes}
             vimRegister={vimRegister}
+            vimNormalCommands={vimNormalCommands}
           />
         }
         sidebarFooter={
@@ -161,6 +169,7 @@ function VaultView() {
             previewToggle={previewToggle}
           />
         }
+        sidebarFold={{ isFolded: sidebarFold.isFolded, button: <SidebarFoldButton fold={sidebarFold} /> }}
         writing={writing}
         controls={{
           zenButton: <ZenButton layout={layout} isZen={writing.isZen} />,

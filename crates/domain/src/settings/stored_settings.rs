@@ -92,6 +92,7 @@ struct StoredLastOpened {
 #[serde(rename_all = "camelCase", default)]
 struct StoredSidebar {
     collapsed_sections: Tolerant<Vec<Tolerant<SidebarSection>>>,
+    is_folded: Tolerant<bool>,
 }
 
 impl From<StoredSidebar> for SidebarSettings {
@@ -104,7 +105,10 @@ impl From<StoredSidebar> for SidebarSettings {
                 collapsed_sections.push(section);
             }
         }
-        Self { collapsed_sections }
+        Self {
+            collapsed_sections,
+            is_folded: stored.is_folded.or(false),
+        }
     }
 }
 

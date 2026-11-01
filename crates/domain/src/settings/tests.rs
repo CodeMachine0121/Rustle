@@ -287,6 +287,7 @@ fn writes_the_collapsed_sections_by_name() {
     let settings = Settings {
         sidebar: SidebarSettings {
             collapsed_sections: vec![SidebarSection::Status],
+            ..SidebarSettings::default()
         },
         ..Settings::default()
     };
@@ -389,6 +390,41 @@ fn a_broken_theme_costs_no_other_setting() {
         settings.interface_language,
         Some(InterfaceLanguage::English)
     );
+}
+
+#[test]
+fn has_the_sidebar_unfolded_until_it_is_folded() {
+    let settings = read(json!({}));
+
+    assert!(!settings.sidebar.is_folded);
+    assert_eq!(
+        serde_json::to_value(&settings).expect("serializable")["sidebar"],
+        json!({ "collapsedSections": [] })
+    );
+}
+
+#[test]
+fn reads_and_writes_the_sidebar_folded() {
+    let settings = read(json!({ "sidebar": { "collapsedSections": ["tags"], "isFolded": true } }));
+
+    assert!(settings.sidebar.is_folded);
+    assert_eq!(
+        serde_json::to_value(&settings).expect("serializable")["sidebar"],
+        json!({ "collapsedSections": ["tags"], "isFolded": true })
+    );
+}
+
+#[rstest::rstest]
+#[case::text(json!({ "sidebar": { "collapsedSections": ["status"], "isFolded": "yes" } }))]
+#[case::number(json!({ "sidebar": { "collapsedSections": ["status"], "isFolded": 1 } }))]
+#[case::null(json!({ "sidebar": { "collapsedSections": ["status"], "isFolded": null } }))]
+fn reads_a_sidebar_fold_that_is_not_true_or_false_as_unfolded_and_keeps_the_sections(
+    #[case] stored: serde_json::Value,
+) {
+    let sidebar = read(stored).sidebar;
+
+    assert!(!sidebar.is_folded);
+    assert_eq!(sidebar.collapsed_sections, [SidebarSection::Status]);
 }
 
 #[test]

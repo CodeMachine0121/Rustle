@@ -19,8 +19,9 @@ const FINDING_ACTIONS: Record<FinderKind, SentenceKey> = {
 /**
  * Every key Rustle itself teaches, in the order the overview shows them.
  * Keys the system or the editor already had (undo, copy, a dialog's Enter)
- * and Vim's keys are not here; Shift+Cmd+W is, because Cmd+W was taken from
- * closing the window. Changing a key's owner means changing its row here.
+ * and Vim's keys (`zz` included) are not here; Shift+Cmd+W is, because Cmd+W
+ * was taken from closing the window, and so is Cmd+, because Rustle itself
+ * answers it. Changing a key's owner means changing its row here.
  */
 export function keymapGroups(previewToggle: KeyboardShortcut): readonly KeymapGroup[] {
   return [
@@ -46,7 +47,10 @@ export function keymapGroups(previewToggle: KeyboardShortcut): readonly KeymapGr
     },
     {
       title: "windowShortcutGroup",
-      rows: [{ keys: "Shift+Cmd+W", action: "closeWindow" }],
+      rows: [
+        { keys: "Shift+Cmd+W", action: "closeWindow" },
+        { keys: "Cmd+,", action: "toggleSettings" },
+      ],
     },
     {
       title: "findingShortcutGroup",

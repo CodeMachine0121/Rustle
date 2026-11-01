@@ -15,6 +15,7 @@ import { SnippetExpansion } from "../snippets/SnippetExpansion";
 import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import { VimEditing } from "../vim/VimEditing";
 import type { VimMode } from "../vim/VimModeSession";
+import type { VimNormalCommand } from "../vim/VimNormalCommand";
 import { cursorLineHighlight } from "./cursorLineHighlight";
 import { EditorScrollPane } from "./EditorScrollPane";
 import { EmphasisShortcuts } from "./EmphasisShortcuts";
@@ -43,6 +44,7 @@ type MarkdownEditorProps = {
   fontSizePixels?: number;
   vimEnabled?: boolean;
   vimRegister?: SystemClipboardRegister;
+  vimNormalCommands?: readonly VimNormalCommand[];
   onVimModeChange?: (mode: VimMode) => void;
 };
 
@@ -76,6 +78,7 @@ export function MarkdownEditor({
   fontSizePixels,
   vimEnabled = false,
   vimRegister,
+  vimNormalCommands,
   onVimModeChange,
 }: MarkdownEditorProps) {
   const composition = useCompositionState();
@@ -87,7 +90,9 @@ export function MarkdownEditor({
   const appliedPlacementRef = useRef<number | null>(null);
   const onBodyChangeRef = useRef(onBodyChange);
   const [indentationCompartment] = useState(() => new Compartment());
-  const [vimEditing] = useState(() => new VimEditing(composition, vimEnabled, vimRegister));
+  const [vimEditing] = useState(
+    () => new VimEditing(composition, vimEnabled, vimRegister, vimNormalCommands),
+  );
 
   useEffect(() => {
     onBodyChangeRef.current = onBodyChange;

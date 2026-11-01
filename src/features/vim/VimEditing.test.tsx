@@ -1,18 +1,26 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { act, fireEvent, render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { VimMode } from "./VimModeSession";
+import type { VimNormalCommand } from "./VimNormalCommand";
 
 const isMac = /Mac/.test(navigator.platform);
 const MOD = isMac ? { metaKey: true } : { ctrlKey: true };
 
-function openEditor(body: string, { vimEnabled = true, documentKey = "Blog/a.md" } = {}) {
+function openEditor(
+  body: string,
+  {
+    vimEnabled = true,
+    documentKey = "Blog/a.md",
+    normalCommands = [] as readonly VimNormalCommand[],
+  } = {},
+) {
   const composition = new CompositionState();
   const modes: VimMode[] = [];
   const element = (enabled: boolean, key: string, text: string) => (
@@ -22,6 +30,7 @@ function openEditor(body: string, { vimEnabled = true, documentKey = "Blog/a.md"
           documentKey={key}
           body={text}
           vimEnabled={enabled}
+          vimNormalCommands={normalCommands}
           onVimModeChange={(mode) => modes.push(mode)}
         />
       </CompositionProvider>
@@ -383,5 +392,105 @@ describe("Esc, one rung at a time", () => {
     press("Escape", { isComposing: true, keyCode: 229 });
 
     expect(mode()).toBe("insert");
+  });
+});
+
+describe("an app command on a Normal mode key", () => {
+  function openWithCommand(body: string, vimEnabled = true) {
+    const run = vi.fn();
+    const opened = openEditor(body, { vimEnabled, normalCommands: [{ keys: "zz", run }] });
+    return { ...opened, run };
+  }
+
+  it("runs on zz in Normal mode and leaves the text and the mode as they were", () => {
+    const { press, run, text, mode } = openWithCommand("hello");
+
+    press("z");
+    press("z");
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect([text(), mode()]).toEqual(["hello", "normal"]);
+  });
+
+  it("runs again on the next zz, so the command can toggle", () => {
+    const { press, run } = openWithCommand("hello");
+
+    press("z");
+    press("z");
+    press("z");
+    press("z");
+
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing on a single z", () => {
+    const { press, run, text } = openWithCommand("hello");
+
+    press("z");
+
+    expect(run).not.toHaveBeenCalled();
+    expect(text()).toBe("hello");
+  });
+
+  it("does not run in Insert mode, where both letters go on to be typed", () => {
+    const { press, run, mode } = openWithCommand("hello");
+    press("i");
+
+    const presses = [press("z"), press("z")];
+
+    expect(run).not.toHaveBeenCalled();
+    expect(mode()).toBe("insert");
+    expect(presses.map((event) => event.defaultPrevented)).toEqual([false, false]);
+  });
+
+  it("does not run in Visual mode, where the selection stays", () => {
+    const { press, run, select, mode, editor } = openWithCommand("hello world");
+    select(0, 5);
+
+    press("z");
+    press("z");
+
+    expect(run).not.toHaveBeenCalled();
+    expect(mode()).toBe("visual");
+    expect(editor.state.selection.main.empty).toBe(false);
+  });
+
+  it("does not run with Vim off, where both letters go on to be typed", () => {
+    const { press, run } = openWithCommand("hello", false);
+
+    const presses = [press("z"), press("z")];
+
+    expect(run).not.toHaveBeenCalled();
+    expect(presses.map((event) => event.defaultPrevented)).toEqual([false, false]);
+  });
+
+  it("does not run while an input method composes", () => {
+    const { press, run, composition } = openWithCommand("hello");
+    act(() => composition.start());
+
+    press("z");
+    press("z");
+
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("runs the command of the editor the keys were typed in", () => {
+    const first = openWithCommand("one");
+    const second = openWithCommand("two");
+
+    second.press("z");
+    second.press("z");
+
+    expect([first.run.mock.calls.length, second.run.mock.calls.length]).toEqual([0, 1]);
+  });
+
+  it("does nothing in an editor that has no command for those keys", () => {
+    openWithCommand("one");
+    const { press, text, mode } = openEditor("plain");
+
+    press("z");
+    press("z");
+
+    expect([text(), mode()]).toEqual(["plain", "normal"]);
   });
 });
