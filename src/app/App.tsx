@@ -1,34 +1,56 @@
 import { useEffect, useState } from "react";
 
-import { AutosavedEditor } from "../features/autosave/AutosavedEditor";
 import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
-import { SAMPLE_BODY } from "../features/editor/sampleBody";
+import { ArticleColumn } from "../features/vault/ArticleColumn";
+import { EditorColumn } from "../features/vault/EditorColumn";
+import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
+import { VaultSession } from "../features/vault/VaultSession";
+import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
 import { channels } from "../ipc/channels";
 import { CompositionProvider, useCompositionState } from "../shared/composition/CompositionContext";
+import { AppLayout } from "./AppLayout";
 
 export function App() {
   return (
     <CompositionProvider>
-      <main className="app">
-        <WritingArea />
-      </main>
+      <VaultView />
     </CompositionProvider>
   );
 }
 
-function WritingArea() {
+function VaultView() {
   const composition = useCompositionState();
-  const [session] = useState(
+  const [autosave] = useState(
     () => new AutosaveSession(composition, channels, { releaseFocus: blurFocusedElement }),
   );
+  const [session] = useState(() => new VaultSession(channels, autosave));
+  const snapshot = useVaultSnapshot(session);
 
   useEffect(() => {
-    void watchWindowCloseRequests(session, channels);
-    return () => session.dispose();
+    void session.start();
   }, [session]);
 
-  return <AutosavedEditor session={session} placeholderBody={SAMPLE_BODY} />;
+  useEffect(() => {
+    void watchWindowCloseRequests(autosave, channels);
+    return () => autosave.dispose();
+  }, [autosave]);
+
+  return (
+    <AppLayout
+      workspaces={
+        <WorkspaceColumn
+          snapshot={snapshot}
+          onSelect={(workspace) => void session.selectWorkspace(workspace)}
+          onCreate={(typedName) => session.createWorkspace(typedName)}
+        />
+      }
+      articles={
+        <ArticleColumn snapshot={snapshot} onSelect={(fileName) => void session.selectArticle(fileName)} />
+      }
+      editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+    />
+  );
 }
 
 // Losing focus makes the input method commit its composition and end it.

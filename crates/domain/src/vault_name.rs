@@ -71,6 +71,19 @@ vault_name!(
     ImageFileName
 );
 
+const MARKDOWN_EXTENSION: &str = ".md";
+
+impl ArticleFileName {
+    /// The name without its `.md` extension (in any case), or `None` when
+    /// the name does not end in `.md` or has nothing before it.
+    pub fn markdown_stem(&self) -> Option<&str> {
+        let name = self.as_str();
+        let stem_length = name.len().checked_sub(MARKDOWN_EXTENSION.len())?;
+        let (stem, extension) = (name.get(..stem_length)?, name.get(stem_length..)?);
+        (!stem.is_empty() && extension.eq_ignore_ascii_case(MARKDOWN_EXTENSION)).then_some(stem)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,6 +145,20 @@ mod tests {
                 rejected: name.to_owned()
             })
         );
+    }
+
+    #[rstest]
+    #[case("zen-of-writing.md", Some("zen-of-writing"))]
+    #[case("LEGACY.MD", Some("LEGACY"))]
+    #[case("寫作.Md", Some("寫作"))]
+    #[case(".md", None)]
+    #[case("README.txt", None)]
+    #[case("md", None)]
+    #[case("筆記", None)]
+    fn finds_the_name_before_a_markdown_extension(#[case] name: &str, #[case] stem: Option<&str>) {
+        let article = ArticleFileName::parse(name).expect("valid article name");
+
+        assert_eq!(article.markdown_stem(), stem);
     }
 
     #[test]

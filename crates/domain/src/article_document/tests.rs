@@ -178,6 +178,13 @@ mod reading_metadata {
     }
 
     #[test]
+    fn reads_a_tag_written_twice_once() {
+        let metadata = metadata_of("---\ntitle: Zen\ntags: [rust, tauri, rust]\n---\n");
+
+        assert_eq!(metadata.tags, vec!["rust".to_owned(), "tauri".to_owned()]);
+    }
+
+    #[test]
     fn reads_missing_category_and_tags_as_empty_lists() {
         let metadata = metadata_of("---\ntitle: Zen\n---\n");
 

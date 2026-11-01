@@ -15,7 +15,10 @@ pub mod vault_asset_scheme;
 pub mod window_close_guard;
 
 use rustle_domain::VaultScope;
-use rustle_infrastructure::{FileSystemArticleRepository, ResolvedVaultScope};
+use rustle_infrastructure::{
+    FileSystemArticleRepository, FileSystemSettingsRepository, FileSystemWorkspaceRepository,
+    ResolvedVaultScope,
+};
 use tauri::webview::NewWindowResponse;
 use tauri::{App, Builder, Manager, Runtime, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
@@ -48,11 +51,12 @@ pub fn configure<R: Runtime>(builder: Builder<R>, vault: VaultScope) -> Builder<
         ChannelRegistry::new(channel_handlers()).expect("every channel has exactly one handler");
     let protocols =
         ProtocolRegistry::new(scheme_handlers()).expect("every scheme has exactly one handler");
+    let vault = ResolvedVaultScope::new(vault);
     protocols
         .install(builder)
-        .manage(FileSystemArticleRepository::in_vault(
-            ResolvedVaultScope::new(vault),
-        ))
+        .manage(FileSystemArticleRepository::in_vault(vault.clone()))
+        .manage(FileSystemWorkspaceRepository::in_vault(vault.clone()))
+        .manage(FileSystemSettingsRepository::in_vault(vault))
         .manage(WindowCloseGuard::default())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event

@@ -1,15 +1,21 @@
 import { Channel } from "@tauri-apps/api/core";
 
 import type { ArticleBody } from "./articleBody";
+import type { ArticleSummary } from "./articleSummary";
 import { callChannel } from "./callChannel";
+import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
 import type { SaveBodyRequest, SavedBody } from "./savedBody";
+import type { Settings } from "./settings";
+import type { WorkspaceSummary } from "./workspaceSummary";
 
 // The webview's only way to reach the backend. Each slice replaces the
 // placeholder signature of its own channel with the real request/payload.
 export const channels = {
-  listWorkspaces: () => callChannel<null>("list_workspaces"),
+  listWorkspaces: () => callChannel<WorkspaceSummary[]>("list_workspaces"),
 
-  listArticles: () => callChannel<null>("list_articles"),
+  listArticles: (workspace: string) => callChannel<ArticleSummary[]>("list_articles", { workspace }),
+
+  createWorkspace: (name: string) => callChannel<CreateWorkspaceOutcome>("create_workspace", { name }),
 
   createArticle: () => callChannel<null>("create_article"),
 
@@ -22,9 +28,9 @@ export const channels = {
 
   saveClipboardImage: () => callChannel<null>("save_clipboard_image"),
 
-  readSettings: () => callChannel<null>("read_settings"),
+  readSettings: () => callChannel<Settings>("read_settings"),
 
-  writeSettings: () => callChannel<null>("write_settings"),
+  writeSettings: (settings: Settings) => callChannel<null>("write_settings", { settings }),
 
   watchCloseRequests: (onCloseRequest: () => void) => {
     const closeRequests = new Channel<null>();
@@ -35,4 +41,6 @@ export const channels = {
   answerCloseRequest: (close: boolean) => callChannel<null>("answer_close_request", { close }),
 };
 
-export type ChannelName = keyof typeof channels;
+export type Channels = typeof channels;
+
+export type ChannelName = keyof Channels;

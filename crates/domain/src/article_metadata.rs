@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use yaml_rust2::Yaml;
 use yaml_rust2::yaml::Hash;
 
@@ -18,6 +20,12 @@ pub struct ArticleMetadata {
 }
 
 impl ArticleMetadata {
+    /// What can be said about an article whose contents are unknown: its
+    /// file name stands in for the title, and the metadata is incomplete.
+    pub fn from_file_name(file_name: &ArticleFileName) -> Self {
+        Self::read(None, file_name)
+    }
+
     /// `mapping` is `None` when the front matter is missing a usable mapping.
     pub(crate) fn read(mapping: Option<&Hash>, file_name: &ArticleFileName) -> Self {
         let field =
@@ -37,19 +45,50 @@ impl ArticleMetadata {
                 .collect(),
             _ => Vec::new(),
         };
+        let mut tags = list(TAGS_KEY);
+        let mut seen = HashSet::new();
+        tags.retain(|tag| seen.insert(tag.clone()));
         let title = field(TITLE_KEY)
             .and_then(Yaml::as_str)
             .filter(|title| !title.trim().is_empty());
-        let file_name = file_name.as_str();
         Self {
-            title: title
-                .unwrap_or_else(|| file_name.strip_suffix(".md").unwrap_or(file_name))
-                .to_owned(),
+            title: title.map(str::to_owned).unwrap_or_else(|| {
+                file_name
+                    .markdown_stem()
+                    .unwrap_or(file_name.as_str())
+                    .to_owned()
+            }),
             created_at: text(CREATED_AT_KEY),
             updated_at: text(UPDATED_AT_KEY),
             category: list(CATEGORY_KEY),
-            tags: list(TAGS_KEY),
+            tags,
             has_incomplete_metadata: title.is_none(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("unreadable.md", "unreadable")]
+    #[case("LEGACY.MD", "LEGACY")]
+    #[case("notes.Md", "notes")]
+    fn an_article_known_only_by_name_is_titled_by_it_and_incomplete(
+        #[case] file_name: &str,
+        #[case] title: &str,
+    ) {
+        let file_name = ArticleFileName::parse(file_name).expect("valid article file name");
+
+        assert_eq!(
+            ArticleMetadata::from_file_name(&file_name),
+            ArticleMetadata {
+                title: title.to_owned(),
+                has_incomplete_metadata: true,
+                ..ArticleMetadata::default()
+            }
+        );
     }
 }

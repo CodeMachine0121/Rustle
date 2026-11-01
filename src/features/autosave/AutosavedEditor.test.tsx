@@ -24,7 +24,7 @@ function renderEditor() {
   );
   const view = render(
     <CompositionProvider state={composition}>
-      <AutosavedEditor session={session} placeholderBody="範例正文" />
+      <AutosavedEditor session={session} />
     </CompositionProvider>,
   );
   const content = () => {
@@ -45,12 +45,6 @@ const ARTICLE = {
 };
 
 describe("AutosavedEditor", () => {
-  it("shows the placeholder body while no article is open", () => {
-    const { content } = renderEditor();
-
-    expect(content()).toHaveTextContent("範例正文");
-  });
-
   it("shows the body of the article the session opened", async () => {
     const { session, content } = renderEditor();
 
@@ -72,6 +66,19 @@ describe("AutosavedEditor", () => {
     expect(session.status).toMatchObject({ hasUnsavedChanges: true });
     await act(() => vi.waitFor(() => expect(saveBody).toHaveBeenCalled()));
     expect(saveBody).toHaveBeenCalledWith(expect.objectContaining({ body: "  # 寫作的禪" }));
+  });
+
+  it("keeps the same editable element when another article is opened", async () => {
+    const { session, content } = renderEditor();
+    await act(() => session.openArticle({ article: ARTICLE, title: "寫作的禪" }));
+    const first = content();
+
+    await act(() =>
+      session.openArticle({ article: { ...ARTICLE, fileName: "b.md", body: "另一篇" }, title: "另一篇" }),
+    );
+
+    expect(content()).toBe(first);
+    expect(first).toHaveTextContent("另一篇");
   });
 
   it("replaces the editor body with the reloaded one", async () => {

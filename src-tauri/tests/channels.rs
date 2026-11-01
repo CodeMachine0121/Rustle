@@ -35,14 +35,10 @@ fn call(window: &WebviewWindow<MockRuntime>, command_name: &str) -> Result<Value
     .map(|body| body.deserialize::<Value>().expect("JSON response"))
 }
 
-const NOT_YET_IMPLEMENTED: [Channel; 7] = [
-    Channel::ListWorkspaces,
-    Channel::ListArticles,
+const NOT_YET_IMPLEMENTED: [Channel; 3] = [
     Channel::CreateArticle,
     Channel::UpdateMetadata,
     Channel::SaveClipboardImage,
-    Channel::ReadSettings,
-    Channel::WriteSettings,
 ];
 
 #[test]
