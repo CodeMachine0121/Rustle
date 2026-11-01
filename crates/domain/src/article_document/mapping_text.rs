@@ -56,33 +56,35 @@ impl<'a> MappingText<'a> {
 
     /// New keys go right after the last entry, so trailing comments stay last.
     pub(super) fn apply(&self, update: &MetadataUpdate) -> String {
-        let mut replacements: Vec<Option<String>> = self.entries.iter().map(|_| None).collect();
-        let mut appended = String::new();
-        for (key, value) in update.fields() {
-            match self.entries.iter().position(|entry| entry.key == key) {
-                Some(index) => {
-                    replacements[index] = Some(self.rewrite_entry(&self.entries[index], value));
-                }
-                None => appended.push_str(&self.new_entry(key, value)),
-            }
-        }
+        let fields: Vec<(&str, FieldValue<'_>)> = update.fields().collect();
+        let requested = |key: &str| {
+            fields
+                .iter()
+                .find(|(field, _)| *field == key)
+                .map(|(_, value)| *value)
+        };
 
         let mut output = String::new();
         let mut next_line = 0;
-        for (entry, replacement) in self.entries.iter().zip(&replacements) {
+        for entry in &self.entries {
             output.extend(self.lines[next_line..entry.start].iter().copied());
-            match replacement {
-                Some(text) => output.push_str(text),
+            match requested(&entry.key) {
+                Some(value) => output.push_str(&self.rewrite_entry(entry, value)),
                 None => output.extend(self.lines[entry.start..entry.end].iter().copied()),
             }
             next_line = entry.end;
         }
-        let insertion_line = self
-            .entries
-            .last()
-            .map_or(self.lines.len(), |entry| entry.end);
+        let insertion_line = if self.entries.is_empty() {
+            self.lines.len()
+        } else {
+            next_line
+        };
         output.extend(self.lines[next_line..insertion_line].iter().copied());
-        output.push_str(&appended);
+        for (key, value) in &fields {
+            if !self.entries.iter().any(|entry| entry.key == *key) {
+                output.push_str(&self.new_entry(key, *value));
+            }
+        }
         output.extend(self.lines[insertion_line..].iter().copied());
         output
     }
