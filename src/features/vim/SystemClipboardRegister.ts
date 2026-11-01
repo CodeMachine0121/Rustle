@@ -29,7 +29,6 @@ export class SystemClipboardRegister implements EngineRegister {
   readonly #backend: SystemClipboardBackend;
   #content: RegisterContent = NOTHING;
   #written: RegisterContent | null = null;
-  #writes = 0;
   insertModeChanges: InsertModeChanges[] = [];
   searchQueries: string[] = [];
 
@@ -81,9 +80,9 @@ export class SystemClipboardRegister implements EngineRegister {
 
   /** Looks at the clipboard again; an answer older than the latest write is dropped. */
   async refresh(): Promise<void> {
-    const writesBefore = this.#writes;
+    const writtenBefore = this.#written;
     const result = await this.#backend.readClipboardText();
-    if (writesBefore !== this.#writes) {
+    if (this.#written !== writtenBefore) {
       return;
     }
     const text = result.ok ? result.payload.text : null;
@@ -125,7 +124,6 @@ export class SystemClipboardRegister implements EngineRegister {
   #write(content: RegisterContent): void {
     this.#content = content;
     this.#written = content;
-    this.#writes += 1;
     void this.#backend.writeClipboardText(content.text);
   }
 }
