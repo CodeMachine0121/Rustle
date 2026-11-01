@@ -1,7 +1,10 @@
+import { Channel } from "@tauri-apps/api/core";
+
 import type { ArticleBody } from "./articleBody";
 import type { ArticleSummary } from "./articleSummary";
 import { callChannel } from "./callChannel";
 import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
+import type { SaveBodyRequest, SavedBody } from "./savedBody";
 import type { Settings } from "./settings";
 import type { WorkspaceSummary } from "./workspaceSummary";
 
@@ -19,7 +22,7 @@ export const channels = {
   readBody: (workspace: string, fileName: string) =>
     callChannel<ArticleBody>("read_body", { workspace, fileName }),
 
-  saveBody: () => callChannel<null>("save_body"),
+  saveBody: (request: SaveBodyRequest) => callChannel<SavedBody>("save_body", request),
 
   updateMetadata: () => callChannel<null>("update_metadata"),
 
@@ -28,6 +31,14 @@ export const channels = {
   readSettings: () => callChannel<Settings>("read_settings"),
 
   writeSettings: (settings: Settings) => callChannel<null>("write_settings", { settings }),
+
+  watchCloseRequests: (onCloseRequest: () => void) => {
+    const closeRequests = new Channel<null>();
+    closeRequests.onmessage = () => onCloseRequest();
+    return callChannel<null>("watch_close_requests", { onCloseRequest: closeRequests });
+  },
+
+  answerCloseRequest: (close: boolean) => callChannel<null>("answer_close_request", { close }),
 };
 
 export type Channels = typeof channels;

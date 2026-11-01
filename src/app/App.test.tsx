@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  Channel: class {
+    onmessage: (message: null) => void = () => undefined;
+  },
+}));
 
 const BODIES: Record<string, string> = {
   "zen-of-writing.md": "正文的第一行。",
@@ -45,7 +50,14 @@ function answerFromAVault(lastOpened: { workspace: string | null; article: strin
           body: BODIES[request.fileName ?? ""] ?? "",
           lastKnownModifiedAt: "2026-08-20T08:04:11.123Z",
         });
+      case "save_body":
+        return Promise.resolve({
+          outcome: "saved",
+          updatedAt: "2026-08-20T08:05:00.000Z",
+          lastKnownModifiedAt: "2026-08-20T08:05:00.100Z",
+        });
       case "write_settings":
+      case "watch_close_requests":
         return Promise.resolve(null);
       default:
         return Promise.reject({ reason: "unknownChannel", message: String(command) });
@@ -60,6 +72,7 @@ function editorContent(): HTMLElement | null {
 
 describe("App", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.mocked(invoke).mockReset();
   });
 
@@ -172,5 +185,63 @@ describe("App", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("讀不到 workspace");
     expect(screen.getByRole("textbox", { name: "新 workspace 名稱" })).toBeEnabled();
+  });
+
+  it("saves what is typed into the open article and says so in its title bar", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    expect(screen.getByRole("banner")).toHaveTextContent("Zen of Writing");
+
+    const content = editorContent();
+    if (content === null) {
+      throw new Error("the editor did not render its content area");
+    }
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    expect(screen.getByText("未儲存的變更")).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(invoke).toHaveBeenCalledWith("save_body", {
+          workspace: "Blog",
+          fileName: "zen-of-writing.md",
+          body: "  正文的第一行。",
+          lastKnownModifiedAt: "2026-08-20T08:04:11.123Z",
+          overwrite: false,
+        }),
+      { timeout: 2000 },
+    );
+    expect(await screen.findByText("已儲存")).toBeInTheDocument();
+  });
+
+  it("keeps the article open while its changes cannot be saved", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    const answer = vi.mocked(invoke).getMockImplementation();
+    vi.mocked(invoke).mockImplementation((command, args, options) =>
+      command === "save_body"
+        ? Promise.reject({ reason: "unexpected", message: "No space left on device" })
+        : (answer?.(command, args, options) ?? Promise.resolve(null)),
+    );
+    render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    const content = editorContent();
+    if (content === null) {
+      throw new Error("the editor did not render its content area");
+    }
+    fireEvent.keyDown(content, { key: "Tab" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Tauri 與 Electron/ }));
+
+    expect(await screen.findByText("儲存失敗：No space left on device")).toBeInTheDocument();
+    expect(editorContent()).toHaveTextContent("正文的第一行。");
+    expect(screen.getByRole("button", { name: /Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("starts watching window close requests", () => {
+    answerFromAVault({ workspace: null, article: null });
+
+    render(<App />);
+
+    expect(invoke).toHaveBeenCalledWith("watch_close_requests", expect.anything());
   });
 });

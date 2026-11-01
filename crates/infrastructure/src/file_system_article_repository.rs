@@ -2,14 +2,16 @@ use std::fs::File;
 use std::io::{self, Read};
 
 use rustle_domain::{
-    ArticleFileName, ArticleRepository, ArticleRepositoryError, StoredArticle, WorkspaceName,
+    ArticleFileName, ArticleRepository, ArticleRepositoryError, ArticleWrite, StoredArticle,
+    UtcTimestamp, WorkspaceName,
 };
 
+use crate::atomic_file::write_atomically_unless_modified;
 use crate::resolved_vault_scope::ResolvedVaultScope;
-use crate::utc_timestamp::UtcTimestamp;
 
 /// Articles as `.md` files in `<vault>/<workspace>/`. Every path is checked
-/// against the real vault location, symlinks resolved, before it is read.
+/// against the real vault location, symlinks resolved, before it is read
+/// or written; writing through a link therefore replaces its target.
 #[derive(Debug, Clone)]
 pub struct FileSystemArticleRepository {
     vault: ResolvedVaultScope,
@@ -43,5 +45,21 @@ impl ArticleRepository for FileSystemArticleRepository {
             text,
             last_modified_at: UtcTimestamp::from(modified).to_string(),
         })
+    }
+
+    fn write(
+        &self,
+        workspace: &WorkspaceName,
+        article: &ArticleFileName,
+        text: &str,
+        expected_modified_at: &str,
+    ) -> Result<ArticleWrite, ArticleRepositoryError> {
+        let path = self.vault.article_path(workspace, article)?;
+        write_atomically_unless_modified(&path, text.as_bytes(), expected_modified_at).map_err(
+            |error| ArticleRepositoryError::Unwritable {
+                article: format!("{workspace}/{article}"),
+                reason: error.to_string(),
+            },
+        )
     }
 }

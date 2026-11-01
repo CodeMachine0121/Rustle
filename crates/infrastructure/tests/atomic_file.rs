@@ -45,3 +45,18 @@ fn creates_a_file_that_did_not_exist() {
 
     assert_eq!(fs::read_to_string(&path).expect("readable"), "first body");
 }
+
+#[test]
+fn leaves_no_temporary_file_next_to_the_replaced_file() {
+    let directory = TempDir::new().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    fs::write(&path, "{}").expect("existing file");
+
+    write_atomically(&path, b"{\"theme\":\"dark\"}").expect("written");
+
+    let names: Vec<_> = fs::read_dir(directory.path())
+        .expect("listable")
+        .map(|entry| entry.expect("entry").file_name())
+        .collect();
+    assert_eq!(names, vec!["settings.json"]);
+}

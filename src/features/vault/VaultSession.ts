@@ -3,11 +3,20 @@ import type { Channels } from "../../ipc/channels";
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import type { Settings } from "../../ipc/settings";
 import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
+import type { AutosaveSession } from "../autosave/AutosaveSession";
 
 export type VaultChannels = Pick<
   Channels,
   "listWorkspaces" | "listArticles" | "createWorkspace" | "readBody" | "readSettings" | "writeSettings"
 >;
+
+/** Holds the open article and may refuse to let it go, for example while it cannot be saved. */
+export type ArticleHolder = Pick<AutosaveSession, "openArticle" | "closeArticle">;
+
+const LETS_EVERY_ARTICLE_GO: ArticleHolder = {
+  openArticle: () => Promise.resolve("switched"),
+  closeArticle: () => Promise.resolve("switched"),
+};
 
 export type VaultSnapshot = {
   workspaces: WorkspaceSummary[];
@@ -49,17 +58,20 @@ export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
 /**
  * The one owner of what is selected in the vault. Every click goes through
  * here; an answer that arrives after a newer click is dropped, and each
- * selection is remembered in the settings for the next start.
+ * selection is remembered in the settings for the next start. The open
+ * article changes only when its holder lets the previous one go.
  */
 export class VaultSession {
   readonly #channels: VaultChannels;
+  readonly #articleHolder: ArticleHolder;
   readonly #listeners = new Set<() => void>();
   #snapshot = INITIAL_VAULT_SNAPSHOT;
   #settings: Settings | null = null;
   #latestSelection = 0;
 
-  constructor(channels: VaultChannels) {
+  constructor(channels: VaultChannels, articleHolder: ArticleHolder = LETS_EVERY_ARTICLE_GO) {
     this.#channels = channels;
+    this.#articleHolder = articleHolder;
   }
 
   get snapshot(): VaultSnapshot {
@@ -94,6 +106,9 @@ export class VaultSession {
   }
 
   async selectWorkspace(workspace: string): Promise<void> {
+    if ((await this.#articleHolder.closeArticle()) !== "switched") {
+      return;
+    }
     const selection = this.#beginSelection();
     if (await this.#openWorkspace(workspace, selection)) {
       this.#remember(workspace, null);
@@ -102,7 +117,7 @@ export class VaultSession {
 
   async selectArticle(fileName: string): Promise<void> {
     const workspace = this.#snapshot.selectedWorkspace;
-    if (workspace === null) {
+    if (workspace === null || this.#snapshot.openedDocument === `${workspace}/${fileName}`) {
       return;
     }
     const selection = this.#beginSelection();
@@ -161,9 +176,22 @@ export class VaultSession {
   }
 
   async #openArticle(workspace: string, fileName: string, selection: number): Promise<boolean> {
+    const previousArticle = this.#snapshot.selectedArticle;
     this.#update({ selectedArticle: fileName, bodyFailure: null });
     const result = await this.#channels.readBody(workspace, fileName);
     if (selection !== this.#latestSelection) {
+      return false;
+    }
+    const title =
+      this.#snapshot.articles.find((summary) => summary.fileName === fileName)?.title ?? fileName;
+    const outcome = result.ok
+      ? await this.#articleHolder.openArticle({ article: result.payload, title })
+      : await this.#articleHolder.closeArticle();
+    if (selection !== this.#latestSelection) {
+      return false;
+    }
+    if (outcome !== "switched") {
+      this.#update({ selectedArticle: previousArticle });
       return false;
     }
     if (!result.ok) {

@@ -6,7 +6,7 @@ const SECONDS_PER_DAY: u64 = 86_400;
 /// A point in time written as ISO 8601 in UTC with milliseconds, e.g.
 /// `2026-08-20T08:04:11.123Z`. Times before 1970 are written as the epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct UtcTimestamp {
+pub struct UtcTimestamp {
     since_epoch: Duration,
 }
 

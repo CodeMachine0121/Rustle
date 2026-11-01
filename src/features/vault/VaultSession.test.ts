@@ -4,7 +4,8 @@ import type { ArticleSummary } from "../../ipc/articleSummary";
 import type { ChannelResult } from "../../ipc/channelResult";
 import type { CreateWorkspaceOutcome } from "../../ipc/createWorkspaceOutcome";
 import type { Settings } from "../../ipc/settings";
-import { VaultSession, type VaultChannels } from "./VaultSession";
+import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
+import { VaultSession, type ArticleHolder, type VaultChannels } from "./VaultSession";
 
 function ok<Payload>(payload: Payload): Promise<ChannelResult<Payload>> {
   return Promise.resolve({ ok: true, payload });
@@ -55,6 +56,13 @@ function vaultChannels(settings: Settings = STORED_SETTINGS) {
         ok({ outcome: "created", workspace: { name, articleCount: 0 } }),
     ),
   } satisfies VaultChannels;
+}
+
+function articleHolder() {
+  return {
+    openArticle: vi.fn((): Promise<AutosaveSwitchOutcome> => Promise.resolve("switched")),
+    closeArticle: vi.fn((): Promise<AutosaveSwitchOutcome> => Promise.resolve("switched")),
+  } satisfies ArticleHolder;
 }
 
 function settingsWith(lastOpened: Settings["lastOpened"]): Settings {
@@ -195,6 +203,82 @@ describe("VaultSession", () => {
 
     expect(session.snapshot.body).toBeNull();
     expect(session.snapshot.bodyFailure).toBe("not text");
+  });
+
+  it("hands the opened article and its title to the article holder", async () => {
+    const holder = articleHolder();
+    const session = new VaultSession(vaultChannels(), holder);
+    await session.selectWorkspace("Blog");
+
+    await session.selectArticle("b.md");
+
+    expect(holder.openArticle).toHaveBeenLastCalledWith({
+      article: {
+        workspace: "Blog",
+        fileName: "b.md",
+        body: "b.md 的正文",
+        lastKnownModifiedAt: "2026-08-20T08:04:11.123Z",
+      },
+      title: "b",
+    });
+  });
+
+  it("keeps the open article selected when the holder will not let it go", async () => {
+    const holder = articleHolder();
+    const channels = vaultChannels();
+    const session = new VaultSession(channels, holder);
+    await session.selectWorkspace("Blog");
+    await session.selectArticle("a.md");
+    holder.openArticle.mockResolvedValue("blockedByFailedSave");
+
+    await session.selectArticle("b.md");
+
+    expect(session.snapshot.selectedArticle).toBe("a.md");
+    expect(session.snapshot.body).toBe("a.md 的正文");
+    expect(channels.writeSettings).not.toHaveBeenCalledWith(settingsWith({ workspace: "Blog", article: "b.md" }));
+  });
+
+  it("keeps the open article when the next one cannot be read and the holder will not let go", async () => {
+    const holder = articleHolder();
+    const channels = vaultChannels();
+    const session = new VaultSession(channels, holder);
+    await session.selectWorkspace("Blog");
+    await session.selectArticle("a.md");
+    channels.readBody.mockReturnValue(failed("not text"));
+    holder.closeArticle.mockResolvedValue("blockedByUnansweredWarning");
+
+    await session.selectArticle("b.md");
+
+    expect(session.snapshot.selectedArticle).toBe("a.md");
+    expect(session.snapshot.bodyFailure).toBeNull();
+  });
+
+  it("stays in the workspace when the holder will not let the open article go", async () => {
+    const holder = articleHolder();
+    const channels = vaultChannels();
+    const session = new VaultSession(channels, holder);
+    await session.selectWorkspace("Blog");
+    await session.selectArticle("a.md");
+    holder.closeArticle.mockResolvedValue("blockedByFailedSave");
+
+    await session.selectWorkspace("Work");
+
+    expect(session.snapshot.selectedWorkspace).toBe("Blog");
+    expect(session.snapshot.selectedArticle).toBe("a.md");
+    expect(channels.listArticles).not.toHaveBeenCalledWith("Work");
+  });
+
+  it("does not read the open article again when it is clicked again", async () => {
+    const holder = articleHolder();
+    const channels = vaultChannels();
+    const session = new VaultSession(channels, holder);
+    await session.selectWorkspace("Blog");
+    await session.selectArticle("a.md");
+
+    await session.selectArticle("a.md");
+
+    expect(channels.readBody).toHaveBeenCalledTimes(1);
+    expect(holder.openArticle).toHaveBeenCalledTimes(1);
   });
 
   it("ignores an article selected while no workspace is", async () => {

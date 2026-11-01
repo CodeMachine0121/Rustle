@@ -1,30 +1,41 @@
 import { useEffect, useState } from "react";
 
-import { channels } from "../ipc/channels";
-import { CompositionProvider } from "../shared/composition/CompositionContext";
+import { AutosaveSession } from "../features/autosave/AutosaveSession";
+import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
+import { channels } from "../ipc/channels";
+import { CompositionProvider, useCompositionState } from "../shared/composition/CompositionContext";
 import { AppLayout } from "./AppLayout";
 
 export function App() {
-  const [session] = useState(() => new VaultSession(channels));
+  return (
+    <CompositionProvider>
+      <VaultView />
+    </CompositionProvider>
+  );
+}
+
+function VaultView() {
+  const composition = useCompositionState();
+  const [autosave] = useState(
+    () => new AutosaveSession(composition, channels, { releaseFocus: blurFocusedElement }),
+  );
+  const [session] = useState(() => new VaultSession(channels, autosave));
+  const snapshot = useVaultSnapshot(session);
 
   useEffect(() => {
     void session.start();
   }, [session]);
 
-  return (
-    <CompositionProvider>
-      <VaultView session={session} />
-    </CompositionProvider>
-  );
-}
+  useEffect(() => {
+    void watchWindowCloseRequests(autosave, channels);
+    return () => autosave.dispose();
+  }, [autosave]);
 
-function VaultView({ session }: { session: VaultSession }) {
-  const snapshot = useVaultSnapshot(session);
   return (
     <AppLayout
       workspaces={
@@ -37,7 +48,14 @@ function VaultView({ session }: { session: VaultSession }) {
       articles={
         <ArticleColumn snapshot={snapshot} onSelect={(fileName) => void session.selectArticle(fileName)} />
       }
-      editor={<EditorColumn snapshot={snapshot} />}
+      editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
     />
   );
+}
+
+// Losing focus makes the input method commit its composition and end it.
+function blurFocusedElement() {
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
 }

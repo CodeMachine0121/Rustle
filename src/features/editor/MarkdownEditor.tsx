@@ -10,10 +10,13 @@ import { useCompositionState } from "../../shared/composition/CompositionContext
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TabIndentation } from "./TabIndentation";
 
+type BodyChangeListener = (body: string) => void;
+
 type MarkdownEditorProps = {
   documentKey: string;
   body: string;
   indentation?: IndentationSettings;
+  onBodyChange?: BodyChangeListener;
 };
 
 /**
@@ -21,14 +24,20 @@ type MarkdownEditorProps = {
  * document (with its own undo history) without rebuilding the editable
  * element, and never while an input method is composing: it waits for the
  * composition to end. The key, not the body, decides: two articles with the
- * same text are still two documents.
+ * same text are still two documents. Only typing is reported as a change,
+ * not a document being shown.
  */
-export function MarkdownEditor({ documentKey, body, indentation }: MarkdownEditorProps) {
+export function MarkdownEditor({ documentKey, body, indentation, onBodyChange }: MarkdownEditorProps) {
   const composition = useCompositionState();
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const shownDocumentRef = useRef<string | null>(null);
+  const onBodyChangeRef = useRef(onBodyChange);
   const [indentationCompartment] = useState(() => new Compartment());
+
+  useEffect(() => {
+    onBodyChangeRef.current = onBodyChange;
+  }, [onBodyChange]);
 
   const indentationStyle = indentation?.style;
   const indentationWidth = indentation?.width;
@@ -66,7 +75,14 @@ export function MarkdownEditor({ documentKey, body, indentation }: MarkdownEdito
       view.setState(
         EditorState.create({
           doc: body,
-          extensions: editorExtensions(composition, indentationCompartment.of(tabIndentation)),
+          extensions: [
+            editorExtensions(composition, indentationCompartment.of(tabIndentation)),
+            EditorView.updateListener.of((update) => {
+              if (update.docChanged) {
+                onBodyChangeRef.current?.(update.state.doc.toString());
+              }
+            }),
+          ],
         }),
       );
     };

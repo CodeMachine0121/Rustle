@@ -66,7 +66,8 @@ impl From<ArticleRepositoryError> for CommandError {
     fn from(error: ArticleRepositoryError) -> Self {
         match error {
             ArticleRepositoryError::OutsideVault(outside) => outside.into(),
-            unreadable @ ArticleRepositoryError::Unreadable { .. } => Self::unexpected(unreadable),
+            other @ (ArticleRepositoryError::Unreadable { .. }
+            | ArticleRepositoryError::Unwritable { .. }) => Self::unexpected(other),
         }
     }
 }
@@ -133,6 +134,17 @@ mod tests {
 
         assert_eq!(error.reason(), FailureReason::Unexpected);
         assert!(error.to_string().contains("Blog/missing.md"));
+    }
+
+    #[test]
+    fn an_unwritable_article_is_unexpected_and_keeps_the_reason() {
+        let error = CommandError::from(ArticleRepositoryError::Unwritable {
+            article: "Blog/zen.md".to_owned(),
+            reason: "No space left on device".to_owned(),
+        });
+
+        assert_eq!(error.reason(), FailureReason::Unexpected);
+        assert!(error.to_string().contains("No space left on device"));
     }
 
     #[test]

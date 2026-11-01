@@ -47,5 +47,13 @@ pub fn channel_handlers<R: Runtime>() -> Vec<ChannelHandler<R>> {
             Channel::WriteSettings,
             tauri::generate_handler![commands::write_settings::write_settings],
         ),
+        ChannelHandler::new(
+            Channel::WatchCloseRequests,
+            tauri::generate_handler![commands::watch_close_requests::watch_close_requests],
+        ),
+        ChannelHandler::new(
+            Channel::AnswerCloseRequest,
+            tauri::generate_handler![commands::answer_close_request::answer_close_request],
+        ),
     ]
 }

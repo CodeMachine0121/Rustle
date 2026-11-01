@@ -35,9 +35,8 @@ fn call(window: &WebviewWindow<MockRuntime>, command_name: &str) -> Result<Value
     .map(|body| body.deserialize::<Value>().expect("JSON response"))
 }
 
-const NOT_YET_IMPLEMENTED: [Channel; 4] = [
+const NOT_YET_IMPLEMENTED: [Channel; 3] = [
     Channel::CreateArticle,
-    Channel::SaveBody,
     Channel::UpdateMetadata,
     Channel::SaveClipboardImage,
 ];
