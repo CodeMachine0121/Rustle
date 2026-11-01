@@ -406,7 +406,11 @@ export class VaultSession {
     }
     this.#update(
       articles.ok
-        ? { articles: articles.payload, articleListFailure: null }
+        ? {
+            articles: articles.payload,
+            articleListFailure: null,
+            sidebarFilter: this.#snapshot.sidebarFilter.keepingTagsIn(articles.payload),
+          }
         : { articleListFailure: articles.message },
     );
   }

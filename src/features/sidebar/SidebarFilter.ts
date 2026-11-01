@@ -28,6 +28,12 @@ export class SidebarFilter {
     return new SidebarFilter(this.status, tags);
   }
 
+  /** A chosen tag no article carries any more has no row left to let it go from. */
+  keepingTagsIn(articles: readonly ArticleSummary[]): SidebarFilter {
+    const tags = this.tags.filter((tag) => articles.some((article) => article.tags.includes(tag)));
+    return tags.length === this.tags.length ? this : new SidebarFilter(this.status, tags);
+  }
+
   matches(article: ArticleSummary): boolean {
     const hasStatus = this.status === null || statusChoiceOf(article.status) === this.status;
     return hasStatus && this.tags.every((tag) => article.tags.includes(tag));

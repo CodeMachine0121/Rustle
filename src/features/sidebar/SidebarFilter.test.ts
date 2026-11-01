@@ -75,6 +75,15 @@ describe("SidebarFilter", () => {
     expect([activeWork, activeOnly].filter((each) => filter.matches(each))).toEqual([activeWork]);
   });
 
+  it("lets go of chosen tags no article carries any more and keeps the rest", () => {
+    const filter = SidebarFilter.NONE.toggleStatus("active").toggleTag("work").toggleTag("bug");
+
+    const kept = filter.keepingTagsIn([WORK_ONLY]);
+
+    expect(kept.tags).toEqual(["work"]);
+    expect(kept.status).toBe("active");
+  });
+
   it("never changes the filter it was made from", () => {
     const chosen = SidebarFilter.NONE.toggleStatus("active");
 

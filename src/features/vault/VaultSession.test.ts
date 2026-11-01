@@ -1127,6 +1127,42 @@ describe("VaultSession", () => {
       expect(session.snapshot.openedDocument).toBeNull();
     });
 
+    it("lets go of a chosen tag once an edit removes it from the last article that carried it", async () => {
+      const channels = vaultChannels();
+      let tags: readonly string[] = ["work"];
+      channels.listArticles.mockImplementation(() => ok([{ ...article("a.md"), tags: [...tags] }]));
+      channels.updateMetadata.mockImplementation((request: MetadataUpdateRequest) => {
+        tags = request.tags;
+        return ok({ outcome: "updated", article: { ...article(request.fileName), tags: [...tags] } });
+      });
+      const session = new VaultSession(channels);
+      await session.start();
+      session.toggleStatusFilter("noStatus");
+      session.toggleTagFilter("work");
+
+      await session.updateMetadata(blog("a.md"), { title: "a", status: null, tags: [] });
+
+      expect(session.snapshot.sidebarFilter.tags).toEqual([]);
+      expect(session.snapshot.sidebarFilter.status).toBe("noStatus");
+    });
+
+    it("lets go of a chosen tag once the last article that carried it is deleted", async () => {
+      const channels = vaultChannels();
+      let articles = [{ ...article("a.md"), tags: ["work"] }, article("b.md")];
+      channels.listArticles.mockImplementation(() => ok(articles));
+      channels.deleteArticle.mockImplementation(() => {
+        articles = [article("b.md")];
+        return ok(null);
+      });
+      const session = new VaultSession(channels);
+      await session.start();
+      session.toggleTagFilter("work");
+
+      await session.deleteArticle(blog("a.md"));
+
+      expect(session.snapshot.sidebarFilter.tags).toEqual([]);
+    });
+
     it("clears the sidebar filter when All Notes is chosen and when a workspace is chosen", async () => {
       const session = new VaultSession(channelsWithWork());
       await session.start();
