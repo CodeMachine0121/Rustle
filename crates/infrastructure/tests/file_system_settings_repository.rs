@@ -1,13 +1,16 @@
 use std::fs;
 use std::path::PathBuf;
 
-use rustle_domain::{Settings, SettingsError, SettingsRepository, VaultScope};
+use rustle_domain::{
+    IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
+    SettingsError, SettingsRepository, VaultScope,
+};
 use rustle_infrastructure::{FileSystemSettingsRepository, ResolvedVaultScope};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
 struct Vault {
-    _directory: TempDir,
+    directory: TempDir,
     root: PathBuf,
 }
 
@@ -15,15 +18,11 @@ impl Vault {
     fn create() -> Self {
         let directory = TempDir::new().expect("temporary directory");
         let root = directory.path().join("Rustle");
-        Self {
-            _directory: directory,
-            root,
-        }
+        Self { directory, root }
     }
 
     fn repository(&self) -> FileSystemSettingsRepository {
-        let scope = ResolvedVaultScope::new(VaultScope::new(&self.root));
-        FileSystemSettingsRepository::in_vault(&scope).expect("settings path is inside the vault")
+        FileSystemSettingsRepository::in_vault(ResolvedVaultScope::new(VaultScope::new(&self.root)))
     }
 
     fn settings_file(&self) -> PathBuf {
@@ -68,7 +67,14 @@ fn creates_the_settings_file_inside_the_hidden_rustle_folder() {
         .save(&Settings::default())
         .expect("saved");
 
-    assert_eq!(vault.read_settings_file(), json!({}));
+    assert_eq!(
+        vault.read_settings_file(),
+        json!({
+            "indentation": { "style": "spaces", "width": 2 },
+            "previewPanel": { "isOpen": true, "widthRatio": 0.5 },
+            "lastOpened": { "workspace": null, "article": null }
+        })
+    );
 }
 
 #[test]
@@ -82,8 +88,8 @@ fn keeps_keys_it_does_not_understand_when_saving() {
         .expect("saved");
 
     assert_eq!(
-        vault.read_settings_file(),
-        json!({ "fromTheFuture": { "enabled": true } })
+        vault.read_settings_file()["fromTheFuture"],
+        json!({ "enabled": true })
     );
 }
 
@@ -129,5 +135,90 @@ fn reports_a_blocked_settings_folder_and_leaves_it_alone() {
     assert_eq!(
         fs::read_to_string(vault.root.join(".rustle")).expect("still there"),
         "not a folder"
+    );
+}
+
+fn remembered_settings() -> Settings {
+    Settings {
+        indentation: IndentationSettings {
+            style: IndentationStyle::Tab,
+            width: 4,
+        },
+        preview_panel: PreviewPanelSettings {
+            is_open: false,
+            width_ratio: 0.3,
+        },
+        last_opened: LastOpenedSettings {
+            workspace: Some("Blog".to_owned()),
+            article: Some("zen-of-writing.md".to_owned()),
+        },
+    }
+}
+
+#[test]
+fn reads_back_what_it_wrote() {
+    let vault = Vault::create();
+
+    vault
+        .repository()
+        .save(&remembered_settings())
+        .expect("saved");
+
+    assert_eq!(vault.repository().load(), Ok(remembered_settings()));
+}
+
+#[test]
+fn reads_settings_a_person_wrote_by_hand() {
+    let vault = Vault::create();
+    vault.write_settings_file(
+        r#"{ "indentation": { "style": "spaces", "width": 4 }, "previewPanel": { "isOpen": false }, "lastOpened": { "workspace": "Blog", "article": "zen-of-writing.md" } }"#,
+    );
+
+    let settings = vault.repository().load().expect("readable");
+
+    assert_eq!(settings.indentation.width, 4);
+    assert!(!settings.preview_panel.is_open);
+    assert_eq!(settings.last_opened.workspace.as_deref(), Some("Blog"));
+    assert_eq!(
+        settings.last_opened.article.as_deref(),
+        Some("zen-of-writing.md")
+    );
+}
+
+#[test]
+fn keeps_an_old_vault_path_key_as_an_unknown_key() {
+    let vault = Vault::create();
+    vault.write_settings_file(r#"{ "vaultPath": "/Users/james/Elsewhere" }"#);
+
+    let settings = vault.repository().load().expect("readable");
+    vault.repository().save(&settings).expect("saved");
+
+    assert_eq!(
+        vault.read_settings_file()["vaultPath"],
+        json!("/Users/james/Elsewhere")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn refuses_a_settings_folder_that_links_outside_the_vault() {
+    let vault = Vault::create();
+    let outside = vault.directory.path().join("outside");
+    fs::create_dir_all(&outside).expect("folder outside the vault");
+    fs::write(outside.join("settings.json"), "{}").expect("settings outside");
+    fs::create_dir_all(&vault.root).expect("vault root");
+    std::os::unix::fs::symlink(&outside, vault.root.join(".rustle")).expect("symlink");
+
+    assert!(matches!(
+        vault.repository().load(),
+        Err(SettingsError::OutsideVault(_))
+    ));
+    assert!(matches!(
+        vault.repository().save(&Settings::default()),
+        Err(SettingsError::OutsideVault(_))
+    ));
+    assert_eq!(
+        fs::read_to_string(outside.join("settings.json")).expect("untouched"),
+        "{}"
     );
 }

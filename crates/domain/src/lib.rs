@@ -14,7 +14,10 @@ pub use article_file_name_slug::ArticleFileNameSlug;
 pub use article_metadata::ArticleMetadata;
 pub use article_repository::{ArticleRepository, ArticleRepositoryError, StoredArticle};
 pub use metadata_update::MetadataUpdate;
-pub use settings::{Settings, SettingsError, SettingsRepository};
+pub use settings::{
+    IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
+    SettingsError, SettingsRepository,
+};
 pub use vault_name::{ArticleFileName, ImageFileName, VaultPathError, WorkspaceName};
 pub use vault_scope::{
     DEFAULT_VAULT_FOLDER_NAME, IMAGES_FOLDER_NAME, SETTINGS_FILE_NAME, SETTINGS_FOLDER_NAME,
