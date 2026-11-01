@@ -20,9 +20,9 @@
 | `src/features/editor/InlineEmphasis.ts` | **Add** | Value object (`InlineEmphasis.bold`, `InlineEmphasis.italic`): `toggle(state): TransactionSpec \| null` — the whole toggle decision over the editor state and its Markdown syntax tree |
 | `src/features/editor/EmphasisShortcuts.ts` | **Add** | Key owner: `Prec.high` keymap for `Mod-b` / `Mod-i`; refuses while composing, eats the key when read-only or when `toggle` has nothing to do, dispatches one isolated undo step |
 | `src/features/editor/cursorLineHighlight.ts` | **Add** | `cursorLineHighlight()` extension: a line decoration (`cm-cursorLine`) on lines holding a cursor, drawn only while no selection range is non-empty |
-| `src/features/editor/writingSurfaceHighlightStyle.ts` | **Add** | `HighlightStyle`: heading text → `var(--color-editor-heading, var(--color-editor-heading-fallback))`; Markdown marks (`#`, `*`, `>`: `tags.processingInstruction`) → the quiet colour `defaultHighlightStyle` already gives them, restated after the heading rule (this style is mounted after the default one, so without it the `#` of a heading would take the heading colour). Strong/emphasis get **no colour** |
+| `src/features/editor/xcodeTheme.ts` | **Reuse** (from `main`) | Its highlight style owns the colours: heading text `var(--color-editor-heading)` for all six levels, Markdown marks (`#`, `*`, `>`: `tags.processingInstruction`) `var(--color-editor-mark)`, declared after the heading rule so the `#` of a heading keeps the mark colour; strong/emphasis get **no colour**. The slice's own `writingSurfaceHighlightStyle` was dropped when `main` was merged (§8 item 7) |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | Installs the three extensions; removes `Mod-i` (`selectParentSyntax`) from the default keymap it installs |
-| `src/app/app.css` | **Modify** | Light/dark `--color-editor-heading-fallback` (purple) and `--color-cursor-line`; `.cm-cursorLine` rule |
+| `src/app/app.css` | **Modify** | Light/dark `--color-cursor-line`; `.cm-cursorLine` rule |
 | `src/features/editor/TaskListContinuation.test.tsx` | **Add (test only)** | Pins `markdown()`'s `insertNewlineContinueMarkup` on task items next to plain and ordered lists |
 | `docs/ime-regression-checklist.md` | **Modify** | Steps for Mod-B / Mod-I and Enter on a task item while composing (still 12 items) |
 | Snippet menu / task-item snippet | **Not touched — does not exist on `main`** | The snippet-templates slice is not merged; see §8.1 |
@@ -38,7 +38,6 @@
 | `InlineEmphasis` | Value object (two instances: marker `**` / `*`, syntax node `StrongEmphasis` / `Emphasis`) | Decide what toggling this emphasis does to the main selection: `null` when nothing may change (several lines, inside code, a selection of only marks/whitespace), otherwise one transaction spec that wraps, unwraps, or drops an empty pair, maps every other range through the change | `EditorState` (`wordAt`, `doc`), `syntaxTree` | US-05 all; US-06 undo / multi-range |
 | `EmphasisShortcuts` | Key owner (one per editor) | Own `Mod-b` / `Mod-i`: not claimed while composing (the input method's key); eaten without change when read-only or when `toggle` returns `null`; otherwise dispatched with `isolateHistory "full"` | `InlineEmphasis`, `CompositionState` | US-05; US-06 組字中, undo |
 | `cursorLineHighlight` | Extension (`EditorView.decorations.compute` over `doc` and `selection`) | Paint the "cursor is here" background on cursor lines only while every selection range is empty | `EditorView` | US-02 all |
-| `writingSurfaceHighlightStyle` | `HighlightStyle` | Heading text colour (derived purple unless a theme sets `--color-editor-heading`), the existing quiet colour kept on marks, nothing for bold/italic | CSS tokens | US-01 all |
 
 `InlineEmphasis.toggle` decision table (main range only, offsets in its line):
 
@@ -61,7 +60,7 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `MarkdownEditor` (`editorExtensions`) | Builds the extension list | Adds `EmphasisShortcuts`, `cursorLineHighlight()`, `syntaxHighlighting(writingSurfaceHighlightStyle)`; installs `defaultKeymap` without its `Mod-i` binding |
+| `MarkdownEditor` (`editorExtensions`) | Builds the extension list | Adds `EmphasisShortcuts` and `cursorLineHighlight()` next to `xcodeTheme()`; installs `defaultKeymap` without its `Mod-i` binding |
 | `app.css` | Light/dark colour tokens | Two tokens per scheme + the `.cm-cursorLine` rule |
 
 ---
@@ -75,7 +74,7 @@ flowchart LR
   IE --> Tree[syntaxTree + wordAt]
   ES --> CS[CompositionState]
   Editor --> CLH[cursorLineHighlight]
-  Editor --> HS[writingSurfaceHighlightStyle]
+  Editor --> HS[xcodeTheme]
   HS --> Tokens[(CSS tokens in app.css)]
   Editor --> MD[markdown(): list / task continuation]
 ```
@@ -86,7 +85,7 @@ flowchart LR
 
 - **Most likely next requirement:** more inline shortcuts (inline code, strikethrough, link).
 - **Where it lands:** another `InlineEmphasis` instance (marker + node name) and one more binding in `EmphasisShortcuts`; the trimming, word, code and multi-range rules are shared.
-- **Theme system (next slice):** a theme sets `--color-editor-heading` to override; leaving it out falls back to `--color-editor-heading-fallback`. A theme that wants the cursor-line colour sets `--color-cursor-line`.
+- **Theme system:** a theme sets the `--color-editor-*` tokens (heading and mark included) in both schemes; a theme that wants its own cursor-line colour sets `--color-cursor-line`.
 - **Task-item snippet:** when the snippet menu lands, a snippet declares whether it owns a whole line (R-8); the task item is `- [ ] ` with the cursor at its end. Nothing here needs to change.
 - **Do not hardcode:** colours anywhere but `app.css`; precedence only in `EmphasisShortcuts.extension`.
 - **Known debt:** none beyond §8.
@@ -97,11 +96,11 @@ flowchart LR
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| US-01 標題文字不是正文的顏色 | `writingSurfaceHighlightStyle` (heading) |
-| US-01 井號本身維持它原本的安靜顏色 | `writingSurfaceHighlightStyle` (`processingInstruction`) |
+| US-01 標題文字不是正文的顏色 | `xcodeHighlightStyle` (heading) |
+| US-01 井號本身維持它原本的安靜顏色 | `xcodeHighlightStyle` (`processingInstruction`, after the heading rule) |
 | US-01 六級標題是同一個顏色 | one rule on `tags.heading` (parent of `heading1..6`) |
 | US-01 一套只交代了自己顏色的主題也拿得到標題色 | `var(--color-editor-heading, fallback)` + purple fallback token |
-| US-01 粗體只是比較粗 / 斜體只是斜的 | `writingSurfaceHighlightStyle` has no colour on `strong` / `emphasis` |
+| US-01 粗體只是比較粗 / 斜體只是斜的 | `xcodeHighlightStyle` has no colour on `strong` / `emphasis` |
 | US-01 沒有記號的正文不受影響 | no rule on plain text |
 | US-02 all five | `cursorLineHighlight` + CodeMirror's selection layer |
 | US-03 空行上叫出一個任務項 | **deferred** to the snippet menu (§8.1) |
@@ -135,9 +134,11 @@ flowchart LR
 Decisions taken without the user (also in the PR under "Assumptions"):
 
 1. **The snippet menu does not exist on `main`.** US-03 (task-item snippet, "整行才成立的形狀另起一行") and the US-06 menu-Enter scenario cannot be built without first building the whole snippet-templates slice, which is its own branch. Deferred to that slice: the snippet is `Checkbox` → `- [ ] `, last in the menu, owns a whole line.
-2. **No theme system and no Xcode palette on `main`.** The PRD's "today's quiet colour for `#`" and "the cursor-line background as before" presuppose them. On `main`, marks already have a quiet colour (`defaultHighlightStyle`'s `meta` colour), which this slice keeps; it adds the one thing missing, a cursor-line background that yields to a selection. The heading colour is `var(--color-editor-heading, var(--color-editor-heading-fallback))` — a theme overriding `--color-editor-heading` is R-1's "a theme may specify it"; the fallback is a purple chosen per scheme (R-2). When the theme slice lands it maps its own colours onto these tokens.
+2. **No theme system and no Xcode palette on `main`** (superseded by item 7). The PRD's "today's quiet colour for `#`" and "the cursor-line background as before" presuppose them. On `main`, marks already have a quiet colour (`defaultHighlightStyle`'s `meta` colour), which this slice keeps; it adds the one thing missing, a cursor-line background that yields to a selection. The heading colour is `var(--color-editor-heading, var(--color-editor-heading-fallback))` — a theme overriding `--color-editor-heading` is R-1's "a theme may specify it"; the fallback is a purple chosen per scheme (R-2). When the theme slice lands it maps its own colours onto these tokens.
 3. **Emphasis rules live in the syntax tree.** "Is this already bold" = a `StrongEmphasis` / `Emphasis` node whose inner content equals the trimmed selection (R-22's flanking rules come from the parser). Selecting the whole node including its marks also unwraps.
 4. **A selection of only whitespace** is treated like a selection of only marks: nothing happens.
 5. **While composing the keys are not claimed** (like Enter in `TableRowContinuation`), so the input method keeps them; since `Mod-i` is removed from the default keymap and `Mod-b` was never bound, nothing in the editor acts on them.
 6. **`wordAt`** is used for "the word under the cursor": it is the same Word-category grouping a double click uses when the cursor is inside a word (R-13 as tightened).
+7. **The Xcode theme reached `main` first.** On merging it, its highlight style took over the colour rules (one heading token for every level, marks in the mark colour with `#` included, bold and italic uncoloured), and `writingSurfaceHighlightStyle` with its `--color-editor-heading-fallback` was removed rather than stacked on top of it. The only theme defines `--color-editor-heading` in both schemes, so "a theme that gives only its own colours still gets a heading colour" holds by that theme; a second theme must define the token too. The colour checks moved to `xcodeTheme.test.tsx`.
+8. **Underscore emphasis between letters** is not emphasis to the parser, yet `這是__重點__的地方` must unwrap. Exact underscore runs that touch no other `_` and no Latin letter or digit are checked by re-parsing that one line with every `_` read as `*`, so a neighbouring run keeps its own partner (`__甲__乙__丙__`) and names (`my_var_name`) are left alone. A run between spaces (`a __init__ b`) is real emphasis to the parser and unwraps.
 - **Risks / trade-offs:** the parallel editing-surface-and-view-modes slice may also add a cursor-line highlight or palette; whichever merges second keeps `cursorLineHighlight` (it is the one that yields to a selection).

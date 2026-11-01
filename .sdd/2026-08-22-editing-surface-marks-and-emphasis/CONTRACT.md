@@ -2,7 +2,7 @@
 
 Contract: PRD.md
 Design map: ARCH.md
-Implementation: `src/features/editor/` (`InlineEmphasis.ts`, `EmphasisShortcuts.ts`, `cursorLineHighlight.ts`, `writingSurfaceHighlightStyle.ts`, `MarkdownEditor.tsx`), `src/app/app.css`
+Implementation: `src/features/editor/` (`InlineEmphasis.ts`, `EmphasisShortcuts.ts`, `cursorLineHighlight.ts`, `xcodeTheme.ts` (from `main`), `MarkdownEditor.tsx`), `src/app/app.css`
 Oracle: Acceptance Criteria (48 scenarios) + Core Business Rules (R-1 … R-25) + NFRs
 
 Ceiling: static conformance audit. Oracles were written from the PRD before reading code; tests and code were judged against them independently. Only the tests mapped to a clause were run as corroboration (all green). Nothing here executes invented scenarios; the real input method and the painted selection are on the manual checklist (`docs/ime-regression-checklist.md`).
@@ -17,13 +17,13 @@ Paths below are relative to `src/features/editor/` unless they start with `src/`
 
 | ID | Clause | Spec-expected (oracle) | Impl | Test | Test audit | Code audit | Jev test | Jev code | Status | Route |
 |----|--------|------------------------|------|------|------------|------------|----------|----------|--------|-------|
-| AC-1 | 標題文字不是正文的顏色 | 「今天」與正文是兩個不同顏色 | writingSurfaceHighlightStyle.ts:15-18 | writingSurfaceHighlightStyle.test.ts:61 | asserts-oracle | produces-oracle | asserts-oracle 0.97 | produces-oracle 0.83 | ✅ conforms | recheck (rechecked: test reads the mounted stylesheets) |
-| AC-2 | 井號本身維持它原本的安靜顏色 | 「#」≠ 標題色、≠ 正文色、= 粗體記號與引言符號的顏色 | writingSurfaceHighlightStyle.ts:4,17 | writingSurfaceHighlightStyle.test.ts:68 | asserts-oracle | produces-oracle | asserts-oracle 0.92 | diverges 0.40 | 🔴 violation | escalate (violation) — see Needs James |
-| AC-3 | 六級標題是同一個顏色 | 六行標題文字同色 | writingSurfaceHighlightStyle.ts:16 (`tags.heading` covers `heading1…6`) | writingSurfaceHighlightStyle.test.ts:76 | asserts-oracle | produces-oracle | asserts-oracle 0.99 | produces-oracle 0.97 | ✅ conforms | accept |
-| AC-4 | 一套只交代了自己顏色的主題也拿得到標題色 | 沒指定時，標題色 ≠ 正文，且與連結、引言、程式碼、記號都不同 | writingSurfaceHighlightStyle.ts:16; src/app/app.css (`--color-editor-heading-fallback`) | writingSurfaceHighlightStyle.test.ts:111 | asserts-oracle | produces-oracle | asserts-oracle 0.95 | produces-oracle 0.88 | ✅ conforms | accept |
-| AC-5 | 粗體只是比較粗，顏色沒有變 | 「重點」與正文同色且較粗 | writingSurfaceHighlightStyle.ts (no `strong` colour); default style `font-weight: bold` | writingSurfaceHighlightStyle.test.ts:85 | asserts-oracle | produces-oracle | asserts-oracle 0.87 | diverges 0.17 | 🔴 violation | escalate (violation) — see Needs James |
-| AC-6 | 斜體只是斜的，顏色沒有變 | 「重點」與正文同色且是斜的 | as AC-5 (`font-style: italic`) | writingSurfaceHighlightStyle.test.ts:92 | asserts-oracle | produces-oracle | asserts-oracle 0.97 | produces-oracle 0.69 | ✅ conforms | recheck (rechecked) |
-| AC-7 | 沒有記號的正文不受影響 | 純正文的顏色與上線前逐字相同 | no rule matches plain text | writingSurfaceHighlightStyle.test.ts:61 (body line has no colour) | asserts-oracle | produces-oracle | asserts-oracle 0.53 | produces-oracle 0.80 | ✅ conforms | escalate (low confidence) |
+| AC-1 | 標題文字不是正文的顏色 | 「今天」與正文是兩個不同顏色 | xcodeTheme.ts:13 | xcodeTheme.test.tsx:123 | asserts-oracle | produces-oracle | asserts-oracle 0.97 | produces-oracle 0.83 | ✅ conforms | recheck (rechecked: test reads the mounted stylesheets) |
+| AC-2 | 井號本身維持它原本的安靜顏色 | 「#」≠ 標題色、≠ 正文色、= 粗體記號與引言符號的顏色 | xcodeTheme.ts:13,20-23 | xcodeTheme.test.tsx:130 | asserts-oracle | produces-oracle | asserts-oracle 0.92 | diverges 0.40 | 🔴 violation | escalate (violation) — see Needs James |
+| AC-3 | 六級標題是同一個顏色 | 六行標題文字同色 | xcodeTheme.ts:13 (`tags.heading` covers `heading1…6`) | xcodeTheme.test.tsx:138 | asserts-oracle | produces-oracle | asserts-oracle 0.99 | produces-oracle 0.97 | ✅ conforms | accept |
+| AC-4 | 一套只交代了自己顏色的主題也拿得到標題色 | 沒指定時，標題色 ≠ 正文，且與連結、引言、程式碼、記號都不同 | xcodeTheme.ts:13; src/app/app.css (`--color-editor-heading`, both schemes) | xcodeTheme.test.tsx:61 | asserts-oracle | produces-oracle | asserts-oracle 0.95 | produces-oracle 0.88 | ✅ conforms | accept |
+| AC-5 | 粗體只是比較粗，顏色沒有變 | 「重點」與正文同色且較粗 | xcodeTheme.ts:14 (no `strong` colour, `font-weight: bold`) | xcodeTheme.test.tsx:147 | asserts-oracle | produces-oracle | asserts-oracle 0.87 | diverges 0.17 | 🔴 violation | escalate (violation) — see Needs James |
+| AC-6 | 斜體只是斜的，顏色沒有變 | 「重點」與正文同色且是斜的 | as AC-5 (`font-style: italic`) | xcodeTheme.test.tsx:154 | asserts-oracle | produces-oracle | asserts-oracle 0.97 | produces-oracle 0.69 | ✅ conforms | recheck (rechecked) |
+| AC-7 | 沒有記號的正文不受影響 | 純正文的顏色與上線前逐字相同 | no rule matches plain text | xcodeTheme.test.tsx:123 (body line has no colour) | asserts-oracle | produces-oracle | asserts-oracle 0.53 | produces-oracle 0.80 | ✅ conforms | escalate (low confidence) |
 
 ### US-02 選取範圍一定看得見
 
@@ -89,7 +89,7 @@ The code path for every row is `@codemirror/lang-markdown`'s `insertNewlineConti
 | AC-43 | 縮排鍵沒有被搶走 | 該行縮進一級 | TabIndentation (untouched) | MarkdownEditor.test.tsx:504 | asserts-oracle | produces-oracle | asserts-oracle 0.93 | not-implemented 0.68 | ❌ gap | escalate (disagree) |
 | AC-44 | 片段選單開著時換行鍵仍然屬於選單 | 片段落進正文、沒有任務項 | — (no menu on `main`) | — | no-test | not-implemented | not run | not run | ❌ gap (assumption) | deferred |
 | AC-45 | 表格續列沒有被搶走 | 下一列直線自動出現 | TableRowContinuation (untouched, before `markdown()`) | TaskListContinuation.test.tsx:119 | asserts-oracle | produces-oracle | asserts-oracle 0.89 | not-implemented 0.89 | ❌ gap | escalate (disagree) |
-| AC-46 | 每一套主題都還能用 | 每套畫得出畫面且標題色 ≠ 正文 | app.css light/dark tokens | writingSurfaceHighlightStyle.test.ts:111 | shallow (no theme system: the two colour schemes stand in) | produces-oracle | not run | not run | 🟠 mis-asserted (assumption) | no theme system on `main` |
+| AC-46 | 每一套主題都還能用 | 每套畫得出畫面且標題色 ≠ 正文 | app.css light/dark tokens | xcodeTheme.test.tsx:61 | shallow (no theme system: the two colour schemes stand in) | produces-oracle | not run | not run | 🟠 mis-asserted (assumption) | no theme system on `main` |
 | AC-47 | 寫作區以外的顏色沒有變 | 側邊欄、清單、預覽每個顏色不變 | app.css only adds tokens and one `.markdown-editor` rule | — (diff review) | no-test | produces-oracle | not run | not run | 🟡 partial | diff-only change; no before/after colour test exists in the project |
 | AC-48 | 落下的任務項是普通 Markdown | 預覽渲染出帶勾選框的任務清單 | src/features/preview/renderMarkdown.ts (existing) | TaskListContinuation.test.tsx:123 | asserts-oracle | produces-oracle | asserts-oracle 0.71 | unclear 0.45 | ❔ unclear | escalate (disagree) |
 
@@ -98,7 +98,7 @@ The code path for every row is `@codemirror/lang-markdown`'s `insertNewlineConti
 | ID | Rule (short) | Impl | Test | Status |
 |----|--------------|------|------|--------|
 | BR-1 | 標題色是算出來的，不是必填 | `var(--color-editor-heading, fallback)` | AC-4 | ✅ |
-| BR-2 | 從紫色算出 | `--color-editor-heading-fallback` purple per scheme | writingSurfaceHighlightStyle.test.ts:111 | ✅ |
+| BR-2 | 從紫色算出 | `--color-editor-heading` per scheme (Xcode palette) | xcodeTheme.test.tsx:61 | ✅ |
 | BR-3 | `#` 不屬於標題文字 | mark rule restated after heading | AC-2 | ✅ (Jev escalated AC-2) |
 | BR-4 | 六級共用一色 | `tags.heading` | AC-3 | ✅ |
 | BR-5 | 粗體斜體維持正文色 | no colour rule | AC-5, AC-6 | ✅ |
@@ -160,3 +160,7 @@ None of these touches an Out of Scope item.
   - AC-12 (Jev `mis-asserted` 0.71): the selection is painted by the browser (no `drawSelection`), which a DOM test cannot observe; the test pins the only thing this code controls — no cursor-line background over a selected line.
   - AC-19…26, 42, 43, 45, 48 (Jev `not-implemented` / `unclear`): behaviour owned by `markdown()`, `TabIndentation`, `TableRowContinuation` and the preview, by the PRD's own decision; the tests run the real `MarkdownEditor`.
   - AC-7, 27, 28, 30, 32, 33, 35, 38, 41 (low confidence, agree).
+
+## After merging `main`
+
+The Xcode theme reached `main` first and now owns the colour rules (ARCH §8 item 7): `writingSurfaceHighlightStyle` and its heading fallback were removed, and the US-01 colour checks run against `xcodeTheme()` in `xcodeTheme.test.tsx`. Review follow-ups: italic now toggles off on bold-italic text, and the underscore fallback no longer takes the underscores of a name or of a neighbouring run (ARCH §8 item 8).
