@@ -2141,6 +2141,28 @@ describe("App", () => {
       expect(clipboardCalls).toEqual([]);
     });
 
+    it("indents on the Tab right after an Esc in Normal mode", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+
+      press(content, "Escape");
+      const tab = press(content, "Tab");
+
+      expect(view.state.doc.toString()).toBe("  正文的第一行。");
+      expect(tab.defaultPrevented).toBe(true);
+    });
+
+    it("lets the Tab right after an unclaimed Esc leave the editor with Vim off", async () => {
+      answerWithVimMode(undefined);
+      const { content, view } = await startEditing();
+
+      press(content, "Escape");
+      const tab = press(content, "Tab");
+
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+      expect(tab.defaultPrevented).toBe(false);
+    });
+
     it("does nothing on Esc in Normal mode outside Zen Mode", async () => {
       answerWithVimMode(true);
       const { content, view } = await startEditing();
