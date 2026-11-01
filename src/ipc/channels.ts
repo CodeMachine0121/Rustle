@@ -6,6 +6,7 @@ import { callChannel } from "./callChannel";
 import type { CreateArticleRequest } from "./createArticleRequest";
 import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
 import type { SaveBodyRequest, SavedBody } from "./savedBody";
+import type { SavedClipboardImages } from "./savedClipboardImages";
 import type { Settings } from "./settings";
 import type { WorkspaceSummary } from "./workspaceSummary";
 
@@ -28,7 +29,8 @@ export const channels = {
 
   updateMetadata: () => callChannel<null>("update_metadata"),
 
-  saveClipboardImage: () => callChannel<null>("save_clipboard_image"),
+  saveClipboardImage: (workspace: string) =>
+    callChannel<SavedClipboardImages>("save_clipboard_image", { workspace }),
 
   readSettings: () => callChannel<Settings>("read_settings"),
 

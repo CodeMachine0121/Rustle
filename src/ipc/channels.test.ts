@@ -13,13 +13,12 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 type ArgumentlessChannelName = Extract<
   ChannelName,
-  "updateMetadata" | "saveClipboardImage" | "listWorkspaces" | "readSettings"
+  "updateMetadata" | "listWorkspaces" | "readSettings"
 >;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
   updateMetadata: "update_metadata",
-  saveClipboardImage: "save_clipboard_image",
   readSettings: "read_settings",
 };
 
@@ -29,6 +28,7 @@ const CHANNELS_WITH_ARGUMENTS = [
   "createWorkspace",
   "readBody",
   "saveBody",
+  "saveClipboardImage",
   "writeSettings",
   "watchCloseRequests",
   "answerCloseRequest",
@@ -41,6 +41,16 @@ describe("channels", () => {
     await channels[channel as ArgumentlessChannelName]();
 
     expect(invoke).toHaveBeenLastCalledWith(commandName, undefined);
+  });
+
+  it("asks to store the clipboard's images in a workspace by its name", async () => {
+    const saved = { images: [{ relativePath: "images/8f3c.png" }] };
+    vi.mocked(invoke).mockResolvedValue(saved);
+
+    const result = await channels.saveClipboardImage("Blog");
+
+    expect(invoke).toHaveBeenLastCalledWith("save_clipboard_image", { workspace: "Blog" });
+    expect(result).toEqual({ ok: true, payload: saved });
   });
 
   it("asks for one article's body by workspace and file name", async () => {

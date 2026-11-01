@@ -502,3 +502,15 @@ body {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.image-paste-status {
+  margin: 0;
+  padding: 4px 16px;
+  font-size: 12px;
+  color: var(--color-muted-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.image-paste-status--failed {
+  color: var(--color-error);
+}
