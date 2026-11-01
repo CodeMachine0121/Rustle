@@ -27,7 +27,8 @@
 | `crates/domain` `workspace_repository.rs` | **Modify** | `image_entries(workspace)`, `rename(workspace, new_name)` |
 | `crates/application` | **Add** | `UpdateArticleMetadata`, `DeleteArticle`, `RenameWorkspace`, `CountWorkspaceContents`, `DeleteWorkspace` (one struct each) + their reply/error types |
 | `crates/infrastructure` `system_trash.rs` | **Add** | `SystemTrash` (`trash` crate `=5.2.9`; on macOS the `NsFileManager` method so no Finder automation prompt) |
-| `crates/infrastructure` `file_system_workspace_repository.rs` | **Modify** | `image_entries` (missing `images/` lists as empty), `rename` (never onto an existing entry) |
+| `crates/infrastructure` `file_system_workspace_repository.rs` | **Modify** | `image_entries` (missing `images/` lists as empty), `rename` (never onto an existing entry, a link renamed as the link) |
+| `crates/infrastructure` `resolved_vault_scope.rs` | **Modify** | `workspace_entry_path`, `article_entry_path`: the entry itself (not a link's target) after confining it |
 | `src-tauri` | **Modify / Add** | real `update_metadata`; four new channels `deleteArticle`, `renameWorkspace`, `countWorkspaceContents`, `deleteWorkspace`; `SystemTrash` managed state; `From` impls in `command_error.rs` |
 | `src/ipc` | **Modify / Add** | typed wrappers + request/payload types for the five channels |
 | `src/features/vault/VaultSession.ts` | **Modify** | `updateMetadata`, `deleteArticle`, `renameWorkspace`, `countWorkspaceContents`, `deleteWorkspace`, `dismissOperationFailure`; snapshot `operationFailure`, `renameRejection`; `createArticle` failures also land in `operationFailure` |
@@ -66,7 +67,7 @@
 | `WorkspaceContents` | application reply | `{ articleCount, imageCount }` | — | TC-39~TC-41 |
 | `DeleteWorkspace` | application use case | counts again, then `Trash::move_workspace_to_trash`; replies with what went | `WorkspaceRepository`, `Trash` | TC-43 |
 | `DeleteWorkspaceError` | application error | `Workspace` / `Trash` | — | — |
-| `SystemTrash` | infrastructure | resolve the name through `ResolvedVaultScope` (links resolved, confined), refuse a missing item, then `trash` crate | `ResolvedVaultScope` | TC-48, TC-49 |
+| `SystemTrash` | infrastructure | locate the entry through `ResolvedVaultScope` (link target confined, the link itself trashed), refuse a missing item, then `trash` crate | `ResolvedVaultScope` | TC-48, TC-49 |
 
 ### TypeScript
 
@@ -212,17 +213,17 @@ Every success clears `operationFailure`; every failure replaces it. Only an oper
 Assumptions decided here (also listed in the PR description):
 
 1. **Trash method on macOS:** `NsFileManager`, not the `trash` crate's Finder default — Finder needs an Automation permission prompt; the cost is that Finder's "Put Back" is unavailable (the item can still be dragged out of the trash).
-2. **Trash is name-addressed** and the location handed to the OS is the *resolved* one (links followed and confined, like every read and write). Automated tests verify the names handed to `Trash` (mocked) and that `SystemTrash` refuses escapes and missing items before touching the OS; moving into the real trash is a manual release-checklist step (PRD §5).
+2. **Trash and rename act on the entry itself.** Both are name-addressed; the link's target is still confined to the vault like every read and write, but the location handed to the OS is the entry under its real parent folder (`ResolvedVaultScope::workspace_entry_path` / `article_entry_path`), so renaming or trashing a link inside the vault touches only the link and never its target. Automated tests verify the names handed to `Trash` (mocked) and that `SystemTrash` refuses escapes and missing items before touching the OS; moving into the real trash is a manual release-checklist step (PRD §5).
 3. **Broken front matter:** editing metadata of an article whose front matter is not an editable mapping fails with a message instead of silently changing nothing (`UneditableFrontMatter`); the body autosave keeps its tolerant behavior.
 4. **`updated_at` written by a metadata edit is a `LocalTimestamp`** (like creation), because it is a time a person reads in the file; autosave keeps writing UTC.
 5. **Displayed times** are the text the file holds, cut to `YYYY-MM-DD HH:MM`; an empty time shows `（檔案沒有記錄）`.
 6. **Re-opening after a metadata edit** goes through `closeArticle` → write → `openArticle`, so the editor's undo history and cursor reset (same as any reload); typing is impossible in between because no article is open.
 7. **Deleting only `.md` names:** `DeleteArticle` refuses a file name that is not an article, so the delete channel cannot trash arbitrary files.
 8. **Rejection wording** for workspace names is one table for creating and renaming, using the wording the PRD gives (`這個名稱已經有人用了，請換一個。` etc.).
-9. **Renaming onto an existing entry** is refused by `FileSystemWorkspaceRepository::rename` too (Unix `rename` would replace an empty folder).
+9. **Renaming onto an existing entry** is refused by `FileSystemWorkspaceRepository::rename` too (Unix `rename` would replace an empty folder). The existence check and the rename are two steps, so an empty folder created in between could still be replaced; an atomic no-replace rename needs platform-specific calls (`renameat2` / `renamex_np`) and `unsafe`, which is not worth it for a single-user local app.
 10. **No new `FailureReason`:** trash and rename failures are `unexpected` (the message carries the reason), escapes are `outsideVault`.
 11. **Workspace-delete counts the second time** (A-5) are returned by the channel but the UI does not show them again; the confirmation already showed the numbers and the row disappears.
 12. **Tauri-level integration tests** do not call `deleteArticle` / `deleteWorkspace` successfully (that would fill the developer's real trash); their rejection paths are tested there, the success paths at the application level with a mocked `Trash`.
 
-- **Risks / trade-offs:** a race between the count and the delete is narrowed (count again inside `DeleteWorkspace`) but not closed; acceptable for a single-user local app.
+- **Risks / trade-offs:** a race between the count and the delete is narrowed (count again inside `DeleteWorkspace`) but not closed, and so is the race between the rename's existence check and the rename (item 9); both acceptable for a single-user local app.
 - **Open decisions:** none.
