@@ -57,11 +57,15 @@ impl Default for IndentationSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewPanelSettings {
     pub is_open: bool,
     pub width_ratio: f64,
+    /// The key combination the user wrote, e.g. `Mod+Alt+K`. `None` when the
+    /// file has no usable opinion; the webview then uses its own default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle_shortcut: Option<String>,
 }
 
 impl PreviewPanelSettings {
@@ -85,6 +89,7 @@ impl Default for PreviewPanelSettings {
         Self {
             is_open: true,
             width_ratio: Self::DEFAULT_WIDTH_RATIO,
+            toggle_shortcut: None,
         }
     }
 }

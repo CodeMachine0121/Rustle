@@ -147,6 +147,7 @@ fn remembered_settings() -> Settings {
         preview_panel: PreviewPanelSettings {
             is_open: false,
             width_ratio: 0.3,
+            toggle_shortcut: Some("Mod+Alt+K".to_owned()),
         },
         last_opened: LastOpenedSettings {
             workspace: Some("Blog".to_owned()),

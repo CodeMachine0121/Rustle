@@ -50,6 +50,7 @@ struct StoredIndentation {
 struct StoredPreviewPanel {
     is_open: Tolerant<bool>,
     width_ratio: Tolerant<f64>,
+    toggle_shortcut: Tolerant<Option<String>>,
 }
 
 #[derive(Deserialize, Default)]
@@ -76,6 +77,10 @@ impl From<StoredSettings> for Settings {
                 width_ratio: preview_panel
                     .width_ratio
                     .or(defaults.preview_panel.width_ratio),
+                toggle_shortcut: preview_panel
+                    .toggle_shortcut
+                    .or(None)
+                    .filter(|shortcut| !shortcut.trim().is_empty()),
             }
             .normalized(),
             last_opened: LastOpenedSettings {
