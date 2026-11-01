@@ -395,6 +395,83 @@ describe("Esc, one rung at a time", () => {
   });
 });
 
+describe("Tab after Esc", () => {
+  it("indents after an Esc in Normal mode and keeps the keyboard in the editor", () => {
+    const { press, mode, text } = openEditor("正文");
+
+    press("Escape");
+    const tab = press("Tab");
+
+    expect(text()).toBe("  正文");
+    expect(tab.defaultPrevented).toBe(true);
+    expect(mode()).toBe("normal");
+  });
+
+  it("indents after an Esc that brought Insert mode back to Normal", () => {
+    const { press, mode, text } = openEditor("正文");
+    press("i");
+
+    press("Escape");
+    const tab = press("Tab");
+
+    expect(mode()).toBe("normal");
+    expect(text()).toBe("  正文");
+    expect(tab.defaultPrevented).toBe(true);
+  });
+
+  it("indents on a Tab with no Esc before it", () => {
+    const { press, text } = openEditor("正文");
+
+    const tab = press("Tab");
+
+    expect(text()).toBe("  正文");
+    expect(tab.defaultPrevented).toBe(true);
+  });
+
+  it("lets the Tab right after an unclaimed Esc move the focus while Vim is off", () => {
+    const { press, text } = openEditor("正文", { vimEnabled: false });
+
+    press("Escape");
+    const tab = press("Tab");
+
+    expect(text()).toBe("正文");
+    expect(tab.defaultPrevented).toBe(false);
+  });
+
+  it("indents when another key came between Esc and Tab while Vim is off", () => {
+    const { press, text } = openEditor("正文", { vimEnabled: false });
+
+    press("Escape");
+    press("a");
+    const tab = press("Tab");
+
+    expect(text()).toBe("  正文");
+    expect(tab.defaultPrevented).toBe(true);
+  });
+
+  it("brings the way out back as soon as Vim is turned off", () => {
+    const { press, switchVim, text } = openEditor("正文");
+
+    switchVim(false);
+    press("Escape");
+    const tab = press("Tab");
+
+    expect(text()).toBe("正文");
+    expect(tab.defaultPrevented).toBe(false);
+  });
+
+  it("closes the way out as soon as Vim is turned on", () => {
+    const { press, switchVim, text } = openEditor("正文", { vimEnabled: false });
+
+    switchVim(true);
+    press("Escape");
+    const tab = press("Tab");
+
+    expect(text()).toBe("  正文");
+    expect(tab.defaultPrevented).toBe(true);
+  });
+});
+
 describe("an app command on a Normal mode key", () => {
   function openWithCommand(body: string, vimEnabled = true) {
     const run = vi.fn();

@@ -13,6 +13,9 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import type { CompositionState } from "../../shared/composition/CompositionState";
 import type { IndentUnit } from "./IndentUnit";
 
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
+const ESCAPE_ROUTE_MILLISECONDS = 2000;
+
 /** Something in the editor that, while it has work in progress, takes Tab or Esc before indentation does. */
 export type IndentationKeyClaim = {
   claimTab(view: EditorView, backward: boolean): boolean;
@@ -22,9 +25,17 @@ export type IndentationKeyClaim = {
 /** Asked in order before Tab indents and when Esc is pressed; the first claim that has work in progress takes the key. */
 export const indentationKeyClaims = Facet.define<IndentationKeyClaim>();
 
+/** True from anything in the editor that keeps an unclaimed Esc in the editor, so Tab always indents (Vim does). */
+export const escapeRouteClosed = Facet.define<boolean, boolean>({
+  combine: (values) => values.some((closed) => closed),
+});
+
 /**
- * Owns the Tab key of one editor: Tab indents and Shift+Tab outdents, always;
- * the keyboard never leaves the editor through Tab. Esc goes to the claims.
+ * Owns the Tab key of one editor: Tab indents and Shift+Tab outdents. Esc goes
+ * to the claims first; an Esc none of them took opens the way out, unless
+ * `escapeRouteClosed`: the very next key, if it is Tab or Shift+Tab within two
+ * seconds, moves the focus instead of indenting. A mouse press in the editor
+ * or the editor losing focus closes the way out again.
  */
 export class TabIndentation {
   readonly #composition: CompositionState;
@@ -103,38 +114,64 @@ class TabKeyListener {
   readonly #view: EditorView;
   readonly #indentation: TabIndentation;
   readonly #composition: CompositionState;
+  #escapeArmedAt: number | null = null;
 
   constructor(view: EditorView, indentation: TabIndentation, composition: CompositionState) {
     this.#view = view;
     this.#indentation = indentation;
     this.#composition = composition;
     view.dom.addEventListener("keydown", this.#handleKeyDown, { capture: true });
+    view.dom.addEventListener("mousedown", this.#disarmEscape, { capture: true });
+    view.dom.addEventListener("focusout", this.#disarmEscape, { capture: true });
   }
 
   destroy(): void {
     this.#view.dom.removeEventListener("keydown", this.#handleKeyDown, { capture: true });
+    this.#view.dom.removeEventListener("mousedown", this.#disarmEscape, { capture: true });
+    this.#view.dom.removeEventListener("focusout", this.#disarmEscape, { capture: true });
   }
+
+  readonly #disarmEscape = (): void => {
+    this.#escapeArmedAt = null;
+  };
 
   #claims(): readonly IndentationKeyClaim[] {
     return this.#view.state.facet(indentationKeyClaims);
   }
 
+  #isEscapeArmed(): boolean {
+    return this.#escapeArmedAt !== null && Date.now() - this.#escapeArmedAt <= ESCAPE_ROUTE_MILLISECONDS;
+  }
+
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
+    if (MODIFIER_KEYS.has(event.key)) {
+      return;
+    }
+    const escapeArmed = this.#isEscapeArmed();
+    this.#escapeArmedAt = null;
     if (event.ctrlKey || event.altKey || event.metaKey) {
       return;
     }
     const composing = this.#composition.ownsKey(event);
     if (event.key === "Escape") {
-      if (!composing && !event.shiftKey && this.#claims().some((claim) => claim.claimEscape(this.#view))) {
+      if (composing) {
+        return;
+      }
+      if (!event.shiftKey && this.#claims().some((claim) => claim.claimEscape(this.#view))) {
         event.preventDefault();
+      } else if (!this.#view.state.facet(escapeRouteClosed)) {
+        this.#escapeArmedAt = Date.now();
       }
       return;
     }
     if (event.key !== "Tab") {
       return;
     }
-    event.preventDefault();
     event.stopPropagation();
+    if (escapeArmed && !composing) {
+      return;
+    }
+    event.preventDefault();
     if (composing || this.#claims().some((claim) => claim.claimTab(this.#view, event.shiftKey))) {
       return;
     }

@@ -700,14 +700,17 @@ describe("Esc, one layer at a time", () => {
     expect(tab.defaultPrevented).toBe(true);
   });
 
-  it("leaves a second Esc after the menu closed to the rest of the app", () => {
+  it("opens the way out with a second Esc after the menu closed", () => {
     const { view } = openEditor();
     type(view, "/h2");
     press(view, "Escape");
 
     const escape = press(view, "Escape");
+    const tab = press(view, "Tab");
 
     expect(escape.defaultPrevented).toBe(false);
+    expect(view.state.doc.toString()).toBe("/h2");
+    expect(tab.defaultPrevented).toBe(false);
   });
 
   it("ends the waiting fields and takes that Esc", () => {
@@ -737,14 +740,14 @@ describe("Esc, one layer at a time", () => {
     expect(tab.defaultPrevented).toBe(true);
   });
 
-  it("indents on the Tab after an Esc nothing claimed", () => {
+  it("opens the way out as always when neither waits", () => {
     const { view } = openEditor("字‸");
 
     press(view, "Escape");
     const tab = press(view, "Tab");
 
-    expect(view.state.doc.toString()).toBe("  字");
-    expect(tab.defaultPrevented).toBe(true);
+    expect(view.state.doc.toString()).toBe("字");
+    expect(tab.defaultPrevented).toBe(false);
   });
 });
 
