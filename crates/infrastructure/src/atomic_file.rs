@@ -12,12 +12,15 @@ const TEMPORARY_FILE_SUFFIX: &str = ".rustle-temporary";
 /// replaced file keeps its permissions; on Unix the folder is flushed too,
 /// so the rename survives a power loss.
 pub fn write_atomically(path: &Path, contents: &[u8]) -> io::Result<()> {
-    PreparedReplacement::new(path, contents)?.replace()
+    PreparedReplacement::new(path, contents)?.replace()?;
+    Ok(())
 }
 
 /// [`write_atomically`], but only while `path` still has the modification
 /// time the caller expects. It is checked before the temporary file is
-/// written and again right before the rename.
+/// written and again right before the rename. The returned modification
+/// time is taken from the temporary file, which the rename keeps, so a
+/// file already in place is never reported as unwritten for want of it.
 pub(crate) fn write_atomically_unless_modified(
     path: &Path,
     contents: &[u8],
@@ -40,10 +43,8 @@ fn write_atomically_unless_modified_pausing(
     if modified_at(path)? != expected_modified_at {
         return Ok(ArticleWrite::ModifiedElsewhere);
     }
-    replacement.replace()?;
-    Ok(ArticleWrite::Written {
-        modified_at: modified_at(path)?,
-    })
+    let modified_at = replacement.replace()?;
+    Ok(ArticleWrite::Written { modified_at })
 }
 
 fn modified_at(path: &Path) -> io::Result<String> {
@@ -57,6 +58,7 @@ struct PreparedReplacement<'a> {
     path: &'a Path,
     folder: &'a Path,
     temporary_file: NamedTempFile,
+    modified_at: String,
 }
 
 impl<'a> PreparedReplacement<'a> {
@@ -75,20 +77,23 @@ impl<'a> PreparedReplacement<'a> {
                 .set_permissions(existing.permissions())?;
         }
         temporary_file.as_file().sync_all()?;
+        let modified = temporary_file.as_file().metadata()?.modified()?;
         Ok(Self {
             path,
             folder,
             temporary_file,
+            modified_at: UtcTimestamp::from(modified).to_string(),
         })
     }
 
-    fn replace(self) -> io::Result<()> {
+    /// Returns the replaced file's modification time.
+    fn replace(self) -> io::Result<String> {
         self.temporary_file
             .persist(self.path)
             .map_err(|error| error.error)?;
         #[cfg(unix)]
         fs::File::open(self.folder)?.sync_all()?;
-        Ok(())
+        Ok(self.modified_at)
     }
 }
 
@@ -129,5 +134,24 @@ mod tests {
             1,
             "no temporary file is left behind"
         );
+    }
+
+    #[test]
+    fn reports_the_modification_time_the_written_file_has_on_disk() {
+        let directory = TempDir::new().expect("temporary directory");
+        let path = directory.path().join("article.md");
+        fs::write(&path, "loaded body").expect("existing file");
+        let loaded_at = modified_at(&path).expect("modification time");
+
+        let outcome =
+            write_atomically_unless_modified(&path, b"rustle body", &loaded_at).expect("written");
+
+        assert_eq!(
+            outcome,
+            ArticleWrite::Written {
+                modified_at: modified_at(&path).expect("modification time"),
+            }
+        );
+        assert_eq!(fs::read_to_string(&path).expect("readable"), "rustle body");
     }
 }
