@@ -1,6 +1,7 @@
 //! Pure domain: names, rules and the traits infrastructure implements. No I/O.
 
 mod article_document;
+mod article_draft;
 mod article_file_name_slug;
 mod article_metadata;
 mod article_repository;
@@ -16,6 +17,7 @@ mod workspace_name_request;
 mod workspace_repository;
 
 pub use article_document::ArticleDocument;
+pub use article_draft::{ArticleDraft, ArticleDraftError};
 pub use article_file_name_slug::ArticleFileNameSlug;
 pub use article_metadata::ArticleMetadata;
 pub use article_repository::{

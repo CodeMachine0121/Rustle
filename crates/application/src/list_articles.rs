@@ -17,7 +17,7 @@ pub struct ArticleSummary {
 }
 
 impl ArticleSummary {
-    fn new(file_name: &ArticleFileName, metadata: ArticleMetadata) -> Self {
+    pub(crate) fn new(file_name: &ArticleFileName, metadata: ArticleMetadata) -> Self {
         Self {
             file_name: file_name.to_string(),
             title: metadata.title,

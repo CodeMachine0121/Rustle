@@ -26,6 +26,8 @@ pub enum ArticleRepositoryError {
     Unreadable { article: String, reason: String },
     #[error("could not write '{article}': {reason}")]
     Unwritable { article: String, reason: String },
+    #[error("'{article}' already exists")]
+    AlreadyExists { article: String },
 }
 
 pub trait ArticleRepository {
@@ -44,4 +46,13 @@ pub trait ArticleRepository {
         text: &str,
         expected_modified_at: &str,
     ) -> Result<ArticleWrite, ArticleRepositoryError>;
+
+    /// Creates the article with `text` only when nothing has its name yet;
+    /// it never replaces an existing file.
+    fn create(
+        &self,
+        workspace: &WorkspaceName,
+        article: &ArticleFileName,
+        text: &str,
+    ) -> Result<(), ArticleRepositoryError>;
 }

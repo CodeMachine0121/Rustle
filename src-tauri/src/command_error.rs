@@ -67,7 +67,8 @@ impl From<ArticleRepositoryError> for CommandError {
         match error {
             ArticleRepositoryError::OutsideVault(outside) => outside.into(),
             other @ (ArticleRepositoryError::Unreadable { .. }
-            | ArticleRepositoryError::Unwritable { .. }) => Self::unexpected(other),
+            | ArticleRepositoryError::Unwritable { .. }
+            | ArticleRepositoryError::AlreadyExists { .. }) => Self::unexpected(other),
         }
     }
 }
