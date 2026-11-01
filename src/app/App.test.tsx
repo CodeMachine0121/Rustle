@@ -526,7 +526,7 @@ describe("App", () => {
 
     expect(screen.getByLabelText("2 篇文章")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+    fireEvent.click(screen.getByRole("button", { name: "新文章" }));
     const dialog = screen.getByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("標題"), { target: { value: "New Article" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "建立" }));
@@ -546,12 +546,13 @@ describe("App", () => {
     expect(editorContent()?.textContent).toBe("");
   });
 
-  it("opens the dialog from an empty workspace's invitation", async () => {
+  it("opens the dialog from the new article icon above an empty workspace", async () => {
     answerFromAVault({ workspace: null, article: null });
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: /^Empty/ }));
+    await screen.findByText("建立第一篇文章");
 
-    fireEvent.click(await screen.findByRole("button", { name: "建立第一篇文章" }));
+    fireEvent.click(screen.getByRole("button", { name: "新文章" }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
@@ -559,7 +560,7 @@ describe("App", () => {
   it("closes the dialog on Esc without creating anything", async () => {
     answerFromAVaultThatCreatesArticles();
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "＋ 新文章" }));
+    fireEvent.click(await screen.findByRole("button", { name: "新文章" }));
 
     fireEvent.keyDown(screen.getByLabelText("標題"), { key: "Escape" });
 
@@ -657,7 +658,7 @@ describe("App", () => {
       fireEvent.keyDown(field, { key: "Enter", keyCode: 13 });
     }
 
-    it("filters and orders without calling any channel and keeps the open article", async () => {
+    it("filters without calling any channel and keeps the open article", async () => {
       answerWithCategorizedArticles();
       render(<App />);
       await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
@@ -665,7 +666,6 @@ describe("App", () => {
 
       filterTheList("技術");
       expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveTextContent("不符合篩選");
-      fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
 
       expect(invoke).not.toHaveBeenCalled();
       expect(editorContent()).toHaveTextContent("正文的第一行。");
@@ -685,7 +685,7 @@ describe("App", () => {
         expect(screen.queryByRole("button", { name: /^Zen of Writing/ })).not.toBeInTheDocument(),
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+      fireEvent.click(screen.getByRole("button", { name: "新文章" }));
       const dialog = screen.getByRole("dialog");
       fireEvent.change(within(dialog).getByLabelText("標籤"), { target: { value: "隨" } });
 
@@ -853,7 +853,7 @@ describe("App", () => {
         create_article: () => Promise.reject({ reason: "unexpected", message: "'Blog/zen.md' already exists" }),
       });
       await startInBlog();
-      fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+      fireEvent.click(screen.getByRole("button", { name: "新文章" }));
       fireEvent.change(screen.getByLabelText("標題"), { target: { value: "Zen" } });
       fireEvent.click(screen.getByRole("button", { name: "建立" }));
       await waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
@@ -1051,7 +1051,7 @@ describe("App", () => {
       await renderWithTheArticleOpen();
       fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
 
-      fireEvent.click(screen.getByRole("button", { name: "＋ New article" }));
+      fireEvent.click(screen.getByRole("button", { name: "New article" }));
       fireEvent.change(screen.getByLabelText("Title"), { target: { value: "New Article" } });
       await act(async () => fireEvent.click(screen.getByRole("button", { name: "Create" })));
 

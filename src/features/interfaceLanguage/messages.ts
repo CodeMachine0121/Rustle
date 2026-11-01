@@ -1,7 +1,6 @@
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
 import type { StatusChoice } from "../sidebar/statusChoice";
-import type { ArticleOrder } from "../vault/articleArrangement";
 import type { Operation } from "../vault/operationFailure";
 import type { InterfaceLanguage } from "./interfaceLanguage";
 
@@ -63,14 +62,8 @@ export const CHINESE_MESSAGES = {
   deleteWorkspaceConfirm: "刪除 workspace",
 
   filterArticles: "篩選文章",
-  filterPlaceholder: "🔍 篩選…",
-  sortOrder: "排序",
-  articleOrders: {
-    createdNewestFirst: "建立時間（新到舊）",
-    title: "標題",
-    updatedNewestFirst: "更新時間（新到舊）",
-  } satisfies Record<ArticleOrder, string> as Record<ArticleOrder, string>,
-  newArticle: "＋ 新文章",
+  filterPlaceholder: "filter",
+  newArticle: "新文章",
   chooseWorkspaceFirst: "先選一個 workspace",
   workspaceUnreadable: (reason: string) => `讀不到這個 workspace：${reason}`,
   createFirstArticle: "建立第一篇文章",
@@ -193,14 +186,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   deleteWorkspaceConfirm: "Delete workspace",
 
   filterArticles: "Filter articles",
-  filterPlaceholder: "🔍 filter…",
-  sortOrder: "Sort order",
-  articleOrders: {
-    createdNewestFirst: "Created (newest first)",
-    title: "Title",
-    updatedNewestFirst: "Updated (newest first)",
-  },
-  newArticle: "＋ New article",
+  filterPlaceholder: "filter",
+  newArticle: "New article",
   chooseWorkspaceFirst: "Choose a workspace first",
   workspaceUnreadable: (reason) => `Cannot read this workspace: ${reason}`,
   createFirstArticle: "Create the first article",

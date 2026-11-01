@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
-import {
-  arrangeArticles,
-  articleOrderNamed,
-  type ArticleOrder,
-} from "./articleArrangement";
+import { arrangeArticles } from "./articleArrangement";
 
 function article(fields: Partial<ArticleSummary> & { fileName: string }): ArticleSummary {
   return {
@@ -54,17 +50,16 @@ const THREE = [
   article({ fileName: "tauri-note.md", title: "日常" }),
 ];
 
-function ordered(articles: ArticleSummary[], order: ArticleOrder): string[] {
+function ordered(articles: ArticleSummary[]): string[] {
   return arrangeArticles(articles, {
     filterText: "",
     sidebarFilter: SidebarFilter.NONE,
-    order,
     openArticle: null,
   }).map(({ article: { fileName } }) => fileName);
 }
 
 function filtered(text: string, sidebarFilter = SidebarFilter.NONE): string[] {
-  return arrangeArticles(THREE, { filterText: text, sidebarFilter, order: "title", openArticle: null }).map(
+  return arrangeArticles(THREE, { filterText: text, sidebarFilter, openArticle: null }).map(
     ({ article: { title } }) => title,
   );
 }
@@ -74,12 +69,8 @@ function blog(fileName: string): ArticleLocation {
 }
 
 describe("arrangeArticles ordering", () => {
-  it.each<[ArticleOrder, string[]]>([
-    ["createdNewestFirst", ["b.md", "c.md", "a.md", "d.md"]],
-    ["title", ["c.md", "d.md", "b.md", "a.md"]],
-    ["updatedNewestFirst", ["a.md", "b.md", "c.md", "d.md"]],
-  ])("orders by %s", (order, expected) => {
-    expect(ordered(FOUR, order)).toEqual(expected);
+  it("puts the newest created article first, whatever was updated last", () => {
+    expect(ordered(FOUR)).toEqual(["b.md", "c.md", "a.md", "d.md"]);
   });
 
   it("puts an article with the same time after the one whose title comes first, every time", () => {
@@ -89,8 +80,8 @@ describe("arrangeArticles ordering", () => {
       article({ fileName: "alpha.md", title: "Alpha", createdAt: same }),
     ];
 
-    expect(ordered(pair, "createdNewestFirst")).toEqual(["alpha.md", "beta.md"]);
-    expect(ordered([...pair].reverse(), "createdNewestFirst")).toEqual(["alpha.md", "beta.md"]);
+    expect(ordered(pair)).toEqual(["alpha.md", "beta.md"]);
+    expect(ordered([...pair].reverse())).toEqual(["alpha.md", "beta.md"]);
   });
 
   it("orders articles with the same time and title by file name", () => {
@@ -99,7 +90,7 @@ describe("arrangeArticles ordering", () => {
       article({ fileName: "a.md", title: "Same" }),
     ];
 
-    expect(ordered(pair, "createdNewestFirst")).toEqual(["a.md", "b.md"]);
+    expect(ordered(pair)).toEqual(["a.md", "b.md"]);
   });
 
   it("compares times written in different zones as instants", () => {
@@ -108,7 +99,7 @@ describe("arrangeArticles ordering", () => {
       article({ fileName: "utc.md", createdAt: "2026-08-19T20:00:00Z" }),
     ];
 
-    expect(ordered(pair, "createdNewestFirst")).toEqual(["utc.md", "taipei.md"]);
+    expect(ordered(pair)).toEqual(["utc.md", "taipei.md"]);
   });
 
   it.each(["不知道", "", "2026-13-45T99:99:99Z", "Aug 20 2026"])(
@@ -119,21 +110,16 @@ describe("arrangeArticles ordering", () => {
         article({ fileName: "known.md", title: "B", createdAt: "2026-08-01" }),
       ];
 
-      expect(ordered(pair, "createdNewestFirst")).toEqual(["known.md", "unknown.md"]);
+      expect(ordered(pair)).toEqual(["known.md", "unknown.md"]);
     },
   );
 
   it("leaves the given list in its order", () => {
     const given = [...FOUR];
 
-    ordered(given, "title");
+    ordered(given);
 
     expect(given).toEqual(FOUR);
-  });
-
-  it("falls back to the default order for an unknown name", () => {
-    expect(articleOrderNamed("title")).toBe("title");
-    expect(articleOrderNamed("byColour")).toBe("createdNewestFirst");
   });
 });
 
@@ -158,7 +144,6 @@ describe("arrangeArticles filtering", () => {
     const rows = arrangeArticles(THREE, {
       filterText: "技術",
       sidebarFilter: SidebarFilter.NONE,
-      order: "title",
       openArticle: blog("zen.md"),
     });
 
@@ -174,11 +159,10 @@ describe("arrangeArticles filtering", () => {
     const rows = arrangeArticles(FOUR, {
       filterText: "a",
       sidebarFilter: SidebarFilter.NONE,
-      order: "title",
       openArticle: null,
     });
 
-    expect(rows.map(({ article: { title } }) => title)).toEqual(["Alpha", "Beta", "Tauri 與 Electron"]);
+    expect(rows.map(({ article: { title } }) => title)).toEqual(["Tauri 與 Electron", "Alpha", "Beta"]);
   });
 
   it("orders and filters five hundred articles from five workspaces without a visible pause", () => {
@@ -197,7 +181,6 @@ describe("arrangeArticles filtering", () => {
     const rows = arrangeArticles(many, {
       filterText: "writing",
       sidebarFilter: SidebarFilter.NONE.toggleStatus("active").toggleTag("技術筆記"),
-      order: "createdNewestFirst",
       openArticle: null,
     });
     const elapsedMilliseconds = performance.now() - started;
@@ -216,7 +199,7 @@ describe("arrangeArticles with the sidebar filter", () => {
   ];
 
   function shown(text: string, sidebarFilter: SidebarFilter, openArticle: ArticleLocation | null = null) {
-    return arrangeArticles(MIXED, { filterText: text, sidebarFilter, order: "title", openArticle }).map(
+    return arrangeArticles(MIXED, { filterText: text, sidebarFilter, openArticle }).map(
       ({ article: { fileName }, isOutsideFilter }) => (isOutsideFilter ? `${fileName} (open)` : fileName),
     );
   }
@@ -247,7 +230,6 @@ describe("arrangeArticles with the sidebar filter", () => {
     const rows = arrangeArticles(twins, {
       filterText: "",
       sidebarFilter: SidebarFilter.NONE.toggleStatus("active"),
-      order: "title",
       openArticle: { workspace: "Work", fileName: "zen.md" },
     });
 
@@ -265,7 +247,6 @@ describe("arrangeArticles with the sidebar filter", () => {
     const rows = arrangeArticles(ties, {
       filterText: "",
       sidebarFilter: SidebarFilter.NONE,
-      order: "createdNewestFirst",
       openArticle: null,
     });
 

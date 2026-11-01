@@ -222,16 +222,19 @@ body {
 }
 
 .row-count,
-.row-details,
 .row-workspace,
-.row-tags {
+.row-meta {
   font-size: 12px;
   color: var(--color-muted-text);
 }
 
-.row-tags {
+.row-meta {
+  flex-basis: 100%;
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 2px 8px;
+  text-align: left;
 }
 
 .row-tag::before {
@@ -427,25 +430,61 @@ body {
   color: var(--color-code-type);
 }
 
-.new-article-button,
-.empty-state-action {
-  align-self: flex-start;
+.icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  stroke-width: 1.5;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
   border: none;
+  border-radius: 4px;
   background: transparent;
-  font: inherit;
+  color: var(--color-muted-text);
   cursor: pointer;
 }
 
-.new-article-button {
-  margin: 0 16px 8px;
-  padding: 4px 0;
-  color: inherit;
-  font-size: 13px;
+.icon-button:hover,
+.icon-button:focus-visible {
+  color: var(--color-text);
+  background: var(--color-selected);
 }
 
-.empty-state-action {
-  padding: 0;
-  text-decoration: underline;
+.icon-button[aria-pressed="true"] {
+  color: var(--color-text);
+  background: var(--color-selected);
+}
+
+.article-card {
+  position: relative;
+}
+
+.article-card .article-row {
+  padding-right: 32px;
+}
+
+.card-action {
+  position: absolute;
+  right: 4px;
+  opacity: 0.35;
+}
+
+.card-action--top {
+  top: 4px;
+}
+
+.card-action--bottom {
+  bottom: 4px;
+}
+
+.article-card:hover .card-action,
+.card-action:focus-visible {
+  opacity: 1;
 }
 
 .dialog-backdrop {
@@ -556,30 +595,34 @@ body {
 
 .article-list-controls {
   display: flex;
+  align-items: center;
   gap: 6px;
   padding: 0 16px 8px;
 }
 
-.article-filter-field,
-.article-list-controls select {
-  box-sizing: border-box;
-  padding: 6px 8px;
+.article-filter {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   background: var(--color-background);
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
+  color: var(--color-muted-text);
 }
 
 .article-filter-field {
   flex: 1;
   min-width: 0;
-}
-
-.article-list-controls select {
-  flex: 0 1 auto;
-  min-width: 0;
+  padding: 6px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
 }
 
 .open-article-marker {
