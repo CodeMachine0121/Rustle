@@ -17,18 +17,38 @@ pub enum ChannelRegistryError {
     UnknownChannel(String),
 }
 
-pub trait ChannelBound {
-    fn channel(&self) -> Channel;
+type InvokeHandler<R> = Box<dyn Fn(Invoke<R>) -> bool + Send + Sync>;
+
+pub struct ChannelHandler<R: Runtime> {
+    channel: Channel,
+    invoke: InvokeHandler<R>,
+}
+
+impl<R: Runtime> ChannelHandler<R> {
+    pub fn new(
+        channel: Channel,
+        invoke: impl Fn(Invoke<R>) -> bool + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            channel,
+            invoke: Box::new(invoke),
+        }
+    }
+
+    pub fn channel(&self) -> Channel {
+        self.channel
+    }
 }
 
 /// One handler per channel, checked complete and unique when assembled.
-#[derive(Debug)]
-pub struct ChannelRegistry<H> {
-    handlers: HashMap<Channel, H>,
+pub struct ChannelRegistry<R: Runtime> {
+    handlers: HashMap<Channel, ChannelHandler<R>>,
 }
 
-impl<H: ChannelBound> ChannelRegistry<H> {
-    pub fn new(handlers: impl IntoIterator<Item = H>) -> Result<Self, ChannelRegistryError> {
+impl<R: Runtime> ChannelRegistry<R> {
+    pub fn new(
+        handlers: impl IntoIterator<Item = ChannelHandler<R>>,
+    ) -> Result<Self, ChannelRegistryError> {
         let mut by_channel = HashMap::new();
         for handler in handlers {
             let channel = handler.channel();
@@ -49,39 +69,15 @@ impl<H: ChannelBound> ChannelRegistry<H> {
         })
     }
 
-    pub fn handler_named(&self, command_name: &str) -> Result<&H, ChannelRegistryError> {
+    pub fn handler_named(
+        &self,
+        command_name: &str,
+    ) -> Result<&ChannelHandler<R>, ChannelRegistryError> {
         Channel::from_command_name(command_name)
             .and_then(|channel| self.handlers.get(&channel))
             .ok_or_else(|| ChannelRegistryError::UnknownChannel(command_name.to_owned()))
     }
-}
 
-type InvokeHandler<R> = Box<dyn Fn(Invoke<R>) -> bool + Send + Sync>;
-
-pub struct ChannelHandler<R: Runtime> {
-    channel: Channel,
-    invoke: InvokeHandler<R>,
-}
-
-impl<R: Runtime> ChannelHandler<R> {
-    pub fn new(
-        channel: Channel,
-        invoke: impl Fn(Invoke<R>) -> bool + Send + Sync + 'static,
-    ) -> Self {
-        Self {
-            channel,
-            invoke: Box::new(invoke),
-        }
-    }
-}
-
-impl<R: Runtime> ChannelBound for ChannelHandler<R> {
-    fn channel(&self) -> Channel {
-        self.channel
-    }
-}
-
-impl<R: Runtime> ChannelRegistry<ChannelHandler<R>> {
     /// The app's only invoke handler: names outside the registry are
     /// rejected with an `unknownChannel` failure.
     pub fn into_invoke_handler(self) -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'static {
@@ -103,18 +99,14 @@ impl<R: Runtime> ChannelRegistry<ChannelHandler<R>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::test::MockRuntime;
 
-    #[derive(Debug, PartialEq)]
-    struct DeclaredHandler(Channel);
-
-    impl ChannelBound for DeclaredHandler {
-        fn channel(&self) -> Channel {
-            self.0
-        }
+    fn handler(channel: Channel) -> ChannelHandler<MockRuntime> {
+        ChannelHandler::new(channel, |_invoke| true)
     }
 
-    fn one_handler_per_channel() -> Vec<DeclaredHandler> {
-        Channel::ALL.iter().copied().map(DeclaredHandler).collect()
+    fn one_handler_per_channel() -> Vec<ChannelHandler<MockRuntime>> {
+        Channel::ALL.iter().copied().map(handler).collect()
     }
 
     #[test]
@@ -143,8 +135,8 @@ mod tests {
         let registry = ChannelRegistry::new(one_handler_per_channel()).expect("complete registry");
 
         assert_eq!(
-            registry.handler_named("format_disk"),
-            Err(ChannelRegistryError::UnknownChannel(
+            registry.handler_named("format_disk").err(),
+            Some(ChannelRegistryError::UnknownChannel(
                 "format_disk".to_owned()
             ))
         );
@@ -153,9 +145,11 @@ mod tests {
     #[test]
     fn two_handlers_for_one_channel_fail_assembly_and_name_the_channel() {
         let mut handlers = one_handler_per_channel();
-        handlers.push(DeclaredHandler(Channel::SaveBody));
+        handlers.push(handler(Channel::SaveBody));
 
-        let error = ChannelRegistry::new(handlers).expect_err("duplicate rejected");
+        let error = ChannelRegistry::new(handlers)
+            .err()
+            .expect("duplicate rejected");
 
         assert_eq!(
             error,
@@ -168,9 +162,11 @@ mod tests {
     fn a_channel_without_a_handler_fails_assembly_and_is_named() {
         let handlers = one_handler_per_channel()
             .into_iter()
-            .filter(|handler| handler.0 != Channel::ReadSettings);
+            .filter(|handler| handler.channel() != Channel::ReadSettings);
 
-        let error = ChannelRegistry::new(handlers).expect_err("incomplete rejected");
+        let error = ChannelRegistry::new(handlers)
+            .err()
+            .expect("incomplete rejected");
 
         assert_eq!(
             error,
