@@ -91,21 +91,15 @@ export class EditingSurfaceFontSizes {
       event.preventDefault();
       this.#reset(this.#hoveredSurface);
     };
-    const options = { capture: true, passive: false };
+    const listening = new AbortController();
+    const options = { capture: true, passive: false, signal: listening.signal };
     target.addEventListener("wheel", onWheel, options);
     target.addEventListener("gesturestart", onPinchStart, options);
     target.addEventListener("gesturechange", onPinchChange, options);
     target.addEventListener("gestureend", onPinchEnd, options);
-    target.addEventListener("pointerover", onPointerOver, true);
-    target.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      target.removeEventListener("wheel", onWheel, options);
-      target.removeEventListener("gesturestart", onPinchStart, options);
-      target.removeEventListener("gesturechange", onPinchChange, options);
-      target.removeEventListener("gestureend", onPinchEnd, options);
-      target.removeEventListener("pointerover", onPointerOver, true);
-      target.removeEventListener("keydown", onKeyDown, true);
-    };
+    target.addEventListener("pointerover", onPointerOver, options);
+    target.addEventListener("keydown", onKeyDown, options);
+    return () => listening.abort();
   }
 
   /** Writes a gesture still waiting to be written. */
