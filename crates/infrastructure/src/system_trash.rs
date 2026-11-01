@@ -6,7 +6,8 @@ use trash::TrashContext;
 use crate::resolved_vault_scope::ResolvedVaultScope;
 
 /// The operating system's trash. Names are located through the vault
-/// scope first, so nothing outside the real vault ever reaches the trash.
+/// scope first, so nothing outside the real vault ever reaches the trash,
+/// and a link is trashed as the link, never as what it points to.
 #[derive(Debug, Clone)]
 pub struct SystemTrash {
     vault: ResolvedVaultScope,
@@ -47,12 +48,12 @@ impl Trash for SystemTrash {
         workspace: &WorkspaceName,
         article: &ArticleFileName,
     ) -> Result<(), TrashError> {
-        let location = self.vault.article_path(workspace, article)?;
+        let location = self.vault.article_entry_path(workspace, article)?;
         Self::move_to_trash(&location, format!("{workspace}/{article}"))
     }
 
     fn move_workspace_to_trash(&self, workspace: &WorkspaceName) -> Result<(), TrashError> {
-        let location = self.vault.workspace_path(workspace)?;
+        let location = self.vault.workspace_entry_path(workspace)?;
         Self::move_to_trash(&location, workspace.to_string())
     }
 }

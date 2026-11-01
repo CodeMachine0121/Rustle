@@ -321,3 +321,31 @@ fn never_renames_onto_an_existing_entry() {
     ));
     assert!(vault.root.join("Blog").is_dir());
 }
+
+#[cfg(unix)]
+#[test]
+fn renaming_a_linked_workspace_renames_only_the_link() {
+    use std::os::unix::fs::symlink;
+
+    let vault = Vault::create();
+    let real = vault.folder("Blog");
+    fs::write(real.join("a.md"), "# A").expect("article");
+    symlink(&real, vault.root.join("Alias")).expect("symlink");
+
+    vault
+        .workspaces()
+        .rename(&workspace("Alias"), &workspace("Writing"))
+        .expect("renamed");
+
+    assert!(!vault.root.join("Alias").exists());
+    assert!(
+        fs::symlink_metadata(vault.root.join("Writing"))
+            .expect("link under the new name")
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(
+        fs::read_to_string(real.join("a.md")).expect("target untouched"),
+        "# A"
+    );
+}

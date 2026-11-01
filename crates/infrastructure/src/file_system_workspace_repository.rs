@@ -105,8 +105,8 @@ impl WorkspaceRepository for FileSystemWorkspaceRepository {
             new_name: new_name.to_string(),
             reason,
         };
-        let from = self.vault.workspace_path(workspace)?;
-        let to = self.vault.workspace_path(new_name)?;
+        let from = self.vault.workspace_entry_path(workspace)?;
+        let to = self.vault.workspace_entry_path(new_name)?;
         if fs::symlink_metadata(&to).is_ok() {
             return Err(not_renamed(
                 "a folder or file with that name exists".to_owned(),
