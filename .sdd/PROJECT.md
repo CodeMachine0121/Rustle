@@ -114,6 +114,8 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 
 **Editor indentation**: `MarkdownEditor` takes `indentation?: { style: "spaces" | "tab"; width }` (`src/features/editor/IndentUnit.ts`); missing or unreasonable values fall back to 2 spaces. The settings slice passes the stored value straight through. Tab / Shift+Tab are owned by `TabIndentation` (capture-phase listener on the editor root): do not bind Tab in another extension; the instance is private to `MarkdownEditor` today, so a future toolbar must first expose `indent()` / `outdent()` through a `MarkdownEditor` handle (React `ref`) rather than build its own.
 
+**Enter in the editor**: three owners, by precedence. `Prec.highest` is reserved for a popup that owns Enter while open (the snippet menu). `TableRowContinuation` (`src/features/editor/`, `Prec.high`, listed before `markdown()` so it also beats Markdown's own list/quote continuation) owns a plain Enter at the end of a table row (next empty row, cursor in its first cell) and on a row whose cells are all empty (clears it to leave the table); it never acts while composing (`CompositionState.ownsKey`). Everything else falls through to Markdown's continuation and the default Enter. "Is this line a table row?" is `TableRow.parse(line.text) !== null` — reuse it (e.g. "no snippet menu inside a table"), never a second regex.
+
 **Frontend features**: put them in `src/features/<feature>/`; call the backend only through `channels`.
 
 **Security**: change the CSP only in `src-tauri/src/content_security_policy.rs` *and* `tauri.conf.json` (a test keeps them identical). The navigation guard (`NavigationPolicy`) keeps the window on its own page; http(s) links open in the system browser.
