@@ -52,6 +52,16 @@ describe("PaneDivider", () => {
     expect(ratios(onResizeEnd)[0]).toBeCloseTo(ratio);
   });
 
+  it("stops following the pointer once released", () => {
+    const { divider, onResize } = renderDivider();
+    fireEvent.pointerDown(divider, { pointerId: 1, clientX: 500 });
+    fireEvent.pointerUp(divider, { pointerId: 1, clientX: 400 });
+
+    fireEvent.pointerMove(divider, { pointerId: 1, clientX: 300 });
+
+    expect(onResize).not.toHaveBeenCalled();
+  });
+
   it("ignores moves that are not part of a drag", () => {
     const { divider, onResize, onResizeEnd } = renderDivider();
 

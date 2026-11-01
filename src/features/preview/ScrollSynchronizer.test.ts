@@ -98,7 +98,7 @@ describe("ScrollSynchronizer", () => {
     expect(editor.scrollTo).toHaveBeenCalledWith(400);
   });
 
-  it("remembers nothing when the follower could not move", () => {
+  it("follows a scroll event of a follower that could not move, even at the same position", () => {
     const synchronizer = new ScrollSynchronizer();
     const editor = pane({ position: 0, lineAtTop: 0 });
     const preview = pane({ position: 0, lineAtTop: 0 }, { snapTo: () => 0 });
@@ -108,11 +108,9 @@ describe("ScrollSynchronizer", () => {
     editor.state.lineAtTop = 10;
     editorSide.scrolled();
 
-    preview.state.position = 300;
-    preview.state.lineAtTop = 15;
     previewSide.scrolled();
 
-    expect(editor.scrollTo).toHaveBeenCalledWith(300);
+    expect(editor.scrollTo).toHaveBeenCalledWith(0);
   });
 
   it.each([
