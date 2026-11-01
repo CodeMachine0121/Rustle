@@ -32,8 +32,8 @@
 | `src/ipc` | **Modify** | `saveBody(..)`, `watchCloseRequests(onRequest)`, `answerCloseRequest(close)`; `SavedBody` type |
 | `src/features/autosave/` | **Add** | `AutosaveSession`, `SaveStatusBar`, `useAutosaveSession`, `WindowCloseWatcher` |
 | `src/features/editor/MarkdownEditor.tsx` | **Modify** | optional `onBodyChange(body)` prop (ref-held so the editor is never rebuilt by a new callback) |
-| `src/app/App.tsx` | **Modify** | builds one `AutosaveSession`, renders the title bar above the editor, forwards editor changes, watches close requests |
-| Article list / workspace list / "click to open" | **Not touched** | Listing slice. It calls `session.openArticle(..)` / `closeArticle()` — today nothing opens an article, so the title bar shows no status (BRIEF §8) |
+| `src/app/App.tsx` | **Modify** | builds one `AutosaveSession`, hands it to `VaultSession` as its article holder and to `EditorColumn`, watches close requests |
+| `src/features/vault/` | **Modify** (after the listing slice landed) | `VaultSession` takes an `ArticleHolder` (`openArticle` / `closeArticle`); every article or workspace click goes through it and keeps the previous selection when refused; clicking the open article again does nothing. `EditorColumn` renders `AutosavedEditor` (title bar + editor) |
 | `ArticleDocument` | **Not touched** | Already does body replacement, `updated_at`, block creation, broken-block preservation, CRLF and BOM |
 
 ---
@@ -76,7 +76,7 @@
 | `Channel` / `channels.rs` / `commands.rs` | channel contract | + `WatchCloseRequests`, `AnswerCloseRequest` |
 | `configure` | assembly | manages `WindowCloseGuard`, installs the `CloseRequested` hook |
 | `MarkdownEditor` | editor | + optional `onBodyChange` |
-| `App` | shell | session + title bar + close watcher; editor remounted (React `key`) when the session hands a new body (reload / open) |
+| `App` | shell | autosave session + vault session + close watcher; the one editor gets a new `documentKey` (the session's document version) when the session hands a new body (reload / open), so it is never remounted |
 
 ---
 
@@ -162,3 +162,6 @@ flowchart TD
 - **mtime comparison** is an exact string compare of `UtcTimestamp` (ms precision) on both sides (BRIEF D-2).
 - **`mockall`** (`=0.15.0`) is added for the `Clock` mock (testing rules: clocks are mocked with `mockall`, exposed across crates through a `mocks` feature).
 - **Testing the last-moment check (TC-44)** needs a pause between "temp written" and "rename"; the private implementation takes a `before_replace` step that production passes as a no-op and the unit test uses to write the file from "another program".
+- **Save runs off the main thread.** `save_body` is an `async` Tauri command: its write and two fsyncs must not stall the event loop while the user types. The webview sends one save at a time, so order is kept.
+- **Modification time of a write** is read from the flushed temporary file before the rename (the rename keeps it), so a file already in place is never reported as unwritten because its time could not be read afterwards.
+- **A failure while the outside-change warning is up** (a failed 覆寫 or 重新載入) is shown next to the warning, not instead of it.
