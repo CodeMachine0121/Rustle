@@ -6,6 +6,7 @@ pub mod create_article;
 pub mod create_workspace;
 pub mod delete_article;
 pub mod delete_workspace;
+pub mod list_all_articles;
 pub mod list_articles;
 pub mod list_workspaces;
 pub mod read_body;

@@ -5,6 +5,7 @@ mod article_draft;
 mod article_file_name_slug;
 mod article_metadata;
 mod article_repository;
+mod article_status;
 mod clipboard;
 mod clock;
 mod identifier_generator;
@@ -30,6 +31,7 @@ pub use article_metadata::ArticleMetadata;
 pub use article_repository::{
     ArticleRepository, ArticleRepositoryError, ArticleWrite, StoredArticle,
 };
+pub use article_status::ArticleStatus;
 #[cfg(any(test, feature = "mocks"))]
 pub use clipboard::MockClipboard;
 pub use clipboard::{Clipboard, ClipboardError};
@@ -51,7 +53,7 @@ pub use metadata_update::MetadataUpdate;
 pub use pasted_image::{ImageStorage, PNG_EXTENSION, PastedImage};
 pub use settings::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
-    SettingsError, SettingsRepository,
+    SettingsError, SettingsRepository, SidebarSection, SidebarSettings,
 };
 #[cfg(any(test, feature = "mocks"))]
 pub use trash::MockTrash;

@@ -1,4 +1,6 @@
-import type { ArticleSummary } from "../../ipc/articleSummary";
+import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
+import type { SidebarFilter } from "../sidebar/SidebarFilter";
+import { isSameArticle } from "./articleLocation";
 
 export type ArticleOrder = "createdNewestFirst" | "title" | "updatedNewestFirst";
 
@@ -12,7 +14,7 @@ export function articleOrderNamed(name: string): ArticleOrder {
 
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/;
 
-/** A case-insensitive piece of text looked for in an article's title, categories and tags. */
+/** A case-insensitive piece of text looked for in an article's title and tags. */
 class ArticleFilter {
   readonly #needle: string;
 
@@ -21,7 +23,7 @@ class ArticleFilter {
   }
 
   matches(article: ArticleSummary): boolean {
-    return [article.title, ...article.category, ...article.tags].some((text) =>
+    return [article.title, ...article.tags].some((text) =>
       text.toLowerCase().includes(this.#needle),
     );
   }
@@ -29,9 +31,10 @@ class ArticleFilter {
 
 export type ArticleArrangement = {
   filterText: string;
+  sidebarFilter: SidebarFilter;
   order: ArticleOrder;
-  /** Shown even when the filter leaves it out: the article open in the editor. */
-  openArticle: string | null;
+  /** Shown even when the filters leave it out: the article open in the editor. */
+  openArticle: ArticleLocation | null;
 };
 
 export type ArrangedArticle = {
@@ -40,21 +43,29 @@ export type ArrangedArticle = {
   isOutsideFilter: boolean;
 };
 
-/** The rows the article column draws, in order. The given list is left as it was. */
+/**
+ * The rows the article column draws, in order: the sidebar filter and the
+ * text filter both narrow the list, the open article always stays. The
+ * given list is left as it was.
+ */
 export function arrangeArticles(
   articles: readonly ArticleSummary[],
-  { filterText, order, openArticle }: ArticleArrangement,
+  { filterText, sidebarFilter, order, openArticle }: ArticleArrangement,
 ): ArrangedArticle[] {
   const filter = new ArticleFilter(filterText);
   const shown = articles
-    .map((article) => ({ article, isOutsideFilter: !filter.matches(article) }))
-    .filter(({ article, isOutsideFilter }) => !isOutsideFilter || article.fileName === openArticle);
+    .map((article) => ({
+      article,
+      isOutsideFilter: !sidebarFilter.matches(article) || !filter.matches(article),
+    }))
+    .filter(({ article, isOutsideFilter }) => !isOutsideFilter || isSameArticle(openArticle, article));
   const instantToOrderBy = ORDER_INSTANTS[order];
   const keyed = shown.map((row) => ({ row, instant: instantToOrderBy(row.article) }));
   keyed.sort(
     (first, second) =>
       compareNewestFirst(first.instant, second.instant) ||
       first.row.article.title.localeCompare(second.row.article.title) ||
+      first.row.article.workspace.localeCompare(second.row.article.workspace) ||
       first.row.article.fileName.localeCompare(second.row.article.fileName),
   );
   return keyed.map(({ row }) => row);

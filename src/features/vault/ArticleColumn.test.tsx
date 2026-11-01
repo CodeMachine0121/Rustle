@@ -5,24 +5,27 @@ import type { ArticleSummary } from "../../ipc/articleSummary";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { ArticleColumn } from "./ArticleColumn";
+import { SidebarFilter } from "../sidebar/SidebarFilter";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 
 const TAURI: ArticleSummary = {
+  workspace: "Blog",
   fileName: "tauri.md",
   title: "Tauri 與 Electron 的取捨",
   createdAt: "2026-08-20T14:32:05+08:00",
   updatedAt: "2026-08-20T14:32:05+08:00",
-  category: ["技術筆記"],
-  tags: ["tauri", "electron"],
+  status: "active",
+  tags: ["tauri", "electron", "技術筆記"],
   hasIncompleteMetadata: false,
 };
 
 const NO_TITLE: ArticleSummary = {
+  workspace: "Blog",
   fileName: "no-title.md",
   title: "no-title",
   createdAt: "",
   updatedAt: "",
-  category: [],
+  status: null,
   tags: [],
   hasIncompleteMetadata: true,
 };
@@ -61,12 +64,13 @@ function renderColumnForCreating(snapshot: VaultSnapshot) {
 }
 
 describe("ArticleColumn", () => {
-  it("shows the title, creation date, category and tags of an article", () => {
+  it("shows the title, creation date, status and tags of an article, but not its workspace", () => {
     renderColumn(BLOG);
 
     const row = screen.getByRole("button", { name: /^Tauri 與 Electron 的取捨/ });
     expect(row).toHaveTextContent("2026-08-20");
-    expect(row).toHaveTextContent("技術筆記");
+    expect(row).toHaveTextContent("Active");
+    expect(row).not.toHaveTextContent("Blog");
     expect(row).toHaveTextContent("tauri");
     expect(row).toHaveTextContent("electron");
     expect(row).not.toHaveTextContent("14:32");
@@ -90,11 +94,11 @@ describe("ArticleColumn", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Tauri/ }));
 
-    expect(onSelect).toHaveBeenCalledWith("tauri.md");
+    expect(onSelect).toHaveBeenCalledWith(TAURI);
   });
 
   it("marks only the selected article as selected", () => {
-    renderColumn({ ...BLOG, selectedArticle: "tauri.md" });
+    renderColumn({ ...BLOG, selectedArticle: { workspace: "Blog", fileName: "tauri.md" } });
 
     expect(screen.getByRole("button", { name: /^Tauri/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^no-title/ })).toHaveAttribute("aria-pressed", "false");
@@ -151,21 +155,23 @@ describe("ArticleColumn", () => {
 });
 
 const ZEN: ArticleSummary = {
+  workspace: "Blog",
   fileName: "zen.md",
   title: "Zen of Writing",
   createdAt: "2026-08-18T09:00:00+08:00",
   updatedAt: "2026-08-20T18:00:00+08:00",
-  category: ["隨筆"],
+  status: null,
   tags: [],
   hasIncompleteMetadata: false,
 };
 
 const DAILY: ArticleSummary = {
+  workspace: "Blog",
   fileName: "tauri-note.md",
   title: "日常",
   createdAt: "2026-08-19T22:00:00+08:00",
   updatedAt: "2026-08-19T22:00:00+08:00",
-  category: [],
+  status: null,
   tags: [],
   hasIncompleteMetadata: false,
 };
@@ -220,7 +226,7 @@ describe("ArticleColumn ordering and filtering", () => {
   });
 
   it("reorders by title without selecting anything and keeps the open article selected", () => {
-    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: "zen.md" });
+    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: { workspace: "Blog", fileName: "zen.md" } });
 
     fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
 
@@ -346,7 +352,7 @@ describe("ArticleColumn ordering and filtering", () => {
   });
 
   it("keeps the open article marked when the filter leaves it out, without selecting anything", () => {
-    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: "zen.md" });
+    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: { workspace: "Blog", fileName: "zen.md" } });
 
     typeIntoFilter("技術");
     act(() => vi.advanceTimersByTime(150));
@@ -371,5 +377,77 @@ describe("ArticleColumn ordering and filtering", () => {
     });
 
     expect(rowTitles()).toEqual(["Zen of Writing", "Tauri 與 Electron 的取捨"]);
+  });
+});
+
+describe("ArticleColumn with the sidebar and All Notes", () => {
+  const WORK_TAURI: ArticleSummary = { ...TAURI, workspace: "Work", status: "completed", tags: [] };
+  const ALL_NOTES: VaultSnapshot = {
+    ...INITIAL_VAULT_SNAPSHOT,
+    showsAllNotes: true,
+    articles: [TAURI, WORK_TAURI],
+  };
+
+  it("lists the scope's articles that match the sidebar filter", () => {
+    renderColumn({ ...BLOG, sidebarFilter: SidebarFilter.NONE.toggleStatus("active") });
+
+    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨"]);
+  });
+
+  it("says that nothing matches when the sidebar filter leaves nothing", () => {
+    renderColumn({ ...BLOG, sidebarFilter: SidebarFilter.NONE.toggleStatus("dropped") });
+
+    expect(rowTitles()).toEqual([]);
+    expect(screen.getByText("沒有符合的文章")).toBeInTheDocument();
+  });
+
+  it("keeps the open article that the sidebar filter leaves out, marked as the open one", () => {
+    renderColumn({
+      ...BLOG,
+      sidebarFilter: SidebarFilter.NONE.toggleStatus("active"),
+      selectedArticle: { workspace: "Blog", fileName: "no-title.md" },
+    });
+
+    expect(screen.getByRole("button", { name: /^no-title/ })).toHaveTextContent("開著・不符合篩選");
+  });
+
+  it("lists two articles with the same file name from two workspaces as two rows, each naming its workspace", () => {
+    const onSelect = renderColumn(ALL_NOTES);
+
+    const rows = screen.getAllByRole("button", { name: /^Tauri/ });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.querySelector(".row-workspace")?.textContent).sort()).toEqual(["Blog", "Work"]);
+
+    const workRow = rows.find((row) => row.textContent?.includes("Work"));
+    if (workRow === undefined) {
+      throw new Error("the Work row is missing");
+    }
+    fireEvent.click(workRow);
+    expect(onSelect).toHaveBeenCalledWith(WORK_TAURI);
+  });
+
+  it("marks only the open row of the right workspace", () => {
+    renderColumn({ ...ALL_NOTES, selectedArticle: { workspace: "Work", fileName: "tauri.md" } });
+
+    const pressed = screen.getAllByRole("button", { pressed: true });
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0]).toHaveTextContent("Work");
+  });
+
+  it("refuses a new article under All Notes and asks for a workspace, without opening the dialog", () => {
+    const onCreateArticle = vi.fn();
+    renderColumn(ALL_NOTES, vi.fn(), onCreateArticle);
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
+
+    expect(onCreateArticle).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("請先在左邊選一個 workspace");
+  });
+
+  it("says the vault has no articles under All Notes instead of inviting a first one", () => {
+    renderColumn({ ...ALL_NOTES, articles: [] });
+
+    expect(screen.getByText("還沒有任何文章")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "建立第一篇文章" })).not.toBeInTheDocument();
   });
 });

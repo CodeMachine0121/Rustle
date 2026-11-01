@@ -31,6 +31,7 @@ macro_rules! channels {
 channels! {
     ListWorkspaces => "listWorkspaces", "list_workspaces";
     ListArticles => "listArticles", "list_articles";
+    ListAllArticles => "listAllArticles", "list_all_articles";
     CreateWorkspace => "createWorkspace", "create_workspace";
     CreateArticle => "createArticle", "create_article";
     ReadBody => "readBody", "read_body";

@@ -10,6 +10,7 @@ type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
 export const CHINESE_MESSAGES = {
   sidebar: "側邊欄",
   workspacesTitle: "WORKSPACES",
+  noTagsYet: "還沒有標籤",
   articlesTitle: "文章",
   articlesRegion: "文章",
   editorTitle: "編輯",
@@ -91,7 +92,7 @@ export const CHINESE_MESSAGES = {
   newArticleHeading: (workspace: string) => `新文章 · ${workspace}`,
   editMetadataHeading: (fileName: string) => `編輯 metadata · ${fileName}`,
   titleField: "標題",
-  categoryField: "分類",
+  statusField: "狀態",
   tagsField: "標籤",
   candidatesFor: (field: string) => `${field} 候選`,
   removeChip: (value: string) => `移除 ${value}`,
@@ -128,6 +129,7 @@ export type Messages = typeof CHINESE_MESSAGES;
 export const ENGLISH_MESSAGES: Partial<Messages> = {
   sidebar: "Sidebar",
   workspacesTitle: "WORKSPACES",
+  noTagsYet: "No tags yet",
   articlesTitle: "ARTICLES",
   articlesRegion: "Articles",
   editorTitle: "EDITOR",
@@ -209,7 +211,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   newArticleHeading: (workspace) => `New article · ${workspace}`,
   editMetadataHeading: (fileName) => `Edit metadata · ${fileName}`,
   titleField: "Title",
-  categoryField: "Category",
+  statusField: "Status",
   tagsField: "Tags",
   candidatesFor: (field) => `${field} suggestions`,
   removeChip: (value) => `Remove "${value}"`,

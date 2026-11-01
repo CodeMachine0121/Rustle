@@ -13,11 +13,12 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 type ArgumentlessChannelName = Extract<
   ChannelName,
-  "listWorkspaces" | "readSettings" | "readPreferredLocales"
+  "listWorkspaces" | "listAllArticles" | "readSettings" | "readPreferredLocales"
 >;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
+  listAllArticles: "list_all_articles",
   readSettings: "read_settings",
   readPreferredLocales: "read_preferred_locales",
 };
@@ -137,18 +138,19 @@ describe("channels", () => {
     expect(result).toEqual({ ok: true, payload: { outcome: "rejected", reason: "alreadyUsed" } });
   });
 
-  it("asks to create an article with its workspace, title, categories and tags", async () => {
+  it("asks to create an article with its workspace, title, status and tags", async () => {
     const created = {
+      workspace: "Blog",
       fileName: "zen-of-writing.md",
       title: "Zen of Writing",
       createdAt: "2026-08-20T14:32:05+08:00",
       updatedAt: "2026-08-20T14:32:05+08:00",
-      category: ["技術筆記"],
+      status: "active",
       tags: ["electron"],
       hasIncompleteMetadata: false,
     };
     vi.mocked(invoke).mockResolvedValue(created);
-    const request = { workspace: "Blog", title: "Zen of Writing", category: ["技術筆記"], tags: ["electron"] };
+    const request = { workspace: "Blog", title: "Zen of Writing", status: "active" as const, tags: ["electron"] };
 
     const result = await channels.createArticle(request);
 
@@ -156,14 +158,14 @@ describe("channels", () => {
     expect(result).toEqual({ ok: true, payload: created });
   });
 
-  it("asks to update an article's metadata with its workspace, file name, title, categories and tags", async () => {
+  it("asks to update an article's metadata with its workspace, file name, title, status and tags", async () => {
     const outcome = { outcome: "modifiedElsewhere" };
     vi.mocked(invoke).mockResolvedValue(outcome);
     const request = {
       workspace: "Blog",
       fileName: "tauri.md",
       title: "新標題",
-      category: ["技術筆記"],
+      status: null,
       tags: [],
     };
 
@@ -210,6 +212,7 @@ describe("channels", () => {
       indentation: { style: "spaces", width: 2 },
       previewPanel: { isOpen: true, widthRatio: 0.5 },
       lastOpened: { workspace: "Blog", article: null },
+      sidebar: { collapsedSections: ["status"] },
     };
     vi.mocked(invoke).mockResolvedValue(null);
 

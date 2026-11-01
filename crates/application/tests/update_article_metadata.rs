@@ -7,7 +7,8 @@ use rustle_application::{
     ArticleSummary, MetadataUpdateOutcome, UpdateArticleMetadata, UpdateArticleMetadataError,
 };
 use rustle_domain::{
-    ArticleDraftError, ArticleFileName, MockClock, UneditableFrontMatter, VaultScope, WorkspaceName,
+    ArticleDraftError, ArticleFileName, ArticleStatus, MockClock, UneditableFrontMatter,
+    VaultScope, WorkspaceName,
 };
 use rustle_infrastructure::{FileSystemArticleRepository, ResolvedVaultScope};
 use serde_json::json;
@@ -70,7 +71,7 @@ impl Vault {
         &self,
         clock: &MockClock,
         title: &str,
-        category: &[&str],
+        status: Option<ArticleStatus>,
         tags: &[&str],
     ) -> Result<MetadataUpdateOutcome, UpdateArticleMetadataError> {
         let articles = FileSystemArticleRepository::in_vault(ResolvedVaultScope::new(
@@ -86,7 +87,7 @@ impl Vault {
             &WorkspaceName::parse("Blog").expect("valid workspace"),
             &ArticleFileName::parse("tauri.md").expect("valid article"),
             title,
-            &owned(category),
+            status,
             &owned(tags),
         )
     }
@@ -94,19 +95,19 @@ impl Vault {
     fn update(
         &self,
         title: &str,
-        category: &[&str],
+        status: Option<ArticleStatus>,
         tags: &[&str],
     ) -> Result<MetadataUpdateOutcome, UpdateArticleMetadataError> {
-        self.update_with(&Self::clock(), title, category, tags)
+        self.update_with(&Self::clock(), title, status, tags)
     }
 }
 
 #[test]
-fn changes_only_title_category_and_updated_at_and_keeps_everything_else() {
+fn changes_only_title_status_and_updated_at_and_keeps_everything_else() {
     let vault = Vault::with_article(ANNOTATED_ARTICLE);
 
     vault
-        .update("新標題", &["技術筆記"], &["electron"])
+        .update("新標題", Some(ArticleStatus::Active), &["electron"])
         .expect("updated");
 
     assert_eq!(
@@ -120,8 +121,7 @@ created_at: 2026-08-20T14:32:05+08:00
 updated_at: {SAVED_AT_IN_TAIPEI}
 tags:
   - electron
-category:
-  - 技術筆記
+status: active
 ---
 
 正文第一行。
@@ -131,29 +131,62 @@ category:
 }
 
 #[test]
-fn removes_the_category_key_when_every_category_is_removed() {
-    let vault = Vault::with_article("---\ntitle: Zen\ncategory:\n  - 技術筆記\n---\n正文\n");
+fn keeps_the_retired_category_byte_for_byte() {
+    let text = "---\ntitle: Zen\ncategory:\n  - 技術筆記 # 舊的\n  - 桌面開發\nstatus: active\n---\n正文\n";
+    let vault = Vault::with_article(text);
 
-    vault.update("Zen", &[], &[]).expect("updated");
+    vault
+        .update("Zen", Some(ArticleStatus::Completed), &[])
+        .expect("updated");
 
-    assert!(!vault.text().contains("category"));
+    assert!(vault.text().starts_with(
+        "---\ntitle: Zen\ncategory:\n  - 技術筆記 # 舊的\n  - 桌面開發\nstatus: completed\n"
+    ));
 }
 
 #[test]
-fn trims_the_title_and_writes_a_repeated_category_once() {
-    let vault = Vault::with_article(ANNOTATED_ARTICLE);
+fn choosing_no_status_removes_a_recognised_status() {
+    let vault = Vault::with_article("---\ntitle: Zen\nstatus: active\n---\n正文\n");
+
+    let outcome = vault.update("Zen", None, &[]).expect("updated");
+
+    assert!(!vault.text().contains("status"));
+    assert!(
+        matches!(outcome, MetadataUpdateOutcome::Updated { article } if article.status.is_none())
+    );
+}
+
+#[test]
+fn choosing_no_status_keeps_a_status_rustle_cannot_read() {
+    let vault = Vault::with_article("---\ntitle: Zen\nstatus: 進行中\n---\n正文\n");
+
+    vault.update("Zen", None, &[]).expect("updated");
+
+    assert!(vault.text().contains("\nstatus: 進行中\n"));
+}
+
+#[test]
+fn choosing_a_status_replaces_one_rustle_cannot_read() {
+    let vault = Vault::with_article("---\ntitle: Zen\nstatus: 進行中\n---\n正文\n");
 
     vault
-        .update(
-            "　新標題　",
-            &["技術筆記", "技術筆記", "桌面開發"],
-            &["electron"],
-        )
+        .update("Zen", Some(ArticleStatus::Active), &[])
         .expect("updated");
 
     let text = vault.text();
-    assert!(text.contains("\ntitle: 新標題\n"));
-    assert!(text.contains("category:\n  - 技術筆記\n  - 桌面開發\n---"));
+    assert!(text.contains("\nstatus: active\n"));
+    assert!(!text.contains("進行中"));
+}
+
+#[test]
+fn trims_the_title() {
+    let vault = Vault::with_article(ANNOTATED_ARTICLE);
+
+    vault
+        .update("　新標題　", None, &["electron"])
+        .expect("updated");
+
+    assert!(vault.text().contains("\ntitle: 新標題\n"));
 }
 
 #[rstest]
@@ -163,7 +196,7 @@ fn trims_the_title_and_writes_a_repeated_category_once() {
 fn refuses_a_blank_title_and_leaves_the_file_alone(#[case] title: &str) {
     let vault = Vault::with_article(ANNOTATED_ARTICLE);
 
-    let refused = vault.update(title, &["技術筆記"], &[]);
+    let refused = vault.update(title, Some(ArticleStatus::Active), &[]);
 
     assert_eq!(
         refused,
@@ -192,7 +225,7 @@ fn writes_nothing_when_another_program_changes_the_file_after_it_was_read() {
         .expect_local_offset_seconds()
         .return_const(TAIPEI_OFFSET_SECONDS);
 
-    let outcome = vault.update_with(&clock, "新標題", &[], &[]);
+    let outcome = vault.update_with(&clock, "新標題", None, &[]);
 
     assert_eq!(outcome, Ok(MetadataUpdateOutcome::ModifiedElsewhere));
     assert_eq!(vault.text(), "另一個程式寫的內容");
@@ -203,18 +236,23 @@ fn answers_with_the_row_read_back_from_what_was_written() {
     let vault = Vault::with_article(ANNOTATED_ARTICLE);
 
     let outcome = vault
-        .update("新標題", &["技術筆記"], &["electron", "tauri"])
+        .update(
+            "新標題",
+            Some(ArticleStatus::Dropped),
+            &["electron", "tauri"],
+        )
         .expect("updated");
 
     assert_eq!(
         outcome,
         MetadataUpdateOutcome::Updated {
             article: ArticleSummary {
+                workspace: "Blog".to_owned(),
                 file_name: "tauri.md".to_owned(),
                 title: "新標題".to_owned(),
                 created_at: "2026-08-20T14:32:05+08:00".to_owned(),
                 updated_at: SAVED_AT_IN_TAIPEI.to_owned(),
-                category: vec!["技術筆記".to_owned()],
+                status: Some(ArticleStatus::Dropped),
                 tags: vec!["electron".to_owned(), "tauri".to_owned()],
                 has_incomplete_metadata: false,
             }
@@ -227,7 +265,7 @@ fn refuses_a_front_matter_it_cannot_edit_and_leaves_the_file_alone() {
     let broken = "---\ntitle: Zen\n  broken: indentation\n---\n正文\n";
     let vault = Vault::with_article(broken);
 
-    let refused = vault.update("新標題", &[], &[]);
+    let refused = vault.update("新標題", None, &[]);
 
     assert_eq!(
         refused,
@@ -244,7 +282,7 @@ fn a_missing_article_is_an_error() {
     fs::remove_file(vault.path()).expect("removed");
 
     assert!(matches!(
-        vault.update("新標題", &[], &[]),
+        vault.update("新標題", None, &[]),
         Err(UpdateArticleMetadataError::Article(_))
     ));
 }
@@ -252,7 +290,7 @@ fn a_missing_article_is_an_error() {
 #[test]
 fn sends_the_outcome_to_the_webview_in_camel_case() {
     let vault = Vault::with_article(ANNOTATED_ARTICLE);
-    let updated = vault.update("新標題", &[], &[]).expect("updated");
+    let updated = vault.update("新標題", None, &[]).expect("updated");
 
     assert_eq!(
         serde_json::to_value(&updated).expect("serializable")["outcome"],

@@ -1,5 +1,5 @@
 use rustle_application::{ArticleSummary, CreateArticle};
-use rustle_domain::WorkspaceName;
+use rustle_domain::{ArticleStatus, WorkspaceName};
 use rustle_infrastructure::{
     FileSystemArticleRepository, FileSystemWorkspaceRepository, SystemClock,
 };
@@ -13,12 +13,12 @@ pub fn create_article(
     articles: State<'_, FileSystemArticleRepository>,
     workspace: String,
     title: String,
-    category: Vec<String>,
+    status: Option<ArticleStatus>,
     tags: Vec<String>,
 ) -> Result<ArticleSummary, CommandError> {
     let workspace = WorkspaceName::parse(&workspace)?;
     Ok(
         CreateArticle::new(workspaces.inner(), articles.inner(), &SystemClock)
-            .execute(&workspace, &title, &category, &tags)?,
+            .execute(&workspace, &title, status, &tags)?,
     )
 }

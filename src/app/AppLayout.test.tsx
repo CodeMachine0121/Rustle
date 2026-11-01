@@ -20,17 +20,18 @@ function previewSlot(isOpen: boolean, ratio = 0.5): PreviewSlot {
 function renderLayout(preview?: PreviewSlot) {
   render(
     <CompositionProvider>
-      <AppLayout workspaces="w" articles="a" editor="e" preview={preview} />
+      <AppLayout sidebar="s" articles="a" editor="e" preview={preview} />
     </CompositionProvider>,
   );
 }
 
 describe("AppLayout", () => {
-  it("has a titled region for workspaces, articles and the editor", () => {
+  it("puts the sidebar first and has a titled region for articles and the editor", () => {
     renderLayout();
 
+    expect(screen.getByRole("navigation", { name: "側邊欄" })).toHaveTextContent("s");
     const titles = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(titles).toEqual(["WORKSPACES", "文章", "編輯"]);
+    expect(titles).toEqual(["文章", "編輯"]);
   });
 
   it("puts an open preview in the rightmost region with a button that closes it", () => {
@@ -38,7 +39,7 @@ describe("AppLayout", () => {
     renderLayout(preview);
 
     const regions = screen.getAllByRole("region");
-    expect(regions).toHaveLength(4);
+    expect(regions).toHaveLength(3);
     expect(regions.at(-1)).toHaveAccessibleName("預覽區");
     expect(regions.at(-1)).toHaveTextContent("預覽內容");
 

@@ -5,6 +5,7 @@ use crate::interface_language::InterfaceLanguage;
 
 use super::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
+    SidebarSection, SidebarSettings,
 };
 
 /// A value as found in the file: either understood, or anything else.
@@ -39,6 +40,7 @@ pub(super) struct StoredSettings {
     preview_panel: Tolerant<StoredPreviewPanel>,
     last_opened: Tolerant<StoredLastOpened>,
     interface_language: Tolerant<Option<InterfaceLanguage>>,
+    sidebar: Tolerant<StoredSidebar>,
 }
 
 #[derive(Deserialize, Default)]
@@ -61,6 +63,26 @@ struct StoredPreviewPanel {
 struct StoredLastOpened {
     workspace: Tolerant<Option<String>>,
     article: Tolerant<Option<String>>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct StoredSidebar {
+    collapsed_sections: Tolerant<Vec<Tolerant<SidebarSection>>>,
+}
+
+impl From<StoredSidebar> for SidebarSettings {
+    fn from(stored: StoredSidebar) -> Self {
+        let mut collapsed_sections = Vec::new();
+        for section in stored.collapsed_sections.or_default() {
+            if let Tolerant::Understood(section) = section
+                && !collapsed_sections.contains(&section)
+            {
+                collapsed_sections.push(section);
+            }
+        }
+        Self { collapsed_sections }
+    }
 }
 
 impl From<StoredSettings> for Settings {
@@ -91,6 +113,7 @@ impl From<StoredSettings> for Settings {
                 article: last_opened.article.or(None),
             },
             interface_language: stored.interface_language.or(None),
+            sidebar: stored.sidebar.or_default().into(),
         }
     }
 }

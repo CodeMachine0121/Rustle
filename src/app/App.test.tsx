@@ -34,6 +34,7 @@ function answerFromAVault(
           indentation: { style: "spaces", width: 2 },
           previewPanel,
           lastOpened,
+          sidebar: { collapsedSections: [] },
         });
       case "list_workspaces":
         return Promise.resolve([
@@ -45,13 +46,18 @@ function answerFromAVault(
         return Promise.resolve(
           request.workspace === "Blog"
             ? [
-                { fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", category: [], tags: [], hasIncompleteMetadata: false },
-                { fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", category: [], tags: [], hasIncompleteMetadata: false },
+                { workspace: "Blog", fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", status: null, tags: [], hasIncompleteMetadata: false },
+                { workspace: "Blog", fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", status: null, tags: [], hasIncompleteMetadata: false },
               ]
             : request.workspace === "Work"
-              ? [{ fileName: "q3.md", title: "Q3 回顧", createdAt: "", category: [], tags: [], hasIncompleteMetadata: false }]
+              ? [{ workspace: "Work", fileName: "q3.md", title: "Q3 回顧", createdAt: "", status: null, tags: [], hasIncompleteMetadata: false }]
               : [],
         );
+      case "list_all_articles":
+        return Promise.resolve([
+          { workspace: "Blog", fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", status: "active", tags: ["work"], hasIncompleteMetadata: false },
+          { workspace: "Work", fileName: "q3.md", title: "Q3 回顧", createdAt: "", status: "completed", tags: ["work"], hasIncompleteMetadata: false },
+        ]);
       case "read_body":
         return Promise.resolve({
           workspace: request.workspace,
@@ -77,11 +83,12 @@ function answerFromAVault(
 }
 
 const CREATED_ARTICLE = {
+  workspace: "Blog",
   fileName: "new-article.md",
   title: "New Article",
   createdAt: "2026-08-20T14:32:05+08:00",
   updatedAt: "2026-08-20T14:32:05+08:00",
-  category: [],
+  status: null,
   tags: [],
   hasIncompleteMetadata: false,
 };
@@ -201,12 +208,13 @@ describe("App", () => {
     render(<App />);
     await waitFor(() => expect(editorContent()).not.toBeNull());
 
-    const regions = screen.getAllByRole("region");
-    const focusable = regions.map(
-      (region) => within(region).queryAllByRole("textbox").length + within(region).queryAllByRole("button").length,
+    const sidebar = screen.getByRole("navigation");
+    const columns = [sidebar, ...screen.getAllByRole("region").filter((region) => !sidebar.contains(region))];
+    const focusable = columns.map(
+      (column) => within(column).queryAllByRole("textbox").length + within(column).queryAllByRole("button").length,
     );
     const order = [...document.querySelectorAll("input, button, [contenteditable='true']")].map(
-      (element) => regions.findIndex((region) => region.contains(element)),
+      (element) => columns.findIndex((column) => column.contains(element)),
     );
 
     expect(focusable.every((count) => count > 0)).toBe(true);
@@ -224,6 +232,7 @@ describe("App", () => {
             indentation: { style: "spaces", width: 2 },
             previewPanel: { isOpen: true, widthRatio: 0.5 },
             lastOpened: { workspace: null, article: null },
+            sidebar: { collapsedSections: [] },
           }),
     );
 
@@ -423,6 +432,7 @@ describe("App", () => {
           indentation: { style: "spaces", width: 2 },
           previewPanel: { isOpen: false, widthRatio: 0.5 },
           lastOpened: { workspace: "Work", article: "q3.md" },
+          sidebar: { collapsedSections: [] },
         },
       });
 
@@ -444,6 +454,7 @@ describe("App", () => {
           indentation: { style: "spaces", width: 2 },
           previewPanel: { isOpen: true, widthRatio: expect.closeTo(0.3) },
           lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+          sidebar: { collapsedSections: [] },
         },
       });
     });
@@ -524,7 +535,7 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalledWith("create_article", {
       workspace: "Blog",
       title: "New Article",
-      category: [],
+      status: null,
       tags: [],
     });
     await waitFor(() =>
@@ -556,6 +567,76 @@ describe("App", () => {
     expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
   });
 
+  describe("sidebar", () => {
+    function articlesRegion() {
+      return screen.getByRole("region", { name: "文章" });
+    }
+
+    it("lists every workspace under All Notes and opens an article from its own workspace", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      fireEvent.click(screen.getByRole("button", { name: "All Notes" }));
+      const q3 = await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      expect(q3).toHaveTextContent("Work");
+      expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(q3);
+
+      await waitFor(() => expect(editorContent()).toHaveTextContent("Q3 回顧"));
+      expect(invoke).toHaveBeenCalledWith("read_body", { workspace: "Work", fileName: "q3.md" });
+    });
+
+    it("narrows the list to the status clicked in the sidebar and clears it on another scope", async () => {
+      answerFromAVault({ workspace: null, article: null });
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      const statusSection = screen.getByRole("region", { name: "STATUS" });
+      expect(within(statusSection).getByRole("button", { name: /^Completed/ })).toHaveTextContent("1");
+
+      fireEvent.click(within(statusSection).getByRole("button", { name: /^Active/ }));
+
+      expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
+      expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
+
+      expect(await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ })).toBeInTheDocument();
+      expect(within(statusSection).getByRole("button", { name: /^Active/ })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("keeps narrowing the list by a status whose section is folded", async () => {
+      answerFromAVault({ workspace: null, article: null });
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
+      fireEvent.click(within(screen.getByRole("region", { name: "STATUS" })).getByRole("button", { name: /^Active/ }));
+
+      fireEvent.click(screen.getByRole("button", { name: /^STATUS/ }));
+
+      expect(within(screen.getByRole("region", { name: "STATUS" })).queryByRole("button", { name: /^Active/ })).toBeNull();
+      expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
+      expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
+    });
+
+    it("keeps the workspace and the list when the workspace section is folded", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+      fireEvent.click(screen.getByRole("button", { name: /^WORKSPACES/ }));
+
+      expect(screen.queryByRole("button", { name: /^Blog/ })).not.toBeInTheDocument();
+      expect(within(articlesRegion()).getAllByRole("button", { name: /^(Tauri|Zen)/ })).toHaveLength(2);
+      expect(editorContent()).toHaveTextContent("正文的第一行。");
+      expect(invoke).toHaveBeenLastCalledWith("write_settings", {
+        settings: expect.objectContaining({ sidebar: { collapsedSections: ["workspaces"] } }),
+      });
+    });
+  });
+
   describe("article list controls", () => {
     function answerWithCategorizedArticles() {
       answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
@@ -563,8 +644,8 @@ describe("App", () => {
       vi.mocked(invoke).mockImplementation((command, args) =>
         command === "list_articles"
           ? Promise.resolve([
-              { fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", updatedAt: "", category: ["技術筆記"], tags: ["tauri"], hasIncompleteMetadata: false },
-              { fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", updatedAt: "", category: ["隨筆"], tags: [], hasIncompleteMetadata: false },
+              { workspace: "Blog", fileName: "tauri.md", title: "Tauri 與 Electron", createdAt: "2026-08-20", updatedAt: "", status: "active", tags: ["tauri", "技術筆記"], hasIncompleteMetadata: false },
+              { workspace: "Blog", fileName: "zen-of-writing.md", title: "Zen of Writing", createdAt: "2026-08-18", updatedAt: "", status: null, tags: ["隨筆"], hasIncompleteMetadata: false },
             ])
           : (answerFromTheVault?.(command, args) ?? Promise.resolve(null)),
       );
@@ -591,7 +672,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("offers the categories of articles the filter hides in the create article dialog", async () => {
+    it("offers the tags of articles the filter hides in the create article dialog", async () => {
       answerWithCategorizedArticles();
       render(<App />);
       await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
@@ -606,9 +687,9 @@ describe("App", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
       const dialog = screen.getByRole("dialog");
-      fireEvent.change(within(dialog).getByLabelText("分類"), { target: { value: "隨" } });
+      fireEvent.change(within(dialog).getByLabelText("標籤"), { target: { value: "隨" } });
 
-      expect(within(dialog).getByRole("list", { name: "分類 候選" })).toHaveTextContent("隨筆");
+      expect(within(dialog).getByRole("list", { name: "標籤 候選" })).toHaveTextContent("隨筆");
     });
   });
 
@@ -633,7 +714,7 @@ describe("App", () => {
       answerFromAVaultWith({
         update_metadata: (request) => ({
           outcome: "updated",
-          article: { fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+          article: { workspace: request.workspace, fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", status: null, tags: [], hasIncompleteMetadata: false },
         }),
       });
       await startInBlog();
@@ -649,7 +730,7 @@ describe("App", () => {
         workspace: "Blog",
         fileName: "tauri.md",
         title: "新標題",
-        category: [],
+        status: null,
         tags: [],
       });
     });
@@ -661,11 +742,11 @@ describe("App", () => {
           written = true;
           return {
             outcome: "updated",
-            article: { fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+            article: { workspace: request.workspace, fileName: request.fileName, title: request.title, createdAt: "", updatedAt: "", status: null, tags: [], hasIncompleteMetadata: false },
           };
         },
         list_articles: () => [
-          { fileName: "zen-of-writing.md", title: written ? "新標題" : "Zen of Writing", createdAt: "", category: [], tags: [], hasIncompleteMetadata: false },
+          { workspace: "Blog", fileName: "zen-of-writing.md", title: written ? "新標題" : "Zen of Writing", createdAt: "", status: null, tags: [], hasIncompleteMetadata: false },
         ],
         read_body: (request) => ({
           workspace: request.workspace,
@@ -804,7 +885,10 @@ describe("App", () => {
     }
 
     function regionTitles() {
-      return screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
+      return screen
+        .getAllByRole("heading", { level: 2 })
+        .filter((heading) => heading.closest("nav") === null)
+        .map((heading) => heading.textContent);
     }
 
     async function openSettings(name = "設定") {
@@ -821,7 +905,7 @@ describe("App", () => {
       answerInLanguage(undefined, ["zh-Hant-TW"]);
       await renderWithTheArticleOpen();
 
-      const sidebar = screen.getByRole("region", { name: "側邊欄" });
+      const sidebar = screen.getByRole("navigation", { name: "側邊欄" });
       const gear = within(sidebar).getByRole("button", { name: "設定" });
       expect(within(sidebar).getAllByRole("button").at(-1)).toBe(gear);
       expect(gear.closest(".region-footer")).not.toBeNull();
@@ -831,7 +915,7 @@ describe("App", () => {
       answerInLanguage(undefined, ["zh-Hant-TW"]);
       await renderWithTheArticleOpen();
 
-      expect(regionTitles()).toEqual(["WORKSPACES", "文章", "編輯", "預覽"]);
+      expect(regionTitles()).toEqual(["文章", "編輯", "預覽"]);
       expect(document.documentElement.lang).toBe("zh-Hant");
     });
 
@@ -839,7 +923,7 @@ describe("App", () => {
       answerInLanguage(undefined, ["ja-JP"]);
       render(<App />);
 
-      await waitFor(() => expect(regionTitles()).toEqual(["WORKSPACES", "ARTICLES", "EDITOR", "PREVIEW"]));
+      await waitFor(() => expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]));
       expect(document.documentElement.lang).toBe("en");
     });
 
@@ -847,7 +931,7 @@ describe("App", () => {
       answerInLanguage("en", ["zh-Hant-TW"]);
       render(<App />);
 
-      await waitFor(() => expect(regionTitles()).toEqual(["WORKSPACES", "ARTICLES", "EDITOR", "PREVIEW"]));
+      await waitFor(() => expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]));
       expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     });
 
@@ -860,7 +944,7 @@ describe("App", () => {
       fireEvent.click(within(dialog).getByRole("radio", { name: "English" }));
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      expect(regionTitles()).toEqual(["WORKSPACES", "ARTICLES", "EDITOR", "PREVIEW"]);
+      expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]);
       expect(screen.getByRole("textbox", { name: "New workspace name" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: 'Delete "Zen of Writing"' })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
@@ -869,6 +953,7 @@ describe("App", () => {
           indentation: { style: "spaces", width: 2 },
           previewPanel: { isOpen: true, widthRatio: 0.5 },
           lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+          sidebar: { collapsedSections: [] },
           interfaceLanguage: "en",
         },
       });
@@ -933,7 +1018,7 @@ describe("App", () => {
         }
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-        expect(regionTitles()).toEqual(["WORKSPACES", "文章", "編輯", "預覽"]);
+        expect(regionTitles()).toEqual(["文章", "編輯", "預覽"]);
         expect(screen.getByRole("button", { name: "設定" })).toHaveFocus();
         expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
       },
@@ -973,7 +1058,7 @@ describe("App", () => {
       expect(invoke).toHaveBeenCalledWith("create_article", {
         workspace: "Blog",
         title: "New Article",
-        category: [],
+        status: null,
         tags: [],
       });
     });

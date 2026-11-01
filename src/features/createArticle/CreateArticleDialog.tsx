@@ -3,7 +3,7 @@ import { ArticleMetadataForm } from "../articleMetadata/ArticleMetadataForm";
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { ArticleCreation, ArticleDraft } from "../vault/VaultSession";
 
-const NO_METADATA: ArticleDraft = { title: "", category: [], tags: [] };
+const NO_METADATA: ArticleDraft = { title: "", status: null, tags: [] };
 
 type CreateArticleDialogProps = {
   workspace: string;
@@ -13,7 +13,7 @@ type CreateArticleDialogProps = {
   onClose: () => void;
 };
 
-/** The only place a new article's title, categories and tags are typed. */
+/** The only place a new article's title, status and tags are chosen. */
 export function CreateArticleDialog({ workspace, openedAt, vocabulary, onCreate, onClose }: CreateArticleDialogProps) {
   const messages = useMessages();
   return (

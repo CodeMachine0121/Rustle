@@ -156,7 +156,7 @@ mod reading_metadata {
                 title: "Tauri 與 Electron 的取捨".to_owned(),
                 created_at: "2026-08-20T14:32:05+08:00".to_owned(),
                 updated_at: "2026-08-20T16:04:11+08:00".to_owned(),
-                category: vec!["技術筆記".to_owned(), "桌面開發".to_owned()],
+                status: None,
                 tags: vec!["electron".to_owned()],
                 has_incomplete_metadata: false,
             }
@@ -164,10 +164,11 @@ mod reading_metadata {
     }
 
     #[test]
-    fn reads_a_single_string_category_as_a_one_item_list() {
+    fn leaves_the_retired_category_out_of_tags_and_status() {
         let metadata = metadata_of("---\ntitle: Zen\ncategory: 技術筆記\n---\n");
 
-        assert_eq!(metadata.category, vec!["技術筆記".to_owned()]);
+        assert!(metadata.tags.is_empty());
+        assert_eq!(metadata.status, None);
     }
 
     #[test]
@@ -185,10 +186,10 @@ mod reading_metadata {
     }
 
     #[test]
-    fn reads_missing_category_and_tags_as_empty_lists() {
+    fn reads_missing_status_and_tags_as_nothing() {
         let metadata = metadata_of("---\ntitle: Zen\n---\n");
 
-        assert!(metadata.category.is_empty());
+        assert_eq!(metadata.status, None);
         assert!(metadata.tags.is_empty());
     }
 
@@ -355,54 +356,50 @@ mod writing_back {
 mod writing_lists {
     use super::*;
 
-    #[rstest]
-    #[case::category("category", "技術筆記")]
-    #[case::tags("tags", "electron")]
-    fn writes_a_single_item_as_a_block_list(#[case] key: &str, #[case] value: &str) {
-        let update = match key {
-            "category" => MetadataUpdate::default().category([value]),
-            _ => MetadataUpdate::default().tags([value]),
-        };
+    #[test]
+    fn writes_a_single_item_as_a_block_list() {
+        let text = rewritten(
+            "---\ntitle: Zen\n---\n",
+            &MetadataUpdate::default().tags(["electron"]),
+        );
 
-        let text = rewritten("---\ntitle: Zen\n---\n", &update);
-
-        assert!(text.contains(&format!("\n{key}:\n  - {value}\n")));
-        assert!(!text.contains(&format!("{key}: {value}")));
+        assert!(text.contains("\ntags:\n  - electron\n"));
+        assert!(!text.contains("tags: electron"));
     }
 
     #[test]
     fn turns_a_single_string_into_a_block_list() {
         let text = rewritten(
-            "---\ntitle: Zen\ncategory: 舊分類\n---\n",
-            &MetadataUpdate::default().category(["技術筆記"]),
+            "---\ntitle: Zen\ntags: 舊標籤\n---\n",
+            &MetadataUpdate::default().tags(["技術筆記"]),
         );
 
-        assert_eq!(text, "---\ntitle: Zen\ncategory:\n  - 技術筆記\n---\n");
+        assert_eq!(text, "---\ntitle: Zen\ntags:\n  - 技術筆記\n---\n");
     }
 
     #[test]
     fn keeps_the_comment_of_a_single_string_turned_into_a_block_list() {
         let text = rewritten(
-            "---\ncategory: 舊分類 # 備註\n---\n",
-            &MetadataUpdate::default().category(["技術筆記"]),
+            "---\ntags: 舊標籤 # 備註\n---\n",
+            &MetadataUpdate::default().tags(["技術筆記"]),
         );
 
-        assert_eq!(text, "---\ncategory: # 備註\n  - 技術筆記\n---\n");
-        assert_eq!(metadata_of(&text).category, ["技術筆記"]);
+        assert_eq!(text, "---\ntags: # 備註\n  - 技術筆記\n---\n");
+        assert_eq!(metadata_of(&text).tags, ["技術筆記"]);
     }
 
     #[test]
     fn removes_the_key_when_the_list_is_empty() {
         let text = rewritten(
             &annotated_article(),
-            &MetadataUpdate::default().category(Vec::<String>::new()),
+            &MetadataUpdate::default().tags(Vec::<String>::new()),
         );
 
-        assert!(!text.contains("category"));
-        assert!(!text.contains("桌面開發"));
+        assert!(!text.contains("tags"));
+        assert!(!text.contains("electron"));
         assert_eq!(
             top_level_keys(&text),
-            ["title", "created_at", "updated_at", "draft", "tags"]
+            ["title", "created_at", "updated_at", "draft", "category"]
         );
     }
 
@@ -412,13 +409,12 @@ mod writing_lists {
             &annotated_article(),
             &MetadataUpdate::default()
                 .title("新的標題")
-                .category(["隨筆", "技術筆記"])
                 .tags(["tauri", "rust"]),
         );
 
         let metadata = metadata_of(&text);
         assert_eq!(metadata.title, "新的標題");
-        assert_eq!(metadata.category, ["隨筆", "技術筆記"]);
+        assert!(text.contains("category:\n  - 技術筆記 # 這一項的註解\n  - 桌面開發\n"));
         assert_eq!(metadata.tags, ["tauri", "rust"]);
         assert_eq!(
             top_level_keys(&text),
@@ -443,12 +439,12 @@ mod writing_lists {
             "# 只有正文\n",
             &MetadataUpdate::default()
                 .title("Zen of Writing")
-                .category(["技術筆記"]),
+                .tags(["技術筆記"]),
         );
 
         assert_eq!(
             text,
-            "---\ntitle: Zen of Writing\ncategory:\n  - 技術筆記\n---\n# 只有正文\n"
+            "---\ntitle: Zen of Writing\ntags:\n  - 技術筆記\n---\n# 只有正文\n"
         );
     }
 
@@ -571,13 +567,13 @@ mod line_endings_and_broken_blocks {
     }
 
     #[test]
-    fn replaces_a_category_written_as_a_block_of_text() {
+    fn replaces_tags_written_as_a_block_of_text() {
         let text = rewritten(
-            "---\ncategory: |\n  - 'not an item\n---\n",
-            &MetadataUpdate::default().category(["技術筆記"]),
+            "---\ntags: |\n  - 'not an item\n---\n",
+            &MetadataUpdate::default().tags(["技術筆記"]),
         );
 
-        assert_eq!(text, "---\ncategory:\n  - 技術筆記\n---\n");
+        assert_eq!(text, "---\ntags:\n  - 技術筆記\n---\n");
     }
 
     #[test]
@@ -663,6 +659,55 @@ mod editing_metadata_strictly {
         assert_eq!(
             ArticleDocument::parse(text).edit_metadata(&MetadataUpdate::default().title("新的")),
             Err(UneditableFrontMatter)
+        );
+    }
+}
+
+mod status {
+    use super::*;
+
+    #[rstest]
+    #[case("---\ntitle: Zen\nstatus: active\n---\n", Some(ArticleStatus::Active))]
+    #[case("---\ntitle: Zen\nstatus: On Hold\n---\n", Some(ArticleStatus::OnHold))]
+    #[case("---\ntitle: Zen\nstatus: 進行中\n---\n", None)]
+    #[case("---\ntitle: Zen\nstatus: [active]\n---\n", None)]
+    #[case("---\ntitle: Zen\n---\n", None)]
+    fn reads_a_recognised_status_or_none(
+        #[case] text: &str,
+        #[case] expected: Option<ArticleStatus>,
+    ) {
+        assert_eq!(metadata_of(text).status, expected);
+        assert_eq!(ArticleDocument::parse(text).status(), expected);
+    }
+
+    #[test]
+    fn writes_a_status_in_place_of_the_old_line() {
+        let text = rewritten(
+            "---\ntitle: Zen\nstatus: 進行中 # 手寫\ntags:\n  - a\n---\n",
+            &MetadataUpdate::default().status(ArticleStatus::OnHold),
+        );
+
+        assert_eq!(
+            text,
+            "---\ntitle: Zen\nstatus: on-hold # 手寫\ntags:\n  - a\n---\n"
+        );
+    }
+
+    #[test]
+    fn removes_the_status_line_only_when_asked() {
+        let text = rewritten(
+            "---\ntitle: Zen\nstatus: active\ntags:\n  - a\n---\n",
+            &MetadataUpdate::default().without_status(),
+        );
+
+        assert_eq!(text, "---\ntitle: Zen\ntags:\n  - a\n---\n");
+    }
+
+    #[test]
+    fn removing_a_missing_status_creates_nothing() {
+        assert_eq!(
+            rewritten("# 只有正文\n", &MetadataUpdate::default().without_status()),
+            "# 只有正文\n"
         );
     }
 }

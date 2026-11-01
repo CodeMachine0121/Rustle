@@ -1,5 +1,5 @@
 use rustle_application::{MetadataUpdateOutcome, UpdateArticleMetadata};
-use rustle_domain::{ArticleFileName, WorkspaceName};
+use rustle_domain::{ArticleFileName, ArticleStatus, WorkspaceName};
 use rustle_infrastructure::{FileSystemArticleRepository, SystemClock};
 use tauri::State;
 
@@ -11,11 +11,11 @@ pub fn update_metadata(
     workspace: String,
     file_name: String,
     title: String,
-    category: Vec<String>,
+    status: Option<ArticleStatus>,
     tags: Vec<String>,
 ) -> Result<MetadataUpdateOutcome, CommandError> {
     let workspace = WorkspaceName::parse(&workspace)?;
     let article = ArticleFileName::parse(&file_name)?;
     Ok(UpdateArticleMetadata::new(articles.inner(), &SystemClock)
-        .execute(&workspace, &article, &title, &category, &tags)?)
+        .execute(&workspace, &article, &title, status, &tags)?)
 }

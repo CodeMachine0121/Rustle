@@ -12,11 +12,12 @@ import type { InterfaceLanguage } from "./interfaceLanguage";
 import { InterfaceLanguageProvider } from "./InterfaceLanguageContext";
 
 const MY_TRIP: ArticleSummary = {
+  workspace: "Travel",
   fileName: "my-trip.md",
   title: "我的旅行",
   createdAt: "2026-08-21T14:30:00+08:00",
   updatedAt: "",
-  category: [],
+  status: null,
   tags: ["旅行"],
   hasIncompleteMetadata: true,
 };
@@ -111,7 +112,7 @@ describe("InterfaceLanguageProvider", () => {
         language,
         <EditArticleMetadataDialog
           article={MY_TRIP}
-          vocabulary={{ category: [], tags: [] }}
+          vocabulary={{ tags: [] }}
           onSave={vi.fn()}
           onClose={vi.fn()}
         />,

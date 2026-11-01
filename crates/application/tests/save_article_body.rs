@@ -129,6 +129,22 @@ fn keeps_unknown_fields_key_order_and_comments_and_changes_only_updated_at() {
 }
 
 #[test]
+fn keeps_a_status_it_cannot_read_and_the_retired_category_as_written() {
+    let vault = Vault::with_article(
+        "---\ntitle: Zen\nstatus: 進行中\ncategory:\n  - 技術筆記\n  - 桌面開發\nupdated_at: 2026-01-01T00:00:00.000Z\n---\n舊的正文\n",
+    );
+
+    vault.save_as_loaded("新的正文\n");
+
+    assert_eq!(
+        vault.text(),
+        format!(
+            "---\ntitle: Zen\nstatus: 進行中\ncategory:\n  - 技術筆記\n  - 桌面開發\nupdated_at: {SAVED_AT}\n---\n新的正文\n"
+        )
+    );
+}
+
+#[test]
 fn gives_an_article_without_front_matter_a_block_with_only_updated_at() {
     let vault = Vault::with_article("# 只有正文\n");
 

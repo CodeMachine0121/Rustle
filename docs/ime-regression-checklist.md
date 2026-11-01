@@ -91,7 +91,7 @@
 
 ### T-9 對話框欄位裡的組字與 Enter
 
-- **怎麼做**：在欄 1 的「新 workspace 名稱」欄位用注音打「筆記」，第一個 Enter 選字，再按一次 Enter。接著在欄 2 按「＋ 新文章」：在 Title 欄位打「台灣」，第一個 Enter 選字、第二個 Enter 送出；再開一次對話框，在 Category 與 Tags 欄位各打一個詞，第一個 Enter 選字、第二個 Enter 成為 chip；組字中按一次 Esc。再對欄 2 某一列按「編輯 metadata」，在 Title、Category、Tags 各做同樣的事（第二個 Enter 在 Title 是儲存）；對欄 1 某一列按「重新命名」，在輸入欄打「筆記」，第一個 Enter 選字、第二個 Enter 改名，組字中按一次 Esc。
+- **怎麼做**：在欄 1 的「新 workspace 名稱」欄位用注音打「筆記」，第一個 Enter 選字，再按一次 Enter。接著在欄 2 按「＋ 新文章」：在 Title 欄位打「台灣」，第一個 Enter 選字、第二個 Enter 送出；再開一次對話框，在 Tags 欄位打一個詞，第一個 Enter 選字、第二個 Enter 成為 chip；組字中按一次 Esc。再對欄 2 某一列按「編輯 metadata」，在 Title、Tags 各做同樣的事（第二個 Enter 在 Title 是儲存）；對欄 1 某一列按「重新命名」，在輸入欄打「筆記」，第一個 Enter 選字、第二個 Enter 改名，組字中按一次 Esc。
 - **期望**：組字中的 Enter 一律屬於輸入法：不送出、不建立 workspace、不建立 chip；選完字後再按一次 Enter 才建立 workspace／chip／送出。組字中的 Esc 只取消組字，對話框與重新命名欄位都不關。候選視窗貼齊欄位游標。送出之後游標停在編輯區第一行，可以直接打字。
 - **篩選框與分隔線**：在欄 2 的篩選框用注音打「台積電」，第一個 Enter 選字（清單不因這個 Enter 立刻篩），再按一次 Enter 立刻篩；組字中按 Esc 只取消組字，篩選框裡已經打好的字還在；沒在組字時按 Esc 清空篩選、清單全部回來。把焦點移到編輯區與預覽之間的分隔線，組字中按方向鍵不改變寬度。
 - **失敗**：選字的 Enter 送出了表單、儲存了 metadata、改了 workspace 的名字、建立了只有注音符號的 workspace 或 chip、或用注音符號篩了清單；組字中的 Esc 關掉了對話框或重新命名欄位；送出後還要再點一下編輯區才能打字。

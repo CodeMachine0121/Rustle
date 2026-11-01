@@ -1,10 +1,11 @@
+import type { ArticleStatus } from "./articleStatus";
 import type { ArticleSummary } from "./articleSummary";
 
 export type MetadataUpdateRequest = {
   workspace: string;
   fileName: string;
   title: string;
-  category: string[];
+  status: ArticleStatus | null;
   tags: string[];
 };
 

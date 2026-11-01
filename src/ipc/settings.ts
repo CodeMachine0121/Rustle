@@ -7,4 +7,7 @@ export type Settings = {
   lastOpened: { workspace: string | null; article: string | null };
   /** Absent until the user chooses one. */
   interfaceLanguage?: InterfaceLanguage;
+  sidebar: { collapsedSections: SidebarSection[] };
 };
+
+export type SidebarSection = "workspaces" | "status" | "tags";

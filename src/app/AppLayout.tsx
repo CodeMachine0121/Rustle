@@ -15,30 +15,28 @@ export type PreviewSlot = {
 };
 
 type AppLayoutProps = {
-  workspaces: ReactNode;
+  sidebar: ReactNode;
   articles: ReactNode;
   editor: ReactNode;
   preview?: PreviewSlot;
-  workspacesFooter?: ReactNode;
+  sidebarFooter?: ReactNode;
 };
 
 /**
- * The four columns, left to right. The editor and an open preview share the
+ * The four columns, left to right: the sidebar (its sections carry their
+ * own titles) with the settings entry at its foot, the articles, the editor and
+ * the preview. The editor and an open preview share the
  * writing area, split by a draggable divider; a folded preview leaves only a
  * handle at the edge, and the editor takes its width.
  */
-export function AppLayout({ workspaces, articles, editor, preview, workspacesFooter }: AppLayoutProps) {
+export function AppLayout({ sidebar, articles, editor, preview, sidebarFooter }: AppLayoutProps) {
   const messages = useMessages();
   return (
     <main className="app-layout">
-      <LayoutRegion
-        title={messages.workspacesTitle}
-        label={messages.sidebar}
-        className="workspaces-region"
-        footer={workspacesFooter}
-      >
-        {workspaces}
-      </LayoutRegion>
+      <nav className="layout-region sidebar-region" aria-label={messages.sidebar}>
+        <div className="region-body">{sidebar}</div>
+        {sidebarFooter !== undefined && <div className="region-footer">{sidebarFooter}</div>}
+      </nav>
       <LayoutRegion title={messages.articlesTitle} label={messages.articlesRegion} className="articles-region">
         {articles}
       </LayoutRegion>
@@ -96,11 +94,10 @@ type LayoutRegionProps = {
   className: string;
   action?: ReactNode;
   flexBasis?: string;
-  footer?: ReactNode;
   children: ReactNode;
 };
 
-function LayoutRegion({ title, label, className, action, flexBasis, footer, children }: LayoutRegionProps) {
+function LayoutRegion({ title, label, className, action, flexBasis, children }: LayoutRegionProps) {
   return (
     <section
       className={`layout-region ${className}`}
@@ -112,7 +109,6 @@ function LayoutRegion({ title, label, className, action, flexBasis, footer, chil
         {action}
       </div>
       <div className="region-body">{children}</div>
-      {footer !== undefined && <div className="region-footer">{footer}</div>}
     </section>
   );
 }

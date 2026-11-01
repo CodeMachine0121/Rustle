@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use rustle_domain::{
     IndentationSettings, IndentationStyle, InterfaceLanguage, LastOpenedSettings,
-    PreviewPanelSettings, Settings, SettingsError, SettingsRepository, VaultScope,
+    PreviewPanelSettings, Settings, SettingsError, SettingsRepository, SidebarSection,
+    SidebarSettings, VaultScope,
 };
 use rustle_infrastructure::{FileSystemSettingsRepository, ResolvedVaultScope};
 use serde_json::{Value, json};
@@ -72,7 +73,8 @@ fn creates_the_settings_file_inside_the_hidden_rustle_folder() {
         json!({
             "indentation": { "style": "spaces", "width": 2 },
             "previewPanel": { "isOpen": true, "widthRatio": 0.5 },
-            "lastOpened": { "workspace": null, "article": null }
+            "lastOpened": { "workspace": null, "article": null },
+            "sidebar": { "collapsedSections": [] }
         })
     );
 }
@@ -211,6 +213,9 @@ fn remembered_settings() -> Settings {
             article: Some("zen-of-writing.md".to_owned()),
         },
         interface_language: Some(InterfaceLanguage::English),
+        sidebar: SidebarSettings {
+            collapsed_sections: vec![SidebarSection::Tags],
+        },
     }
 }
 
