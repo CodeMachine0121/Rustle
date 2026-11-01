@@ -1,4 +1,4 @@
-import { EditorSelection, StateEffect, StateField, type ChangeDesc, type EditorState, type Extension } from "@codemirror/state";
+import { EditorSelection, StateEffect, StateField, type ChangeSet, type EditorState, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
@@ -18,13 +18,26 @@ class WaitingFields {
     this.span = span;
   }
 
-  /** Text typed into a field grows that field; the span keeps every character of the snippet. */
-  map(changes: ChangeDesc): WaitingFields {
-    const grow = (range: DocumentRange) => ({
-      from: changes.mapPos(range.from, -1),
-      to: changes.mapPos(range.to, 1),
+  /**
+   * Text typed into a field grows that field. The span keeps every character
+   * of the snippet and reaches past its last character only as far as a
+   * field grew there, so text typed after the snippet stays outside it.
+   */
+  map(changes: ChangeSet): WaitingFields {
+    const fields = this.fields.map((field) => ({ from: changes.mapPos(field.from, -1), to: changes.mapPos(field.to, 1) }));
+    const end = Math.max(changes.mapPos(this.span.to, -1), ...fields.map((field) => field.to));
+    return new WaitingFields(fields, this.active, { from: changes.mapPos(this.span.from, -1), to: end });
+  }
+
+  /** A field never grows across a line break: one typed or pasted into the snippet ends the group. */
+  isBrokenBy(changes: ChangeSet): boolean {
+    let isBroken = false;
+    changes.iterChanges((from, to, _insertedFrom, _insertedTo, inserted) => {
+      if (inserted.lines > 1 && from <= this.span.to && to >= this.span.from) {
+        isBroken = true;
+      }
     });
-    return new WaitingFields(this.fields.map(grow), this.active, grow(this.span));
+    return isBroken;
   }
 
   activate(index: number): WaitingFields {
@@ -43,7 +56,7 @@ const endFields = StateEffect.define<null>();
 const waitingFields = StateField.define<WaitingFields | null>({
   create: () => null,
   update(value, transaction) {
-    let next = value === null ? null : value.map(transaction.changes);
+    let next = value === null || value.isBrokenBy(transaction.changes) ? null : value.map(transaction.changes);
     for (const effect of transaction.effects) {
       if (effect.is(startFields)) {
         next = effect.value;
@@ -86,8 +99,8 @@ function markersOf(state: EditorState): DecorationSet {
 
 /**
  * The fields a snippet leaves behind: at most one group waits at a time. A
- * group ends when the cursor leaves the snippet, on undo or redo, when another
- * snippet lands, or when asked. Every empty field shows a thin marker; while
+ * group ends when the cursor leaves the snippet, when a line break is typed
+ * into it, on undo or redo, when another snippet lands, or when asked. Every empty field shows a thin marker; while
  * an input method composes, the markers are only carried along with the text,
  * never redrawn next to the cursor.
  */

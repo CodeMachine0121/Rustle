@@ -531,6 +531,45 @@ describe("Tab between fields", () => {
     expect(view.state.doc.toString()).toBe("  前文\n[]()");
   });
 
+  it("ends the fields once a line break follows the heading, so Tab indents the next paragraph", () => {
+    const { view } = openEditor();
+    expand(view, "h2");
+    type(view, "Title");
+    press(view, "Enter");
+    type(view, "para text here");
+
+    view.dispatch({ selection: { anchor: "## Title\npar".length } });
+    press(view, "Tab");
+
+    expect(view.state.doc.toString()).toBe("## Title\n  para text here");
+  });
+
+  it("ends the fields once text is typed after the snippet, so Tab indents the line", () => {
+    const { view } = openEditor();
+    expand(view, "link");
+    type(view, "a");
+    press(view, "Tab");
+    type(view, "u");
+
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+    type(view, " and more");
+    view.dispatch({ selection: { anchor: "[a](u) an".length } });
+    press(view, "Tab");
+
+    expect(view.state.doc.toString()).toBe("  [a](u) and more");
+  });
+
+  it("keeps the fields while the heading's title grows at the end of the snippet", () => {
+    const { view } = openEditor();
+    expand(view, "h2");
+    type(view, "Title");
+
+    press(view, "Tab");
+
+    expect(marked(view)).toBe("## Title‸");
+    expect(view.state.doc.toString()).toBe("## Title");
+  });
+
   it("keeps the fields while the cursor moves inside the snippet", () => {
     const { view } = openEditor();
     expand(view, "link");
