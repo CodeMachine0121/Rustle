@@ -221,6 +221,7 @@ fn remembered_settings() -> Settings {
             preview: Some(13.5),
         },
         theme: Some("forest".to_owned()),
+        vim_mode: true,
     }
 }
 

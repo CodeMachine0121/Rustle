@@ -12,6 +12,8 @@ export type Settings = {
   fontSize?: { editor?: number; preview?: number };
   /** The chosen theme's id, or `followSystem`; absent until chosen. Only the webview knows which ids exist. */
   theme?: string;
+  /** Absent (or anything but `true` in the file) means off. */
+  vimMode?: boolean;
 };
 
 export type SidebarSection = "workspaces" | "status" | "tags";

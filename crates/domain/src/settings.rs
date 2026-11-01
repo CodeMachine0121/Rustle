@@ -26,6 +26,9 @@ pub struct Settings {
     /// which themes exist, so an unknown name is kept and judged there.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<String>,
+    /// Off until the user turns it on; written only while on.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub vim_mode: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
