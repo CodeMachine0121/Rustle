@@ -61,7 +61,7 @@
 | :--- | :--- | :--- |
 | `Settings` (Rust + TS) | indentation, preview panel, last opened | + `interfaceLanguage` (optional) |
 | `SettingsSession` | one copy of settings | unchanged API; the language is changed through `change` |
-| `AppLayout` | four regions with English titles | titles/labels from messages; `workspacesFooter` slot |
+| `AppLayout` | four regions with English titles | titles/labels from messages; the sidebar is a `nav` with a `sidebarFooter` slot for the gear (after merging the sectioned sidebar from `main`) |
 | `WorkspaceColumn`, `NewWorkspaceField`, `RenameWorkspaceField`, `ArticleColumn`, `ArticleFilterField`, `EditorColumn`, `NoArticleState`, `SaveStatusBar`, `ImagePasteStatusLine`, `PaneDivider`, `PreviewPanel`, `ChipInput`, `ArticleMetadataForm`, `CreateArticleDialog`, `EditArticleMetadataDialog`, `ConfirmDeletionDialog`, `ArticleDeletionDialog`, `WorkspaceDeletionDialog`, `OperationFailureNotice` | literals | `useMessages()` |
 | `VaultSession` | stores finished sentences in `operationFailure` | stores `FailureReason` |
 | `app.css` | — | gear, settings dialog, Chinese region titles (`:lang(zh)` letter spacing) |
@@ -106,14 +106,14 @@ flowchart TD
 | US-01 選了已經在用的那一種語言 | same path; equal language → same messages object → no word changes |
 | US-01 Esc / 點背後壓暗處 | `SettingsDialog` (`Escape` unless composing, backdrop `onClick` when the target is the backdrop) |
 | US-01 兩個選項各自用自己的語言寫 | `LANGUAGE_OPTIONS` (outside the catalog: never translated) |
-| US-01 專注模式下沒有齒輪 | `SettingsButton` lives in the `AppLayout` workspaces-region footer; deferred for the rest: there is no focus mode (§8); the gear lives in the sidebar region, so a mode that hides the sidebar hides it |
+| US-01 專注模式下沒有齒輪 | `SettingsButton` lives in the `AppLayout` sidebar footer; deferred for the rest: there is no focus mode (§8); the gear lives in the sidebar region, so a mode that hides the sidebar hides it |
 | US-02 記住上次的選擇 / 與其他設定同住一處 | `Settings.interface_language` in `.rustle/settings.json` via `writeSettings` |
 | US-02 第一次使用（中文 / 日文） | `ReadPreferredLocales` + `interfaceLanguageOf` |
 | US-02 記住的語言讀不懂 | `StoredSettings` tolerant field → `None` |
 | US-03 每一句話都換了語言 | catalog + every component; English catalog completeness test |
 | US-03 中文介面下區塊標題一併中文化 | `AppLayout` titles from messages (WORKSPACES identical in both) |
-| US-03 中文介面下 All Notes 一併中文化 | deferred: the All Notes entry does not exist on main; the sidebar-sections slice adds it with its catalog key (§8) |
-| US-03 中文介面下的五個進度標籤 | deferred: status labels do not exist on main; the sidebar-sections slice adds `statusLabels` to `Messages` (§8) — the catalog is the seam it plugs into |
+| US-03 中文介面下 All Notes 一併中文化 | `messages.allNotes` in `Sidebar` (added when `main`'s sectioned sidebar was merged in) |
+| US-03 中文介面下的五個進度標籤 | `messages.statusLabels` keyed by `StatusChoice`; `statusChoice.ts` keeps only the choices, so the sidebar, the metadata form and the article rows all word a status from the one catalog entry |
 | US-03 三個領域詞不翻 | catalog wording |
 | US-03 給讀螢幕的人聽的說明 | catalog label functions (`deleteArticleLabel(title)`) |
 | US-04 正文不變 / 不弄壞正在寫的東西 | provider change only re-renders; `MarkdownEditor` keeps its `EditorView` and ignores an identical body |
@@ -126,7 +126,7 @@ flowchart TD
 
 ## 8. Risks & Open Decisions (decided)
 
-- **§8 rows vs. this app.** The PRD's copy table was written for a later screen. Rule used: a row whose element exists here is used verbatim (both languages). Rows for elements that do not exist on `main` yet — All Notes, STATUS/TAGS sections and the five status labels, "no tags yet", the view-mode buttons, focus mode, title/tag placeholders, the vault-wide empty state, empty-state descriptions — are **not** added (unused copy would be dead code); the slice that builds each element adds its row. Elements that exist here but have no row (sort menu and its three orders, the category field, "unsaved changes", the "open, outside filter" marker, the chip candidate list, the preview handle and its close button, the title-bar label, "modified elsewhere, nothing written", "no workspace selected") keep their Chinese and get English written in the same voice.
+- **§8 rows vs. this app.** The PRD's copy table was written for a later screen. Rule used: a row whose element exists here is used verbatim (both languages). Rows for elements that do not exist on `main` yet — the view-mode buttons, focus mode, title/tag placeholders, empty-state descriptions (including the vault-wide one: only its title line exists) — are **not** added (unused copy would be dead code); the slice that builds each element adds its row. All Notes, the STATUS/TAGS titles, the five status labels, "no tags yet", the status field and the vault-wide empty title arrived with `main`'s sectioned sidebar and now use their rows. Elements that exist here but have no row (sort menu and its three orders, "unsaved changes", the "open, outside filter" marker, the chip candidate list, the preview handle and its close button, the title-bar label, "modified elsewhere, nothing written", "no workspace selected") keep their Chinese and get English written in the same voice.
 - **Workspace article count (deliberate deviation).** The PRD row「{數字} 篇」/「{數字}」is the visible count, and the row shows the bare number in both languages, as the PRD asks. The catalog's `articleCount` is the screen-reader label on that number, which the PRD does not cover; it stays「{n} 篇文章」/「{n} articles」(「1 article」)because a bare number read aloud would not say what it counts.
 - **Wording that would be false here.** The leaving-refusal sentence says the external-change notice is in the **title bar** (that is where `SaveStatusBar` shows it), not "below the editor" as §8 says.
 - **System language source.** `navigator.languages` inside a Tauri webview reports the app bundle's localization rather than the system's, so the system's preferred locales come from Rust (`sys-locale`). The first frame uses `navigator.languages` (no blank screen, NFR startup); the OS answer and then the remembered choice replace it — at most one visible re-word, the trade-off the PRD accepts.
