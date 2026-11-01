@@ -95,7 +95,10 @@ function editor(): HTMLElement {
   return screen.getByRole("textbox", { name: "寫作區" });
 }
 
-function press(code: string, modifiers: { metaKey?: boolean; shiftKey?: boolean; ctrlKey?: boolean } = {}) {
+function press(
+  code: string,
+  modifiers: { metaKey?: boolean; shiftKey?: boolean; ctrlKey?: boolean; repeat?: boolean } = {},
+) {
   const target = document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
   fireEvent.keyDown(target, { code, key: code.replace(/^Key/, "").toLowerCase(), ...modifiers });
 }
@@ -652,6 +655,21 @@ describe("Finders", () => {
 
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(editorKeys).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["Cmd+P", "KeyP", { metaKey: true }, "切換 workspace"],
+      ["Cmd+T", "KeyT", { metaKey: true }, "用標題找文章"],
+      ["Shift+Cmd+F", "KeyF", { metaKey: true, shiftKey: true }, "用內文找文章"],
+    ])("keeps its finder open while %s is held down", (_name, code, modifiers, label) => {
+      const { editorKeys } = renderFinders(DIARY);
+      editor().focus();
+
+      press(code, modifiers);
+      press(code, { ...modifiers, repeat: true });
+
+      expect(screen.getByRole("dialog", { name: label })).toBeInTheDocument();
+      expect(editorKeys).not.toHaveBeenCalled();
     });
 
     it("types into the field as plain text once open", () => {

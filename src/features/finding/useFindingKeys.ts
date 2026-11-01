@@ -23,7 +23,9 @@ export function useFindingKeys(onFinderKey: (finder: FinderKind) => void): void 
       }
       event.preventDefault();
       event.stopPropagation();
-      onFinderKeyRef.current(finder);
+      if (!event.repeat) {
+        onFinderKeyRef.current(finder);
+      }
     };
     window.addEventListener("keydown", answer, { capture: true });
     return () => window.removeEventListener("keydown", answer, { capture: true });
