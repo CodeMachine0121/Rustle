@@ -16,7 +16,7 @@ mod vault_scope;
 mod workspace_name_request;
 mod workspace_repository;
 
-pub use article_document::ArticleDocument;
+pub use article_document::{ArticleDocument, UneditableFrontMatter};
 pub use article_draft::{ArticleDraft, ArticleDraftError};
 pub use article_file_name_slug::ArticleFileNameSlug;
 pub use article_metadata::ArticleMetadata;
