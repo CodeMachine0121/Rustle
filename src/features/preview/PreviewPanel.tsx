@@ -10,14 +10,15 @@ type PreviewPanelProps = {
 
 export function PreviewPanel({ previewedBody }: PreviewPanelProps) {
   const body = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.body);
+  const workspace = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.workspace);
   if (body === null) {
     return <NoArticleState />;
   }
-  return <PreviewContent body={body} />;
+  return <PreviewContent body={body} workspace={workspace} />;
 }
 
-function PreviewContent({ body }: { body: string }) {
-  const html = useMemo(() => renderPreviewHtml(body), [body]);
+function PreviewContent({ body, workspace }: { body: string; workspace: string | null }) {
+  const html = useMemo(() => renderPreviewHtml(body, workspace), [body, workspace]);
   return (
     <article
       className="preview-content"

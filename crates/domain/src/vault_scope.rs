@@ -35,10 +35,12 @@ impl VaultScope {
         self.workspace_path(workspace).join(article.as_str())
     }
 
+    pub fn images_folder_path(&self, workspace: &WorkspaceName) -> PathBuf {
+        self.workspace_path(workspace).join(IMAGES_FOLDER_NAME)
+    }
+
     pub fn image_path(&self, workspace: &WorkspaceName, image: &ImageFileName) -> PathBuf {
-        self.workspace_path(workspace)
-            .join(IMAGES_FOLDER_NAME)
-            .join(image.as_str())
+        self.images_folder_path(workspace).join(image.as_str())
     }
 
     pub fn settings_file_path(&self) -> PathBuf {

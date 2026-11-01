@@ -5,6 +5,10 @@ import type Token from "markdown-it/lib/token.mjs";
 import { SOURCE_LINE_ATTRIBUTE } from "./PreviewHtmlPolicy";
 
 const TASK_MARKER = /^\[([ xX])\] /;
+const VAULT_ASSET_ORIGIN = "rustle://vault";
+const IMAGES_FOLDER_SOURCE = /^images\/(?!\.\.?$)([^/\\?#]+)$/;
+
+type RenderEnvironment = { workspace: string | null };
 
 const markdown = new MarkdownIt({ html: true, linkify: false, typographer: false, breaks: false });
 
@@ -45,6 +49,23 @@ markdown.renderer.rules.fence = (tokens, index, _options, _environment, renderer
   return `<pre${renderer.renderAttrs(token)}><code${classAttribute}>${code}</code></pre>\n`;
 };
 
+const renderImage = markdown.renderer.rules.image;
+
+markdown.renderer.rules.image = (tokens, index, options, environment, renderer) => {
+  const token = tokens[index];
+  const { workspace } = environment as RenderEnvironment;
+  const imageInFolder = IMAGES_FOLDER_SOURCE.exec(token?.attrGet("src") ?? "")?.[1];
+  if (token !== undefined && workspace !== null && imageInFolder !== undefined) {
+    token.attrSet(
+      "src",
+      `${VAULT_ASSET_ORIGIN}/${encodeURIComponent(workspace)}/images/${imageInFolder}`,
+    );
+  }
+  return renderImage === undefined
+    ? renderer.renderToken(tokens, index, options)
+    : renderImage(tokens, index, options, environment, renderer);
+};
+
 function replaceTaskMarker(inline: Token, TokenType: typeof Token): void {
   const marker = TASK_MARKER.exec(inline.content);
   const firstText = inline.children?.[0];
@@ -58,7 +79,12 @@ function replaceTaskMarker(inline: Token, TokenType: typeof Token): void {
   inline.children?.unshift(checkbox);
 }
 
-/** CommonMark plus tables, task lists, strikethrough and highlighted fenced code. Not sanitized. */
-export function renderMarkdown(body: string): string {
-  return markdown.render(body);
+/**
+ * CommonMark plus tables, task lists, strikethrough and highlighted fenced
+ * code. Not sanitized. An image the body keeps in its workspace's images
+ * folder is shown through the vault scheme; the body itself never changes.
+ */
+export function renderMarkdown(body: string, workspace: string | null): string {
+  const environment: RenderEnvironment = { workspace };
+  return markdown.render(body, environment);
 }

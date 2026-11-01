@@ -61,6 +61,23 @@ describe("PreviewedBody", () => {
     expect(previewed.body).toBe("舊內容");
   });
 
+  it("knows the workspace of the article it shows, and of none when none is open", async () => {
+    expect(previewed.workspace).toBe("Blog");
+
+    const opening = editor.openArticle({
+      article: { ...articleBody("c.md", "C"), workspace: "Work" },
+      title: "C",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await opening;
+    expect(previewed.workspace).toBe("Work");
+
+    const closing = editor.closeArticle();
+    await vi.advanceTimersByTimeAsync(0);
+    await closing;
+    expect(previewed.workspace).toBeNull();
+  });
+
   it("shows typing 150 milliseconds after it stops", () => {
     editor.changeBody("新內容");
 

@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rustle_domain::{ArticleFileName, ImageFileName, VaultPathError, VaultScope, WorkspaceName};
+use rustle_domain::{
+    ArticleFileName, IMAGES_FOLDER_NAME, ImageFileName, VaultPathError, VaultScope, WorkspaceName,
+};
 
 /// [`VaultScope`] plus symlink resolution: the real location of every
 /// returned path is inside the real vault root. Paths that do not exist
@@ -55,6 +57,13 @@ impl ResolvedVaultScope {
         self.entry(
             self.scope.article_path(workspace, article),
             &format!("{workspace}/{article}"),
+        )
+    }
+
+    pub fn images_folder_path(&self, workspace: &WorkspaceName) -> Result<PathBuf, VaultPathError> {
+        self.confine(
+            self.scope.images_folder_path(workspace),
+            &format!("{workspace}/{IMAGES_FOLDER_NAME}"),
         )
     }
 

@@ -3,6 +3,8 @@ use std::path::{Component, Path};
 
 use thiserror::Error;
 
+use crate::vault_scope::IMAGES_FOLDER_NAME;
+
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum VaultPathError {
     #[error("'{rejected}' is outside the vault")]
@@ -84,6 +86,38 @@ impl ArticleFileName {
     }
 }
 
+const IMAGE_MEDIA_TYPES: [(&str, &str); 9] = [
+    ("png", "image/png"),
+    ("gif", "image/gif"),
+    ("jpg", "image/jpeg"),
+    ("jpeg", "image/jpeg"),
+    ("webp", "image/webp"),
+    ("bmp", "image/bmp"),
+    ("tif", "image/tiff"),
+    ("tiff", "image/tiff"),
+    ("svg", "image/svg+xml"),
+];
+
+impl ImageFileName {
+    /// Where the body refers to the image: relative to the article, which
+    /// sits next to the images folder.
+    pub fn relative_path(&self) -> String {
+        format!("{IMAGES_FOLDER_NAME}/{self}")
+    }
+
+    /// `None` when the extension is not an image Rustle serves.
+    pub fn media_type(&self) -> Option<&'static str> {
+        let (stem, extension) = self.as_str().rsplit_once('.')?;
+        if stem.is_empty() {
+            return None;
+        }
+        IMAGE_MEDIA_TYPES
+            .iter()
+            .find(|(known, _)| known.eq_ignore_ascii_case(extension))
+            .map(|(_, media_type)| *media_type)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,6 +172,8 @@ mod tests {
     #[rstest]
     #[case("../../evil.png")]
     #[case("../x.png")]
+    #[case("a/b.png")]
+    #[case("a\\b.png")]
     fn rejects_image_file_names_that_escape_the_images_folder(#[case] name: &str) {
         assert_eq!(
             ImageFileName::parse(name),
@@ -159,6 +195,34 @@ mod tests {
         let article = ArticleFileName::parse(name).expect("valid article name");
 
         assert_eq!(article.markdown_stem(), stem);
+    }
+
+    #[rstest]
+    #[case("cover.png", Some("image/png"))]
+    #[case("loop.gif", Some("image/gif"))]
+    #[case("photo.jpg", Some("image/jpeg"))]
+    #[case("photo.jpeg", Some("image/jpeg"))]
+    #[case("still.webp", Some("image/webp"))]
+    #[case("old.bmp", Some("image/bmp"))]
+    #[case("scan.tif", Some("image/tiff"))]
+    #[case("scan.tiff", Some("image/tiff"))]
+    #[case("diagram.svg", Some("image/svg+xml"))]
+    #[case("SHOUTING.PNG", Some("image/png"))]
+    #[case("zen-of-writing.md", None)]
+    #[case("settings.json", None)]
+    #[case("no-extension", None)]
+    #[case(".png", None)]
+    fn knows_the_media_type_of_an_image_name(#[case] name: &str, #[case] media_type: Option<&str>) {
+        let image = ImageFileName::parse(name).expect("valid image name");
+
+        assert_eq!(image.media_type(), media_type);
+    }
+
+    #[test]
+    fn refers_to_an_image_relative_to_the_article() {
+        let image = ImageFileName::parse("8f3c1e42.png").expect("valid image name");
+
+        assert_eq!(image.relative_path(), "images/8f3c1e42.png");
     }
 
     #[test]

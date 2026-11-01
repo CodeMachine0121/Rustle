@@ -482,3 +482,15 @@ fn reports_a_workspace_that_could_not_be_moved_to_the_trash() {
             .contains("Gone")
     );
 }
+
+#[test]
+fn refuses_to_paste_images_into_a_workspace_outside_the_vault() {
+    let app = RunningApp::start();
+
+    let failure = app
+        .call("save_clipboard_image", json!({ "workspace": "../outside" }))
+        .expect_err("refused");
+
+    assert_eq!(failure["reason"], json!("outsideVault"));
+    assert!(!app.vault_directory.path().join("outside").exists());
+}

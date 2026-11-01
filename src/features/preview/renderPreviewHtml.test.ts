@@ -185,7 +185,7 @@ describe("sanitizing what the body contains", () => {
     expect(image.getAttribute("src")).toBe(expected);
   });
 
-  it("keeps a markdown image's relative source", () => {
+  it("keeps a markdown image's relative source when no workspace is known", () => {
     expect(only(preview("![](images/8f3c.png)"), "img").getAttribute("src")).toBe(
       "images/8f3c.png",
     );
@@ -238,6 +238,59 @@ describe("sanitizing what the body contains", () => {
       expect.stringMatching(/^https?:/),
     );
     expect(only(shown, "h1").textContent).toBe("看起來很正常");
+  });
+});
+
+describe("images kept in the workspace's images folder", () => {
+  function imageSource(body: string, workspace: string | null): string | null {
+    const container = document.createElement("div");
+    container.innerHTML = renderPreviewHtml(body, workspace);
+    return only(container, "img").getAttribute("src");
+  }
+
+  it("shows an image from the images folder through the vault scheme", () => {
+    expect(imageSource("![](images/8f3c.png)", "Blog")).toBe(
+      "rustle://vault/Blog/images/8f3c.png",
+    );
+  });
+
+  it.each([
+    ["A B", "images/x.png", "rustle://vault/A%20B/images/x.png"],
+    ["隨筆", "images/x.png", "rustle://vault/%E9%9A%A8%E7%AD%86/images/x.png"],
+    ["Blog", "images/我.png", "rustle://vault/Blog/images/%E6%88%91.png"],
+    ["a/b?#", "images/x.png", "rustle://vault/a%2Fb%3F%23/images/x.png"],
+  ])("encodes workspace %s and path %s as %s", (workspace, path, expected) => {
+    expect(imageSource(`![](${path})`, workspace)).toBe(expected);
+  });
+
+  it.each([
+    ["other/x.png"],
+    ["images/nested/x.png"],
+    ["images/.."],
+    ["./images/x.png"],
+    ["images/"],
+  ])("keeps %s as written", (path) => {
+    expect(imageSource(`![](${path})`, "Blog")).toBe(path);
+  });
+
+  it("keeps the alt text and title", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderPreviewHtml('![封面](images/x.png "標題")', "Blog");
+    const image = only(container, "img");
+
+    expect(image.getAttribute("alt")).toBe("封面");
+    expect(image.getAttribute("title")).toBe("標題");
+  });
+
+  it("still drops a remote image", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderPreviewHtml("![](https://example.com/x.png)", "Blog");
+
+    expect(container.querySelector("img")?.getAttribute("src") ?? null).toBeNull();
+  });
+
+  it("leaves an image written as HTML alone", () => {
+    expect(imageSource('<img src="images/x.png">', "Blog")).toBe("images/x.png");
   });
 });
 

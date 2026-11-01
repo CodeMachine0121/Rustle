@@ -1,10 +1,12 @@
 use std::fmt;
 
 use rustle_application::{
-    CreateArticleError, DeleteArticleError, DeleteWorkspaceError, UpdateArticleMetadataError,
+    CreateArticleError, DeleteArticleError, DeleteWorkspaceError, SaveClipboardImagesError,
+    UpdateArticleMetadataError,
 };
 use rustle_domain::{
-    ArticleRepositoryError, SettingsError, TrashError, VaultPathError, WorkspaceRepositoryError,
+    ArticleRepositoryError, ImageAssetRepositoryError, SettingsError, TrashError, VaultPathError,
+    WorkspaceRepositoryError,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -136,6 +138,17 @@ impl From<SettingsError> for CommandError {
     fn from(error: SettingsError) -> Self {
         match error {
             SettingsError::OutsideVault(outside) => outside.into(),
+            other => Self::unexpected(other),
+        }
+    }
+}
+
+impl From<SaveClipboardImagesError> for CommandError {
+    fn from(error: SaveClipboardImagesError) -> Self {
+        match error {
+            SaveClipboardImagesError::Image(ImageAssetRepositoryError::OutsideVault(outside)) => {
+                outside.into()
+            }
             other => Self::unexpected(other),
         }
     }
@@ -326,6 +339,24 @@ mod tests {
             .reason(),
             FailureReason::OutsideVault
         );
+    }
+
+    #[test]
+    fn a_failed_image_paste_keeps_its_reason_and_reports_an_outside_location_as_such() {
+        let rejected = WorkspaceName::parse("..").expect_err("'..' is rejected");
+        let outside = CommandError::from(SaveClipboardImagesError::Image(
+            ImageAssetRepositoryError::OutsideVault(rejected),
+        ));
+        let disk_full = CommandError::from(SaveClipboardImagesError::Image(
+            ImageAssetRepositoryError::Unwritable {
+                image: "Blog/images/x.png".to_owned(),
+                reason: "No space left on device".to_owned(),
+            },
+        ));
+
+        assert_eq!(outside.reason(), FailureReason::OutsideVault);
+        assert_eq!(disk_full.reason(), FailureReason::Unexpected);
+        assert!(disk_full.to_string().contains("No space left on device"));
     }
 
     #[test]

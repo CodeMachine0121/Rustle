@@ -547,3 +547,15 @@ body {
   font-size: 13px;
   box-shadow: 0 6px 20px color-mix(in srgb, #000000 20%, transparent);
 }
+
+.image-paste-status {
+  margin: 0;
+  padding: 4px 16px;
+  font-size: 12px;
+  color: var(--color-muted-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.image-paste-status--failed {
+  color: var(--color-error);
+}

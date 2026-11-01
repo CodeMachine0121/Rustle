@@ -44,6 +44,29 @@ describe("PreviewPanel", () => {
     expect(screen.queryByText("選一篇文章開始寫作")).not.toBeInTheDocument();
   });
 
+  it("shows an image of the article's workspace through the vault scheme", async () => {
+    const editor = editorSession();
+    const { container } = render(
+      <PreviewPanel previewedBody={new PreviewedBody(editor, new CompositionState())} />,
+    );
+
+    await act(() =>
+      editor.openArticle({
+        article: {
+          workspace: "隨筆",
+          fileName: "a.md",
+          body: "![](images/8f3c.png)",
+          lastKnownModifiedAt: "2026-08-20T08:00:00.000Z",
+        },
+        title: "A",
+      }),
+    );
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "rustle://vault/%E9%9A%A8%E7%AD%86/images/8f3c.png",
+    );
+  });
+
   it("shows an empty article as an empty preview, not as no article", async () => {
     const editor = editorSession();
     render(<PreviewPanel previewedBody={new PreviewedBody(editor, new CompositionState())} />);

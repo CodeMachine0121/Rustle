@@ -7,6 +7,7 @@ import { CreateArticleDialog } from "../features/createArticle/CreateArticleDial
 import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialog";
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
+import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
@@ -39,6 +40,7 @@ function VaultView() {
   const [settings] = useState(() => new SettingsSession(channels));
   const [session] = useState(() => new VaultSession(channels, autosave, settings));
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
+  const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
@@ -66,6 +68,8 @@ function VaultView() {
 
   useEffect(() => () => previewedBody.dispose(), [previewedBody]);
 
+  useEffect(() => () => imagePaste.dispose(), [imagePaste]);
+
   return (
     <>
       <AppLayout
@@ -87,7 +91,7 @@ function VaultView() {
             onDelete={setArticleToDelete}
           />
         }
-        editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+        editor={<EditorColumn snapshot={snapshot} autosave={autosave} imagePaste={imagePaste} />}
         preview={{
           isOpen: previewPanel.isOpen,
           content: <PreviewPanel previewedBody={previewedBody} />,

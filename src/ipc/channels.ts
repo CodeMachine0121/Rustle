@@ -8,6 +8,7 @@ import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
 import type { MetadataUpdateOutcome, MetadataUpdateRequest } from "./metadataUpdate";
 import type { RenameWorkspaceOutcome } from "./renameWorkspaceOutcome";
 import type { SaveBodyRequest, SavedBody } from "./savedBody";
+import type { SavedClipboardImages } from "./savedClipboardImages";
 import type { Settings } from "./settings";
 import type { WorkspaceContents } from "./workspaceContents";
 import type { WorkspaceSummary } from "./workspaceSummary";
@@ -44,7 +45,8 @@ export const channels = {
   deleteWorkspace: (workspace: string) =>
     callChannel<WorkspaceContents>("delete_workspace", { workspace }),
 
-  saveClipboardImage: () => callChannel<null>("save_clipboard_image"),
+  saveClipboardImage: (workspace: string) =>
+    callChannel<SavedClipboardImages>("save_clipboard_image", { workspace }),
 
   readSettings: () => callChannel<Settings>("read_settings"),
 
