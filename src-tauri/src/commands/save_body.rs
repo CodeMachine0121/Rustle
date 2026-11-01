@@ -5,7 +5,7 @@ use tauri::State;
 
 use crate::command_error::CommandError;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_body(
     articles: State<'_, FileSystemArticleRepository>,
     workspace: String,
