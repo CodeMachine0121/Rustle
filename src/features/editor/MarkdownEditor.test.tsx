@@ -329,8 +329,14 @@ describe("MarkdownEditor", () => {
   });
 
   describe("scroll sync", () => {
-    function previewPane(): ScrollPane {
+    function previewPane(): ScrollPane & { scroll: () => void } {
+      let listener: () => void = () => undefined;
       return {
+        scroll: () => listener(),
+        listen: (onScroll) => {
+          listener = onScroll;
+          return () => undefined;
+        },
         position: () => 0,
         maximumPosition: () => 500,
         lineAtTop: () => 0,
@@ -367,13 +373,13 @@ describe("MarkdownEditor", () => {
     it("stops leading once unmounted", () => {
       const synchronizer = new ScrollSynchronizer();
       const pane = previewPane();
-      const previewSide = synchronizer.attach("preview", pane);
+      synchronizer.attach("preview", pane);
       const { scroller, unmount } = renderSynchronizedEditor(synchronizer);
 
       unmount();
       Object.defineProperty(scroller, "scrollTop", { value: 40, configurable: true });
       fireEvent.scroll(scroller);
-      previewSide.scrolled();
+      pane.scroll();
 
       expect(pane.scrollTo).not.toHaveBeenCalled();
     });

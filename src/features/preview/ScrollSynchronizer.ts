@@ -2,17 +2,13 @@ export type ScrollSide = "editor" | "preview";
 
 /** One side of the sync, in its own pixels and in zero-based body lines. */
 export type ScrollPane = {
+  /** Calls the listener on every scroll of the pane; returns how to stop. */
+  listen(onScroll: () => void): () => void;
   position(): number;
   maximumPosition(): number;
   lineAtTop(): number;
   positionForLine(line: number): number;
   scrollTo(position: number): void;
-};
-
-export type AttachedScrollPane = {
-  /** Call on every scroll event of the pane. */
-  scrolled: () => void;
-  detach: () => void;
 };
 
 // Browsers round scroll positions to device pixels.
@@ -28,25 +24,24 @@ export class ScrollSynchronizer {
   readonly #panes = new Map<ScrollSide, ScrollPane>();
   readonly #echoes = new Map<ScrollSide, number>();
 
-  attach(side: ScrollSide, pane: ScrollPane): AttachedScrollPane {
+  /** Makes the pane this side until the returned detach is called. */
+  attach(side: ScrollSide, pane: ScrollPane): () => void {
     this.#panes.set(side, pane);
     this.#echoes.delete(side);
-    return {
-      scrolled: () => {
-        if (this.#panes.get(side) === pane) {
-          this.#follow(side, pane);
-        }
-      },
-      detach: () => {
-        if (this.#panes.get(side) === pane) {
-          this.#panes.delete(side);
-          this.#echoes.delete(side);
-        }
-      },
+    const stopListening = pane.listen(() => this.#follow(side, pane));
+    return () => {
+      stopListening();
+      if (this.#panes.get(side) === pane) {
+        this.#panes.delete(side);
+        this.#echoes.delete(side);
+      }
     };
   }
 
   #follow(side: ScrollSide, leader: ScrollPane): void {
+    if (this.#panes.get(side) !== leader) {
+      return;
+    }
     const echo = this.#echoes.get(side);
     this.#echoes.delete(side);
     if (echo !== undefined && isSamePosition(leader.position(), echo)) {

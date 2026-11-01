@@ -21,6 +21,12 @@ export class EditorScrollPane implements ScrollPane {
     this.#view = view;
   }
 
+  listen(onScroll: () => void): () => void {
+    const scroller = this.#view.scrollDOM;
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }
+
   position(): number {
     return this.#view.scrollDOM.scrollTop;
   }

@@ -61,8 +61,14 @@ describe("PreviewPanel", () => {
   });
 
   describe("scroll sync", () => {
-    function editorPane(): ScrollPane {
+    function editorPane(): ScrollPane & { scroll: () => void } {
+      let listener: () => void = () => undefined;
       return {
+        scroll: () => listener(),
+        listen: (onScroll) => {
+          listener = onScroll;
+          return () => undefined;
+        },
         position: () => 0,
         maximumPosition: () => 1000,
         lineAtTop: () => 0,
@@ -115,7 +121,7 @@ describe("PreviewPanel", () => {
       const editor = editorSession();
       const synchronizer = new ScrollSynchronizer();
       const pane = editorPane();
-      const editorSide = synchronizer.attach("editor", pane);
+      synchronizer.attach("editor", pane);
       const { container, unmount } = render(
         <PreviewPanel
           previewedBody={new PreviewedBody(editor, new CompositionState())}
@@ -129,7 +135,7 @@ describe("PreviewPanel", () => {
       if (scroller !== null) {
         scrollPreview(scroller, 1700);
       }
-      editorSide.scrolled();
+      pane.scroll();
 
       expect(scroller).not.toBeNull();
       expect(pane.scrollTo).not.toHaveBeenCalled();

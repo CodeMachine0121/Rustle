@@ -53,8 +53,8 @@
 | `PreviewWidth` | value class | `of(ratio)` clamps to 0.2–0.8; `draggedBy(pixelsToTheRight, areaWidth)`; `steppedBy(steps)` (5 points a step); `percent` | — | TC-32, TC-35~38, TC-40 |
 | `PaneDivider` | component | separator semantics (`aria-valuenow/min/max`, focusable); pointer capture drag → `onResize` per move, `onResizeEnd` once on release; ArrowLeft/Right → `onResizeEnd` unless the input method owns the key | `PreviewWidth`, `CompositionState` | TC-32~36, TC-39~42 |
 | `PreviewLineMap` | value class | from anchors `{ line, top }`, a line count, scroll height and client height: `positionFor(line)` (piecewise linear, clamped to `[0, scrollHeight − clientHeight]`, 0 with no anchors) and `lineAt(position)`; `measure(scroller, lineCount)` reads `[SOURCE_LINE_ATTRIBUTE]` | `SOURCE_LINE_ATTRIBUTE` | TC-43~48 |
-| `ScrollPane` | type | `position()`, `maximumPosition()`, `lineAtTop()`, `positionForLine(line)`, `scrollTo(position)` | — | TC-49~55 |
-| `ScrollSynchronizer` | class | `attach(side, pane)` → `{ scrolled, detach }`; the scrolled side leads; the other follows unless already there; the follower's next scroll event at the position it was moved to is eaten once (no timer) | `ScrollPane` | TC-49~55, BRIEF 5.5 #4/#5/#9 |
+| `ScrollPane` | type | `listen(onScroll)`, `position()`, `maximumPosition()`, `lineAtTop()`, `positionForLine(line)`, `scrollTo(position)` | — | TC-49~55 |
+| `ScrollSynchronizer` | class | `attach(side, pane)` → detach (it listens to the pane itself); the scrolled side leads; the other follows unless already there; the follower's next scroll event at the position it was moved to is eaten once (no timer) | `ScrollPane` | TC-49~55, BRIEF 5.5 #4/#5/#9 |
 | `EditorScrollPane` | class | line at top = line block index + fraction inside the block; position for a line = that block's top + fraction, in scroller coordinates | `EditorView` subset | TC-56, TC-57 |
 | `PreviewScrollPane` | class | `ScrollPane` over the preview scroller, re-measuring a `PreviewLineMap` on every question (blocks move when images load) | `PreviewLineMap` | TC-43~48 in the app |
 

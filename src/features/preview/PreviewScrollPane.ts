@@ -11,6 +11,12 @@ export class PreviewScrollPane implements ScrollPane {
     this.#lineCount = lineCount;
   }
 
+  listen(onScroll: () => void): () => void {
+    const scroller = this.#scroller;
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }
+
   position(): number {
     return this.#scroller.scrollTop;
   }

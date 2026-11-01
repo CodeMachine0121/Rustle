@@ -35,12 +35,7 @@ function PreviewContent({ body, scrollSynchronizer }: PreviewContentProps) {
     if (scroller === null || scrollSynchronizer === undefined) {
       return;
     }
-    const attached = scrollSynchronizer.attach("preview", new PreviewScrollPane(scroller, lineCount));
-    scroller.addEventListener("scroll", attached.scrolled, { passive: true });
-    return () => {
-      scroller.removeEventListener("scroll", attached.scrolled);
-      attached.detach();
-    };
+    return scrollSynchronizer.attach("preview", new PreviewScrollPane(scroller, lineCount));
   }, [scrollSynchronizer, lineCount]);
 
   return (

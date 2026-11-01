@@ -75,12 +75,7 @@ export function MarkdownEditor({
     if (view === null || scrollSynchronizer === undefined) {
       return;
     }
-    const attached = scrollSynchronizer.attach("editor", new EditorScrollPane(view));
-    view.scrollDOM.addEventListener("scroll", attached.scrolled, { passive: true });
-    return () => {
-      view.scrollDOM.removeEventListener("scroll", attached.scrolled);
-      attached.detach();
-    };
+    return scrollSynchronizer.attach("editor", new EditorScrollPane(view));
   }, [scrollSynchronizer]);
 
   useEffect(() => {
