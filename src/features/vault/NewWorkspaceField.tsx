@@ -3,8 +3,6 @@ import { useState, type KeyboardEvent } from "react";
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
 
-const INPUT_METHOD_KEY_CODE = 229;
-
 const REJECTION_EXPLANATIONS: Record<WorkspaceNameRejection, string> = {
   empty: "名稱不可為空",
   containsPathSeparator: "名稱不能含有 / 或 \\",
@@ -29,9 +27,7 @@ export function NewWorkspaceField({ rejection, failure, onCreate }: NewWorkspace
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    const composing =
-      composition.isComposing || event.nativeEvent.isComposing || event.keyCode === INPUT_METHOD_KEY_CODE;
-    if (event.key !== "Enter" || composing) {
+    if (event.key !== "Enter" || composition.ownsKey(event.nativeEvent)) {
       return;
     }
     event.preventDefault();
