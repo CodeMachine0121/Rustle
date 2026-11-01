@@ -139,15 +139,12 @@ class TabKeyListener {
     return this.#view.state.facet(indentationKeyClaims);
   }
 
-  #isEscapeArmed(): boolean {
-    return this.#escapeArmedAt !== null && Date.now() - this.#escapeArmedAt <= ESCAPE_ROUTE_MILLISECONDS;
-  }
-
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
     if (MODIFIER_KEYS.has(event.key)) {
       return;
     }
-    const escapeArmed = this.#isEscapeArmed();
+    const escapeArmed =
+      this.#escapeArmedAt !== null && Date.now() - this.#escapeArmedAt <= ESCAPE_ROUTE_MILLISECONDS;
     this.#escapeArmedAt = null;
     if (event.ctrlKey || event.altKey || event.metaKey) {
       return;
