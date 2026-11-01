@@ -74,30 +74,83 @@ body {
   display: flex;
 }
 
-.save-status-bar {
+.save-status-line {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 32px;
-  padding: 0 16px;
-  font-size: 13px;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  min-height: 28px;
+  padding: 0 12px 0 16px;
+  font-size: 12px;
+  color: var(--color-muted-text);
+  border-top: 1px solid var(--color-border);
 }
 
-.save-status-bar:empty {
-  border-bottom: none;
+.article-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-.save-status-bar__title {
-  font-weight: 600;
+.article-path__workspace {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.save-status-bar__warning,
-.save-status-bar__failure {
+.article-path__separator,
+.article-path__file {
+  flex-shrink: 0;
+}
+
+.article-path__file {
+  color: var(--color-text);
+}
+
+.save-status-line__warning,
+.save-status-line__failure {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #c0392b;
+  color: var(--color-warning);
+}
+
+.save-status-line__failure {
+  color: var(--color-error);
+}
+
+.save-indicator {
+  flex: 0 0 auto;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+}
+
+.save-indicator--saving {
+  color: var(--color-muted-text);
+}
+
+.save-indicator--saving .icon {
+  animation: save-indicator-spin 0.9s linear infinite;
+}
+
+.save-indicator--saved {
+  color: var(--color-success);
+}
+
+.save-indicator--failed {
+  color: var(--color-warning);
+}
+
+@keyframes save-indicator-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .layout-region {

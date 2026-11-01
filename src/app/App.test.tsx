@@ -120,6 +120,14 @@ function editorContent(): HTMLElement | null {
   return content instanceof HTMLElement ? content : null;
 }
 
+function saveStatusLine(): HTMLElement {
+  return screen.getByRole("contentinfo", { name: "儲存狀態列" });
+}
+
+function saveIndicator(): string | null {
+  return document.querySelector(".save-indicator")?.getAttribute("data-indicator") ?? null;
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -242,11 +250,12 @@ describe("App", () => {
     expect(screen.getByRole("textbox", { name: "新 workspace 名稱" })).toBeEnabled();
   });
 
-  it("saves what is typed into the open article and says so in its title bar", async () => {
+  it("saves what is typed into the open article and says so in its save status line", async () => {
     answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
     render(<App />);
     await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
-    expect(screen.getByRole("banner")).toHaveTextContent("Zen of Writing");
+    expect(saveStatusLine()).toHaveTextContent("Blog❯zen-of-writing.md");
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
 
     const content = editorContent();
     if (content === null) {
@@ -254,7 +263,7 @@ describe("App", () => {
     }
     fireEvent.keyDown(content, { key: "Tab" });
 
-    expect(screen.getByText("未儲存的變更")).toBeInTheDocument();
+    expect(saveIndicator()).toBe("saving");
     await waitFor(
       () =>
         expect(invoke).toHaveBeenCalledWith("save_body", {
@@ -266,7 +275,7 @@ describe("App", () => {
         }),
       { timeout: 2000 },
     );
-    expect(await screen.findByText("已儲存")).toBeInTheDocument();
+    await waitFor(() => expect(saveIndicator()).toBe("saved"));
   });
 
   it("keeps the article open while its changes cannot be saved", async () => {
@@ -767,7 +776,8 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: "儲存" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-      await waitFor(() => expect(screen.getByRole("banner")).toHaveTextContent("新標題"));
+      await waitFor(() => expect(screen.getByRole("button", { name: /^新標題/ })).toHaveAttribute("aria-pressed", "true"));
+      expect(saveStatusLine()).toHaveTextContent("zen-of-writing.md");
       expect(editorContent()).toHaveTextContent("正文的第一行。");
       const content = editorContent();
       if (content === null) {
@@ -783,7 +793,7 @@ describe("App", () => {
           ),
         { timeout: 2000 },
       );
-      expect(await screen.findByText("已儲存")).toBeInTheDocument();
+      await waitFor(() => expect(saveIndicator()).toBe("saved"));
     });
 
     it("asks before moving an article to the trash, saying where it goes and that images stay", async () => {
@@ -1039,7 +1049,7 @@ describe("App", () => {
       expect(EditorView.findFromDOM(content)).toBe(view);
       expect(view.state.doc.toString()).toBe("新的正文的第一行。");
       expect(view.state.selection.main.head).toBe(2);
-      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: "Not in the file yet" })).toBeInTheDocument();
       await waitFor(
         () => expect(invoke).toHaveBeenCalledWith("save_body", expect.objectContaining({ body: "新的正文的第一行。" })),
         { timeout: 2000 },

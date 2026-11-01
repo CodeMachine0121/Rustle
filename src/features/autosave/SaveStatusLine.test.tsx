@@ -6,7 +6,7 @@ import type { ChannelResult } from "../../ipc/channelResult";
 import type { SaveBodyRequest, SavedBody } from "../../ipc/savedBody";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { AutosaveSession } from "./AutosaveSession";
-import { SaveStatusBar } from "./SaveStatusBar";
+import { SaveStatusLine } from "./SaveStatusLine";
 
 const ARTICLE: ArticleBody = {
   workspace: "Blog",
@@ -15,7 +15,7 @@ const ARTICLE: ArticleBody = {
   lastKnownModifiedAt: "2026-08-20T08:00:00.000Z",
 };
 
-describe("SaveStatusBar", () => {
+describe("SaveStatusLine", () => {
   let saveBody: ReturnType<
     typeof vi.fn<(request: SaveBodyRequest) => Promise<ChannelResult<SavedBody>>>
   >;
@@ -51,26 +51,42 @@ describe("SaveStatusBar", () => {
     });
   }
 
-  it("shows no save status without an open article", () => {
-    render(<SaveStatusBar session={session} />);
+  function indicator(): string | null {
+    return document.querySelector(".save-indicator")?.getAttribute("data-indicator") ?? null;
+  }
 
-    expect(screen.getByRole("banner")).toBeEmptyDOMElement();
-    expect(screen.queryByText("已儲存")).toBeNull();
-    expect(screen.queryByText("未儲存的變更")).toBeNull();
+  function statusLine(): HTMLElement {
+    return screen.getByRole("contentinfo", { name: "儲存狀態列" });
+  }
+
+  it("shows no breadcrumb and no indicator without an open article", () => {
+    const { container } = render(<SaveStatusLine session={session} />);
+
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the title and unsaved changes as soon as the body changes", async () => {
-    render(<SaveStatusBar session={session} />);
+  it("shows the workspace and the file name with an arrow and a saved check, and no words", async () => {
+    render(<SaveStatusLine session={session} />);
+    await openArticle();
+
+    expect(statusLine()).toHaveTextContent(/^Blog❯zen\.md$/u);
+    expect(statusLine()).not.toHaveTextContent("寫作的禪");
+    expect(indicator()).toBe("saved");
+    expect(screen.getByRole("img", { name: "已存進檔案" })).toBeInTheDocument();
+  });
+
+  it("spins as soon as the body changes, before anything is written", async () => {
+    render(<SaveStatusLine session={session} />);
     await openArticle();
 
     act(() => session.changeBody("新的正文"));
 
-    expect(screen.getByText("寫作的禪")).toBeInTheDocument();
-    expect(screen.getByText("未儲存的變更")).toBeInTheDocument();
+    expect(indicator()).toBe("saving");
+    expect(saveBody).not.toHaveBeenCalled();
   });
 
-  it("shows the title and saved once the save succeeded", async () => {
-    render(<SaveStatusBar session={session} />);
+  it("shows the check once the save succeeded and keeps it", async () => {
+    render(<SaveStatusLine session={session} />);
     await openArticle();
 
     await saveWith({
@@ -81,23 +97,25 @@ describe("SaveStatusBar", () => {
         lastKnownModifiedAt: "2026-08-20T08:04:11.200Z",
       },
     });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
 
-    expect(screen.getByText("寫作的禪")).toBeInTheDocument();
-    expect(screen.getByText("已儲存")).toBeInTheDocument();
+    expect(indicator()).toBe("saved");
+    expect(document.body).not.toHaveTextContent("已儲存");
   });
 
-  it("shows the failure message and that changes are still unsaved", async () => {
-    render(<SaveStatusBar session={session} />);
+  it("explains a failed save on the same line and stops spinning", async () => {
+    render(<SaveStatusLine session={session} />);
     await openArticle();
 
     await saveWith({ ok: false, reason: "unexpected", message: "No space left on device" });
 
+    expect(statusLine()).toContainElement(screen.getByRole("alert"));
     expect(screen.getByRole("alert")).toHaveTextContent("No space left on device");
-    expect(screen.getByText("未儲存的變更")).toBeInTheDocument();
+    expect(indicator()).toBe("failed");
   });
 
   it("says the file changed outside and offers overwrite and reload", async () => {
-    render(<SaveStatusBar session={session} />);
+    render(<SaveStatusLine session={session} />);
     await openArticle();
 
     await saveWith({
@@ -106,12 +124,13 @@ describe("SaveStatusBar", () => {
     });
 
     expect(screen.getByRole("alert")).toHaveTextContent("這個檔案在 Rustle 之外被改動過");
-    expect(screen.getByRole("button", { name: "覆寫" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "重新載入" })).toBeInTheDocument();
+    expect(statusLine()).toContainElement(screen.getByRole("button", { name: "覆寫" }));
+    expect(statusLine()).toContainElement(screen.getByRole("button", { name: "重新載入" }));
+    expect(indicator()).toBe("saving");
   });
 
   it("overwrites when 覆寫 is chosen", async () => {
-    render(<SaveStatusBar session={session} />);
+    render(<SaveStatusLine session={session} />);
     await openArticle();
     await saveWith({
       ok: true,
@@ -132,11 +151,11 @@ describe("SaveStatusBar", () => {
     });
 
     expect(saveBody).toHaveBeenLastCalledWith(expect.objectContaining({ overwrite: true }));
-    expect(screen.getByText("已儲存")).toBeInTheDocument();
+    expect(indicator()).toBe("saved");
   });
 
   it("reloads the body on disk when 重新載入 is chosen", async () => {
-    render(<SaveStatusBar session={session} />);
+    render(<SaveStatusLine session={session} />);
     await openArticle();
     await saveWith({
       ok: true,
@@ -151,11 +170,11 @@ describe("SaveStatusBar", () => {
 
     expect(readBody).toHaveBeenCalledWith("Blog", "zen.md");
     expect(session.document.body).toBe("磁碟上的正文");
-    expect(screen.getByText("已儲存")).toBeInTheDocument();
+    expect(indicator()).toBe("saved");
   });
 
   it("shows why 覆寫 failed alongside the outside change warning", async () => {
-    render(<SaveStatusBar session={session} />);
+    render(<SaveStatusLine session={session} />);
     await openArticle();
     await saveWith({
       ok: true,
@@ -178,7 +197,7 @@ describe("SaveStatusBar", () => {
   });
 
   it("shows why 重新載入 failed alongside the outside change warning", async () => {
-    render(<SaveStatusBar session={session} />);
+    render(<SaveStatusLine session={session} />);
     await openArticle();
     await saveWith({
       ok: true,
@@ -196,7 +215,7 @@ describe("SaveStatusBar", () => {
   });
 
   it("keeps the warning and both choices after a switch is refused", async () => {
-    render(<SaveStatusBar session={session} />);
+    render(<SaveStatusLine session={session} />);
     await openArticle();
     await saveWith({
       ok: true,
@@ -208,7 +227,7 @@ describe("SaveStatusBar", () => {
     );
 
     expect(outcome).toBe("blockedByUnansweredWarning");
-    expect(screen.getByText("寫作的禪")).toBeInTheDocument();
+    expect(statusLine()).toHaveTextContent("zen.md");
     expect(screen.getByRole("alert")).toHaveTextContent("這個檔案在 Rustle 之外被改動過");
     expect(screen.getByRole("button", { name: "覆寫" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新載入" })).toBeInTheDocument();

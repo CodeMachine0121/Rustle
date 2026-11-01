@@ -4,7 +4,7 @@ import type { ImagePaste } from "../imagePaste/ImagePaste";
 import { ImagePasteStatusLine } from "../imagePaste/ImagePasteStatusLine";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import type { AutosaveSession } from "./AutosaveSession";
-import { SaveStatusBar } from "./SaveStatusBar";
+import { SaveStatusLine } from "./SaveStatusLine";
 import { useEditorDocument } from "./useAutosaveSession";
 
 type AutosavedEditorProps = {
@@ -14,7 +14,7 @@ type AutosavedEditorProps = {
   imagePaste?: ImagePaste;
 };
 
-/** The title bar, the image paste line and the editor, with every edit going to the session. */
+/** The image paste line, the editor and the save status line under it, with every edit going to the session. */
 export function AutosavedEditor({
   session,
   indentation,
@@ -25,7 +25,6 @@ export function AutosavedEditor({
 
   return (
     <>
-      <SaveStatusBar session={session} />
       {imagePaste !== undefined && <ImagePasteStatusLine imagePaste={imagePaste} />}
       <MarkdownEditor
         documentKey={String(editorDocument.version)}
@@ -36,6 +35,7 @@ export function AutosavedEditor({
         onBodyChange={(body) => session.changeBody(body)}
         scrollSynchronizer={scrollSynchronizer}
       />
+      <SaveStatusLine session={session} />
     </>
   );
 }

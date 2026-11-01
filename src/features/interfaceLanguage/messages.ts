@@ -1,5 +1,5 @@
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
-import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
+import type { AutosaveSwitchOutcome, SaveIndicator } from "../autosave/AutosaveSession";
 import type { StatusChoice } from "../sidebar/statusChoice";
 import type { Operation } from "../vault/operationFailure";
 import type { InterfaceLanguage } from "./interfaceLanguage";
@@ -84,13 +84,17 @@ export const CHINESE_MESSAGES = {
   noArticleOpen: "還沒有選取文章",
   articleUnreadable: (reason: string) => `讀不到這篇文章：${reason}`,
 
-  titleBar: "標題列",
+  saveStatusLine: "儲存狀態列",
+  articlePath: (workspace: string, fileName: string) => `${workspace} 裡的 ${fileName}`,
+  saveIndicators: {
+    saving: "還沒存進檔案",
+    saved: "已存進檔案",
+    failed: "存不進檔案",
+  } satisfies Record<SaveIndicator, string> as Record<SaveIndicator, string>,
   saveFailed: (reason: string) => `儲存失敗：${reason}`,
   changedOutsideRustle: "這個檔案在 Rustle 之外被改動過",
   overwrite: "覆寫",
   reload: "重新載入",
-  unsavedChanges: "未儲存的變更",
-  saved: "已儲存",
   savingImage: "圖片儲存中…",
   imageNotSaved: (reason: string) => (reason === "" ? "圖片存不進去。" : `圖片存不進去：${reason}`),
 
@@ -123,7 +127,7 @@ export const CHINESE_MESSAGES = {
   noWorkspaceSelected: "請先在左邊選一個 workspace，新文章才知道要建立在哪裡。",
   modifiedElsewhere: "這篇文章剛剛被別的程式改過，什麼都沒有寫入。請再試一次。",
   leavingRefusals: {
-    blockedByUnansweredWarning: "請先回答標題列的外部改動提示，再試一次。",
+    blockedByUnansweredWarning: "請先回答寫作區下方的外部改動提示，再試一次。",
     blockedByFailedSave: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
   } satisfies Record<LeavingRefusal, string> as Record<LeavingRefusal, string>,
   dismiss: "關閉提示",
@@ -208,13 +212,17 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noArticleOpen: "No article open",
   articleUnreadable: (reason) => `Cannot read this article: ${reason}`,
 
-  titleBar: "Title bar",
+  saveStatusLine: "Save status",
+  articlePath: (workspace, fileName) => `${fileName} in ${workspace}`,
+  saveIndicators: {
+    saving: "Not in the file yet",
+    saved: "In the file",
+    failed: "Cannot be written to the file",
+  },
   saveFailed: (reason) => `Save failed: ${reason}`,
   changedOutsideRustle: "This file was changed outside Rustle",
   overwrite: "Overwrite",
   reload: "Reload",
-  unsavedChanges: "Unsaved changes",
-  saved: "Saved",
   savingImage: "Saving image…",
   imageNotSaved: (reason) => (reason === "" ? "Could not save the image." : `Could not save the image: ${reason}`),
 
@@ -248,7 +256,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noWorkspaceSelected: "Choose a workspace on the left first, so the new article knows where to go.",
   modifiedElsewhere: "Another program just changed this article, so nothing was written. Try again.",
   leavingRefusals: {
-    blockedByUnansweredWarning: "Answer the external-change notice in the title bar first, then try again.",
+    blockedByUnansweredWarning: "Answer the external-change notice below the editor first, then try again.",
     blockedByFailedSave: "The last save failed. Press again to discard the unsaved changes and continue.",
   },
   dismiss: "Dismiss",
