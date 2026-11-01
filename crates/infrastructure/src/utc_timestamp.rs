@@ -1,5 +1,5 @@
 use std::fmt;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 86_400;
 
@@ -7,16 +7,13 @@ const SECONDS_PER_DAY: u64 = 86_400;
 /// `2026-08-20T08:04:11.123Z`. Times before 1970 are written as the epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct UtcTimestamp {
-    milliseconds_since_epoch: u128,
+    since_epoch: Duration,
 }
 
 impl From<SystemTime> for UtcTimestamp {
     fn from(time: SystemTime) -> Self {
         Self {
-            milliseconds_since_epoch: time
-                .duration_since(UNIX_EPOCH)
-                .map(|elapsed| elapsed.as_millis())
-                .unwrap_or_default(),
+            since_epoch: time.duration_since(UNIX_EPOCH).unwrap_or_default(),
         }
     }
 }
@@ -45,9 +42,8 @@ impl UtcTimestamp {
 
 impl fmt::Display for UtcTimestamp {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let milliseconds = self.milliseconds_since_epoch % 1_000;
-        let seconds_since_epoch =
-            u64::try_from(self.milliseconds_since_epoch / 1_000).map_err(|_| fmt::Error)?;
+        let milliseconds = self.since_epoch.subsec_millis();
+        let seconds_since_epoch = self.since_epoch.as_secs();
         let (year, month, day) = Self::civil_date(seconds_since_epoch / SECONDS_PER_DAY);
         let second_of_day = seconds_since_epoch % SECONDS_PER_DAY;
         write!(
@@ -64,7 +60,6 @@ impl fmt::Display for UtcTimestamp {
 mod tests {
     use super::*;
     use rstest::rstest;
-    use std::time::Duration;
 
     #[rstest]
     #[case::epoch(0, "1970-01-01T00:00:00.000Z")]

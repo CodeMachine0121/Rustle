@@ -156,10 +156,11 @@ impl<'a> MappingText<'a> {
     }
 
     fn item_value(line: &str) -> Option<Yaml> {
-        match YamlLoader::load_from_str(line.trim()).ok()?.pop()? {
-            Yaml::Array(mut items) if items.len() == 1 => items.pop(),
-            _ => None,
-        }
+        YamlLoader::load_from_str(line.trim())
+            .ok()?
+            .pop()?
+            .into_vec()?
+            .pop()
     }
 
     /// The comment after a scalar value, with the whitespace before it.
@@ -199,13 +200,11 @@ impl<'a> MappingText<'a> {
     }
 
     fn value_of(after_colon: &str) -> Option<Yaml> {
-        match YamlLoader::load_from_str(&format!("value:{after_colon}"))
+        YamlLoader::load_from_str(&format!("value:{after_colon}"))
             .ok()?
             .pop()?
-        {
-            Yaml::Hash(mut mapping) => mapping.remove(&Yaml::String("value".to_owned())),
-            _ => None,
-        }
+            .into_hash()?
+            .remove(&Yaml::String("value".to_owned()))
     }
 }
 
