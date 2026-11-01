@@ -42,10 +42,10 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `Theme` | Domain model | `Theme.parse(file: unknown): Theme \| null` — `null` unless `id`, `name.zh`, `name.en` and all fourteen base colours (`appearance` + 13 hex colours) are present and well formed; unusable override entries are dropped. `tokens()` → every `ThemeToken` → CSS value (override, else the derivation over the base colours). `applyTo(element)` sets each `--color-*` and `color-scheme`. `nameIn(language)` | — | US-01 all colour scenarios, US-02 少說了基礎色, US-04 只說基礎色 |
+| `Theme` | Domain model | `Theme.parse(file: unknown): Theme \| null` — `null` unless `id`, `name.zh`, `name.en` and all fourteen base colours (`appearance` + 13 hex colours) are present and well formed; unusable override entries are dropped. `tokens` (read-only property) → every `ThemeToken` → CSS value (override, else the derivation over the base colours). `applyTo(element)` sets each `--color-*` and `color-scheme`. `nameIn(language)` | — | US-01 all colour scenarios, US-02 少說了基礎色, US-04 只說基礎色 |
 | `THEME_TOKENS` / derivation table | Data inside `Theme.ts` | The one derivation rule set (PRD §8.2) — `color-mix(in oklab, …)` expressions over base colours | `Theme` | US-04 |
-| `ThemeCatalog` | Domain model | Holds the valid themes in file-name order. `options()` → `[{ choice: "followSystem" }, …themes]`; `resolve(choice, systemIsDark)` → the theme to paint (an unknown/invalid id is Follow System; Follow System is the theme with id `light` or `dark`); `choiceFor(stored)` → a known id or `followSystem`. `ThemeCatalog.shipped()` reads `themes/*.json` | `Theme` | US-01 打開主題選單, US-02 不認得的名字 / 從來沒選過, US-04 選單多出第五列 |
-| `ThemeSession` | Session class (subscribe / snapshot) | Owns the live `ThemeChoice`. Starts from the cache (so the first state is the first frame); follows `settings.theme` whenever the settings session notifies; re-applies on a system appearance change only while the choice is Follow System; `choose(choice)` ignores the current choice, otherwise `settings.change(... theme)` (screen first, write after). Every applied choice is written to the cache | `SettingsSession`, `ThemeCatalog`, `ThemeCache`, `SystemAppearance` | US-01 換色 / 再選一次, US-02 跟隨系統 / 選定之後, US-03 all |
+| `ThemeCatalog` | Domain model | Holds the valid themes in file-name order as the read-only `themes` (the menu lists Follow System first, then these); `resolve(choice, systemIsDark)` → the theme to paint (an unknown/invalid id is Follow System; Follow System is the theme with id `light` or `dark`); `choiceFor(stored)` → a known id or `followSystem`. `ThemeCatalog.shipped()` reads `themes/*.json` | `Theme` | US-01 打開主題選單, US-02 不認得的名字 / 從來沒選過, US-04 選單多出第五列 |
+| `ThemeSession` | Session class (subscribe / snapshot) | Owns the live `ThemeChoice`. Starts from the cache (so the first state is the first frame); follows `settings.theme` on settings notifications only once `SettingsSession.wasRead` is true; repaints on every system appearance change (a fixed theme resolves to itself, so only Follow System changes colour); exposes `menu` (`choice`, `themes`, `choose`). `choose(choice)` ignores the current choice, otherwise `settings.change(... theme)` (screen first, write after); while the settings are unread it repaints directly. Only choices that follow a read settings file are written to the cache | `SettingsSession`, `ThemeCatalog`, `ThemeCache`, `SystemAppearance` | US-01 換色 / 再選一次, US-02 跟隨系統 / 選定之後, US-03 all |
 | `ThemeCache`, `SystemAppearance` (types) + `browserThemeCache()`, `browserSystemAppearance()` | Boundary | `read()/write(choice)` over `localStorage` (failures swallowed); `isDark()/watch(listener)` over `matchMedia` | browser | US-03 第一帧, US-02 系統切暗色 |
 | `useTheme(session)` | Hook | `useSyncExternalStore` over the session's `ThemeMenu` snapshot (`choice`, `options`, `choose`) | `ThemeSession` | wiring |
 | `ThemeSetting` | Component | The `<section className="settings-item">` with heading 主題 and a labelled `<select>` whose selected option is the current choice | `useMessages`, `useInterfaceLanguage`'s language | US-01 打開主題選單, NFR 可及性 |
@@ -97,7 +97,7 @@ flowchart TD
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| 打開主題選單 | `ThemeCatalog.options()` + `ThemeSetting` (selected option = current choice) |
+| 打開主題選單 | `ThemeCatalog.themes` + `ThemeSetting` (selected option = current choice) |
 | 選了另一套主題，整個畫面當場換色 | `ThemeSession.choose` → `Theme.applyTo(<html>)`; palettes removed from `app.css` |
 | 主題管到寫作區的語法上色 | `Theme` tokens `editor-*` (used by `xcodeTheme`) |
 | 主題管到預覽區的引言與程式碼區 | `Theme` tokens `muted-text`, `code-background`, `code-*` |
@@ -116,7 +116,7 @@ flowchart TD
 | 設定寫不進去，這次調的活不過重啟 | `ThemeSession` follows `settings.theme` once settings are read |
 | 專注模式下沒有齒輪 | `AppLayout` (unchanged) |
 | 每一套主題各自一份，形狀相同 | `themes/*.json` + `themeTemplate.json` (pinned by a test) |
-| 只說基礎色的一套主題就能用 | `Theme.tokens()` derivations (Forest has no overrides) |
+| 只說基礎色的一套主題就能用 | `Theme.tokens` derivations (Forest has no overrides) |
 | 加一套主題不必改動既有的四套 | `ThemeCatalog.shipped()` glob |
 
 ---
@@ -134,5 +134,6 @@ Judgement calls made while the user was away:
 7. **The gear stays at the bottom of the sidebar.** PRD §5 mentions a title bar strip holding the gear and window buttons — a by-product of the retired transparency half; the acceptance scenarios place the gear at the sidebar bottom, so no title bar is built.
 8. **Shadows / backdrops:** the theme gives `--color-shade` (black for all four); the existing strengths (35 %, 30 %, 20 %) stay in CSS, so the screen is unchanged.
 9. **Stored value:** choosing Follow System writes `"theme": "followSystem"`; any id the catalog does not know reads as Follow System.
-10. **Cache after a failed write:** the cache follows the applied theme, so after a failed write the next start may paint the cached theme for one frame before the settings answer Follow System. The settings file stays the only source of truth (PRD NFR 啟動).
-11. **No transparency.** The whole panel-background half is retired by the PRD (§8.4); nothing is built for it.
+10. **Cache after a failed write:** the cache follows the applied theme, so after a failed write the next start may paint the cached theme for one frame before the settings answer Follow System. The settings file stays the only source of truth (PRD NFR 啟動): before the settings file is read, or when it cannot be read, settings notifications are ignored and a theme chosen meanwhile is painted but not cached.
+11. **No fallback palette for Light and Dark.** Follow System depends on the shipped ids `light` and `dark`; the catalog test that the shipped themes are exactly Light, Dark and Forest fails if either file stops parsing or changes id, so a broken shipped file cannot reach a build. Only user-facing extra themes (like Forest) need graceful handling at runtime.
+12. **No transparency.** The whole panel-background half is retired by the PRD (§8.4); nothing is built for it.
