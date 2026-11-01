@@ -3,7 +3,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { IndentUnit } from "../editor/IndentUnit";
@@ -18,7 +18,6 @@ const openViews: EditorView[] = [];
 
 afterEach(() => {
   openViews.splice(0).forEach((view) => view.destroy());
-  vi.useRealTimers();
 });
 
 function editorState(marked: string, composition: CompositionState, catalog: SnippetCatalog) {
@@ -701,26 +700,25 @@ describe("Esc, one layer at a time", () => {
     expect(tab.defaultPrevented).toBe(true);
   });
 
-  it("arms the way out with a second Esc after the menu closed", () => {
+  it("leaves a second Esc after the menu closed to the rest of the app", () => {
     const { view } = openEditor();
     type(view, "/h2");
     press(view, "Escape");
 
-    press(view, "Escape");
-    const tab = press(view, "Tab");
+    const escape = press(view, "Escape");
 
-    expect(view.state.doc.toString()).toBe("/h2");
-    expect(tab.defaultPrevented).toBe(false);
+    expect(escape.defaultPrevented).toBe(false);
   });
 
-  it("ends the waiting fields without arming the way out", () => {
+  it("ends the waiting fields and takes that Esc", () => {
     const { view } = openEditor();
     expand(view, "link");
 
-    press(view, "Escape");
+    const escape = press(view, "Escape");
     expect(markers(view)).toBe(0);
     const tab = press(view, "Tab");
 
+    expect(escape.defaultPrevented).toBe(true);
     expect(view.state.doc.toString()).toBe("  []()");
     expect(tab.defaultPrevented).toBe(true);
   });
@@ -739,22 +737,10 @@ describe("Esc, one layer at a time", () => {
     expect(tab.defaultPrevented).toBe(true);
   });
 
-  it("arms the way out as always when neither waits", () => {
+  it("indents on the Tab after an Esc nothing claimed", () => {
     const { view } = openEditor("字‸");
 
     press(view, "Escape");
-    const tab = press(view, "Tab");
-
-    expect(view.state.doc.toString()).toBe("字");
-    expect(tab.defaultPrevented).toBe(false);
-  });
-
-  it("lets the armed way out lapse after two seconds", () => {
-    vi.useFakeTimers();
-    const { view } = openEditor("字‸");
-
-    press(view, "Escape");
-    vi.advanceTimersByTime(2001);
     const tab = press(view, "Tab");
 
     expect(view.state.doc.toString()).toBe("  字");
