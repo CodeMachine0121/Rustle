@@ -1,6 +1,8 @@
 use std::fmt;
 
-use rustle_domain::{ArticleRepositoryError, VaultPathError};
+use rustle_domain::{
+    ArticleRepositoryError, SettingsError, VaultPathError, WorkspaceRepositoryError,
+};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -69,6 +71,24 @@ impl From<ArticleRepositoryError> for CommandError {
     }
 }
 
+impl From<WorkspaceRepositoryError> for CommandError {
+    fn from(error: WorkspaceRepositoryError) -> Self {
+        match error {
+            WorkspaceRepositoryError::OutsideVault(outside) => outside.into(),
+            other => Self::unexpected(other),
+        }
+    }
+}
+
+impl From<SettingsError> for CommandError {
+    fn from(error: SettingsError) -> Self {
+        match error {
+            SettingsError::OutsideVault(outside) => outside.into(),
+            other => Self::unexpected(other),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,6 +133,33 @@ mod tests {
 
         assert_eq!(error.reason(), FailureReason::Unexpected);
         assert!(error.to_string().contains("Blog/missing.md"));
+    }
+
+    #[test]
+    fn a_workspace_or_settings_location_outside_the_vault_is_reported_as_outside_the_vault() {
+        let rejected = || WorkspaceName::parse("..").expect_err("'..' is rejected");
+
+        assert_eq!(
+            CommandError::from(WorkspaceRepositoryError::OutsideVault(rejected())).reason(),
+            FailureReason::OutsideVault
+        );
+        assert_eq!(
+            CommandError::from(SettingsError::OutsideVault(rejected())).reason(),
+            FailureReason::OutsideVault
+        );
+    }
+
+    #[test]
+    fn a_folder_or_settings_file_that_cannot_be_used_is_unexpected() {
+        let unreadable = CommandError::from(WorkspaceRepositoryError::Unreadable {
+            folder: "/Users/james/Rustle".to_owned(),
+            reason: "Permission denied".to_owned(),
+        });
+        let unwritable = CommandError::from(SettingsError::Unwritable("disk full".to_owned()));
+
+        assert_eq!(unreadable.reason(), FailureReason::Unexpected);
+        assert!(unreadable.to_string().contains("Permission denied"));
+        assert_eq!(unwritable.reason(), FailureReason::Unexpected);
     }
 
     #[test]

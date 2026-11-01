@@ -16,6 +16,10 @@ pub fn channel_handlers<R: Runtime>() -> Vec<ChannelHandler<R>> {
             tauri::generate_handler![commands::list_articles::list_articles],
         ),
         ChannelHandler::new(
+            Channel::CreateWorkspace,
+            tauri::generate_handler![commands::create_workspace::create_workspace],
+        ),
+        ChannelHandler::new(
             Channel::CreateArticle,
             tauri::generate_handler![commands::create_article::create_article],
         ),

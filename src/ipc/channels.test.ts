@@ -2,21 +2,25 @@ import { invoke } from "@tauri-apps/api/core";
 import { describe, expect, it, vi } from "vitest";
 
 import { channels, type ChannelName } from "./channels";
+import type { Settings } from "./settings";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
-type ArgumentlessChannelName = Exclude<ChannelName, "readBody">;
+type ArgumentlessChannelName = Extract<
+  ChannelName,
+  "createArticle" | "saveBody" | "updateMetadata" | "saveClipboardImage" | "listWorkspaces" | "readSettings"
+>;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
-  listArticles: "list_articles",
   createArticle: "create_article",
   saveBody: "save_body",
   updateMetadata: "update_metadata",
   saveClipboardImage: "save_clipboard_image",
   readSettings: "read_settings",
-  writeSettings: "write_settings",
 };
+
+const CHANNELS_WITH_ARGUMENTS = ["listArticles", "createWorkspace", "readBody", "writeSettings"];
 
 describe("channels", () => {
   it.each(Object.entries(COMMAND_NAMES))("%s calls the %s command", async (channel, commandName) => {
@@ -45,7 +49,39 @@ describe("channels", () => {
     expect(result).toEqual({ ok: true, payload: articleBody });
   });
 
+  it("asks for the articles of one workspace", async () => {
+    vi.mocked(invoke).mockResolvedValue([]);
+
+    await channels.listArticles("Blog");
+
+    expect(invoke).toHaveBeenLastCalledWith("list_articles", { workspace: "Blog" });
+  });
+
+  it("asks to create a workspace with the name as typed", async () => {
+    vi.mocked(invoke).mockResolvedValue({ outcome: "rejected", reason: "alreadyUsed" });
+
+    const result = await channels.createWorkspace("Blog");
+
+    expect(invoke).toHaveBeenLastCalledWith("create_workspace", { name: "Blog" });
+    expect(result).toEqual({ ok: true, payload: { outcome: "rejected", reason: "alreadyUsed" } });
+  });
+
+  it("writes the whole settings object", async () => {
+    const settings: Settings = {
+      indentation: { style: "spaces", width: 2 },
+      previewPanel: { isOpen: true, widthRatio: 0.5 },
+      lastOpened: { workspace: "Blog", article: null },
+    };
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await channels.writeSettings(settings);
+
+    expect(invoke).toHaveBeenLastCalledWith("write_settings", { settings });
+  });
+
   it("offers exactly the channels listed in this test", () => {
-    expect(Object.keys(channels).sort()).toEqual([...Object.keys(COMMAND_NAMES), "readBody"].sort());
+    expect(Object.keys(channels).sort()).toEqual(
+      [...Object.keys(COMMAND_NAMES), ...CHANNELS_WITH_ARGUMENTS].sort(),
+    );
   });
 });
