@@ -290,6 +290,12 @@ body {
   outline: none;
 }
 
+.preview-scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .preview-content {
   padding: 24px 32px;
   line-height: 1.7;

@@ -387,6 +387,28 @@ describe("App", () => {
       });
     });
 
+    it("moves the preview when the editor is scrolled", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      render(<App />);
+      await waitFor(() => expect(within(previewRegion()).getByText("正文的第一行。")).toBeInTheDocument());
+      const previewScroller = previewRegion().querySelector(".preview-scroller");
+      const editorScroller = document.querySelector(".cm-scroller");
+      if (previewScroller === null || editorScroller === null) {
+        throw new Error("a scroller is missing");
+      }
+      let previewPosition = 0;
+      Object.defineProperties(previewScroller, {
+        scrollHeight: { value: 2000 },
+        clientHeight: { value: 300 },
+        scrollTop: { get: () => previewPosition, set: (position: number) => (previewPosition = position) },
+      });
+
+      Object.defineProperty(editorScroller, "scrollTop", { value: 40 });
+      fireEvent.scroll(editorScroller);
+
+      expect(previewPosition).toBe(1700);
+    });
+
     it("starts folded when the settings say it was closed", async () => {
       answerFromAVault({ workspace: null, article: null }, { isOpen: false, widthRatio: 0.5 });
       render(<App />);

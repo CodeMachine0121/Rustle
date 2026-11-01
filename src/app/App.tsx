@@ -6,6 +6,7 @@ import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
+import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
@@ -33,6 +34,7 @@ function VaultView() {
   const [settings] = useState(() => new SettingsSession(channels));
   const [session] = useState(() => new VaultSession(channels, autosave, settings));
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
+  const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
@@ -65,10 +67,18 @@ function VaultView() {
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
           />
         }
-        editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+        editor={
+          <EditorColumn
+            snapshot={snapshot}
+            autosave={autosave}
+            scrollSynchronizer={scrollSynchronizer}
+          />
+        }
         preview={{
           isOpen: previewPanel.isOpen,
-          content: <PreviewPanel previewedBody={previewedBody} />,
+          content: (
+            <PreviewPanel previewedBody={previewedBody} scrollSynchronizer={scrollSynchronizer} />
+          ),
           onOpen: previewPanel.open,
           onClose: previewPanel.close,
           width: previewPanel.width,
