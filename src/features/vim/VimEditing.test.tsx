@@ -276,6 +276,7 @@ describe("the editor's typing keys step aside outside Insert mode", () => {
     ["insert blank line", "Enter", MOD],
     ["indent more", "]", MOD],
     ["delete word backward", "Backspace", isMac ? { altKey: true } : { ctrlKey: true }],
+    ["select all, which Vim does not have", "a", MOD],
   ])("leaves the text untouched on %s in Normal mode", (_name, key, init) => {
     const { select, press, text } = openEditor("第一行\n第二行");
     select(5);
@@ -345,6 +346,23 @@ describe("Esc, one rung at a time", () => {
     press("Escape");
 
     expect(editor.dom.querySelector(".snippet-menu")).toBeNull();
+    expect(mode()).toBe("insert");
+  });
+
+  it("ends the waiting snippet fields first and stays in Insert mode", () => {
+    const { press, mode, editor } = openEditor("");
+    press("i");
+    [..."/link"].forEach((character, index) =>
+      act(() =>
+        editor.dispatch({ changes: { from: index, insert: character }, selection: { anchor: index + 1 }, userEvent: "input.type" }),
+      ),
+    );
+    press("Enter");
+    expect(editor.dom.querySelectorAll(".snippet-field-marker").length).toBeGreaterThan(0);
+
+    press("Escape");
+
+    expect(editor.dom.querySelectorAll(".snippet-field-marker")).toHaveLength(0);
     expect(mode()).toBe("insert");
   });
 
