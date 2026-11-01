@@ -159,3 +159,6 @@ flowchart TD
 - **A failed write after `create_new`** removes the half-written file, so "nothing appears on failure" holds for disk-full too.
 - **Blocked switch after creation (A-9)** still reports success; the location is not remembered because the selection stayed where it was.
 - **Saving still writes UTC** `updated_at`; aligning autosave to the local offset is outside this slice.
+- **Reply row carries `updatedAt` (added during `/contract`).** TC-49 needs the row to say both times; `ArticleSummary` gained `updated_at`/`updatedAt`, so every listed row now carries it too (additive, not rendered).
+- **Double submit** is guarded by a ref in `CreateArticleDialog` (state alone is not updated between two key presses in one frame).
+- **The creation request takes the selection token before it is sent**, so a workspace clicked while the file is being created wins and the new article is not opened over it.
