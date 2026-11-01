@@ -1,13 +1,23 @@
 import type { ReactNode } from "react";
 
+export type PreviewSlot = {
+  isOpen: boolean;
+  content: ReactNode;
+  onOpen: () => void;
+  onClose: () => void;
+};
+
 type AppLayoutProps = {
   workspaces: ReactNode;
   articles: ReactNode;
   editor: ReactNode;
-  preview?: ReactNode;
+  preview?: PreviewSlot;
 };
 
-/** The four columns, left to right. Without a preview the editor takes its width. */
+/**
+ * The four columns, left to right. A folded preview leaves only a handle at
+ * the edge, and the editor takes its width.
+ */
 export function AppLayout({ workspaces, articles, editor, preview }: AppLayoutProps) {
   return (
     <main className="app-layout">
@@ -20,11 +30,34 @@ export function AppLayout({ workspaces, articles, editor, preview }: AppLayoutPr
       <LayoutRegion title="EDITOR" className="editor-region">
         {editor}
       </LayoutRegion>
-      {preview !== undefined && (
-        <LayoutRegion title="PREVIEW" className="preview-region">
-          {preview}
-        </LayoutRegion>
-      )}
+      {preview !== undefined &&
+        (preview.isOpen ? (
+          <LayoutRegion
+            title="PREVIEW"
+            className="preview-region"
+            action={
+              <button
+                type="button"
+                className="region-action"
+                aria-label="關閉預覽"
+                onClick={preview.onClose}
+              >
+                ✕
+              </button>
+            }
+          >
+            {preview.content}
+          </LayoutRegion>
+        ) : (
+          <button
+            type="button"
+            className="preview-handle"
+            aria-label="開啟預覽"
+            onClick={preview.onOpen}
+          >
+            ◀ 預覽
+          </button>
+        ))}
     </main>
   );
 }
@@ -32,13 +65,17 @@ export function AppLayout({ workspaces, articles, editor, preview }: AppLayoutPr
 type LayoutRegionProps = {
   title: string;
   className: string;
+  action?: ReactNode;
   children: ReactNode;
 };
 
-function LayoutRegion({ title, className, children }: LayoutRegionProps) {
+function LayoutRegion({ title, className, action, children }: LayoutRegionProps) {
   return (
     <section className={`layout-region ${className}`} aria-label={title}>
-      <h2 className="region-title">{title}</h2>
+      <div className="region-header">
+        <h2 className="region-title">{title}</h2>
+        {action}
+      </div>
       <div className="region-body">{children}</div>
     </section>
   );

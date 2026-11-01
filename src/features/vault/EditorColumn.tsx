@@ -1,5 +1,6 @@
 import { AutosavedEditor } from "../autosave/AutosavedEditor";
 import type { AutosaveSession } from "../autosave/AutosaveSession";
+import { NoArticleState } from "./NoArticleState";
 import type { VaultSnapshot } from "./VaultSession";
 
 type EditorColumnProps = {
@@ -17,7 +18,7 @@ export function EditorColumn({ snapshot, autosave }: EditorColumnProps) {
     );
   }
   if (openedDocument === null) {
-    return <p className="empty-state">選一篇文章開始寫作</p>;
+    return <NoArticleState />;
   }
   return <AutosavedEditor session={autosave} indentation={indentation} />;
 }
