@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
+import type { CursorPlacement } from "../autosave/AutosaveSession";
 import type { IndentationSettings } from "./IndentUnit";
 import { ScrollSynchronizer, type ScrollPane } from "../preview/ScrollSynchronizer";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -452,6 +453,92 @@ describe("MarkdownEditor", () => {
       pane.scroll();
 
       expect(pane.scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("putting the cursor on a line", () => {
+    const BODY = ["第一行", "第二行", "第三行", "第四行", "第五行", "第六行", "今天加班", "第八行"].join("\n");
+
+    function renderPlacingEditor(state = new CompositionState()) {
+      const view = render(
+        <>
+          <button type="button">elsewhere</button>
+          <CompositionProvider state={state}>
+            <MarkdownEditor documentKey="Blog/old.md" body="舊文章" />
+          </CompositionProvider>
+        </>,
+      );
+      const content = view.container.querySelector(".cm-content");
+      if (!(content instanceof HTMLElement)) {
+        throw new Error("the editor did not render its content area");
+      }
+      const elsewhere = view.getByRole("button", { name: "elsewhere" });
+      const show = (documentKey: string, body: string, cursorPlacement: CursorPlacement | null) =>
+        view.rerender(
+          <>
+            <button type="button">elsewhere</button>
+            <CompositionProvider state={state}>
+              <MarkdownEditor documentKey={documentKey} body={body} cursorPlacement={cursorPlacement} />
+            </CompositionProvider>
+          </>,
+        );
+      return { content, elsewhere, show };
+    }
+
+    function cursorLine(content: HTMLElement): number | undefined {
+      const editor = EditorView.findFromDOM(content);
+      return editor?.state.doc.lineAt(editor.state.selection.main.head).number;
+    }
+
+    it("opens a document with the cursor on the asked line and the keyboard in the editor", () => {
+      const { content, elsewhere, show } = renderPlacingEditor();
+      elsewhere.focus();
+
+      show("Blog/tired.md", BODY, { line: 7, sequence: 1 });
+
+      expect(cursorLine(content)).toBe(7);
+      expect(EditorView.findFromDOM(content)?.state.selection.main.head).toBe(BODY.indexOf("今天加班"));
+      expect(content).toHaveFocus();
+    });
+
+    it("moves the cursor in the shown document when asked again", () => {
+      const { content, elsewhere, show } = renderPlacingEditor();
+      show("Blog/tired.md", BODY, { line: 3, sequence: 1 });
+      elsewhere.focus();
+
+      show("Blog/tired.md", BODY, { line: 7, sequence: 2 });
+
+      expect(cursorLine(content)).toBe(7);
+    });
+
+    it("puts the cursor on the last line when the line is past the end", () => {
+      const { content, show } = renderPlacingEditor();
+
+      show("Blog/tired.md", BODY, { line: 40, sequence: 1 });
+
+      expect(cursorLine(content)).toBe(8);
+    });
+
+    it("does not move the cursor again for a request it already followed", () => {
+      const { content, elsewhere, show } = renderPlacingEditor();
+      show("Blog/tired.md", BODY, { line: 7, sequence: 1 });
+      elsewhere.focus();
+      EditorView.findFromDOM(content)?.dispatch({ selection: { anchor: 0 } });
+
+      show("Blog/tired.md", BODY, { line: 7, sequence: 1 });
+
+      expect(cursorLine(content)).toBe(1);
+    });
+
+    it("puts the cursor on the line once a composition holding the document ends", () => {
+      const state = new CompositionState();
+      const { content, show } = renderPlacingEditor(state);
+      fireEvent.compositionStart(content);
+
+      show("Blog/tired.md", BODY, { line: 7, sequence: 1 });
+      fireEvent.compositionEnd(content);
+
+      expect(cursorLine(content)).toBe(7);
     });
   });
 });

@@ -217,6 +217,49 @@ describe("AutosaveSession", () => {
     });
   });
 
+  describe("putting the cursor on a line", () => {
+    it("asks the editor to put the cursor on the line an article was opened at", async () => {
+      await session.openArticle({ article: articleBody("tired.md"), title: "今天很累", cursorLine: 7 });
+
+      expect(session.document.cursorPlacement).toMatchObject({ line: 7 });
+    });
+
+    it("asks for no cursor line when an article is opened without one", async () => {
+      await session.openArticle({ article: articleBody("tired.md"), title: "今天很累" });
+
+      expect(session.document.cursorPlacement).toBeNull();
+    });
+
+    it("moves the cursor in the open article without replacing its text", async () => {
+      await session.openArticle({ article: articleBody("tired.md"), title: "今天很累", cursorLine: 3 });
+      const shown = session.document;
+      session.changeBody("還沒存的字");
+
+      session.placeCursor(12);
+
+      expect(session.document.version).toBe(shown.version);
+      expect(session.document.cursorPlacement?.line).toBe(12);
+      expect(session.document.cursorPlacement?.sequence).not.toBe(shown.cursorPlacement?.sequence);
+      expect(session.body).toBe("還沒存的字");
+    });
+
+    it("asks again for the same line chosen twice", async () => {
+      await session.openArticle({ article: articleBody("tired.md"), title: "今天很累" });
+      session.placeCursor(7);
+      const first = session.document.cursorPlacement;
+
+      session.placeCursor(7);
+
+      expect(session.document.cursorPlacement).not.toEqual(first);
+    });
+
+    it("places no cursor while no article is open", () => {
+      session.placeCursor(7);
+
+      expect(session.document.cursorPlacement).toBeNull();
+    });
+  });
+
   describe("leaving the article", () => {
     it("saves the previous article before switching to another", async () => {
       await openZen();
@@ -342,7 +385,12 @@ describe("AutosaveSession", () => {
       await session.reload();
 
       expect(readBody).toHaveBeenCalledWith("Blog", "zen.md");
-      expect(session.document).toEqual({ version: versionBefore + 1, body: "磁碟上的正文", takesFocus: false });
+      expect(session.document).toEqual({
+        version: versionBefore + 1,
+        body: "磁碟上的正文",
+        takesFocus: false,
+        cursorPlacement: null,
+      });
       expect(session.status).toMatchObject({ modifiedElsewhere: false, hasUnsavedChanges: false });
       await typeAndAutosave("重新載入後打的字");
       expect(saveBody.mock.lastCall?.[0].lastKnownModifiedAt).toBe("2026-08-20T09:00:00.000Z");
