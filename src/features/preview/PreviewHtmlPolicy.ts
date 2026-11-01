@@ -18,6 +18,9 @@ const ALLOWED_SCHEMES: Readonly<Record<string, readonly string[]>> = {
   src: ["rustle"],
 };
 
+/** Every scheme some attribute allows, for a sanitizer that checks all URL attributes alike. */
+export const ALLOWED_URL_SCHEMES: readonly string[] = Object.values(ALLOWED_SCHEMES).flat();
+
 const SCHEME = /^([a-z][a-z0-9+.-]*):/i;
 const NETWORK_PATH = /^[/\\]{2}/;
 const DELETE_CHARACTER = "\u007f";
