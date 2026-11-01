@@ -8,6 +8,9 @@ import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialo
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
+import { InterfaceLanguageProvider } from "../features/interfaceLanguage/InterfaceLanguageContext";
+import { SettingsEntry } from "../features/interfaceLanguage/SettingsEntry";
+import { useInterfaceLanguage } from "../features/interfaceLanguage/useInterfaceLanguage";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
@@ -46,6 +49,7 @@ function VaultView() {
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
+  const interfaceLanguage = useInterfaceLanguage(settings, channels);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -74,7 +78,7 @@ function VaultView() {
   useEffect(() => () => imagePaste.dispose(), [imagePaste]);
 
   return (
-    <>
+    <InterfaceLanguageProvider language={interfaceLanguage.language}>
       <AppLayout
         sidebar={
           <Sidebar
@@ -111,6 +115,9 @@ function VaultView() {
             imagePaste={imagePaste}
           />
         }
+        sidebarFooter={
+          <SettingsEntry language={interfaceLanguage.language} onChoose={interfaceLanguage.choose} />
+        }
         preview={{
           isOpen: previewPanel.isOpen,
           content: (
@@ -123,8 +130,9 @@ function VaultView() {
           onResizeEnd: previewPanel.commitWidth,
         }}
       />
-      {articleDialogOpenedAt !== null && (
+      {articleDialogOpenedAt !== null && snapshot.selectedWorkspace !== null && (
         <CreateArticleDialog
+          workspace={snapshot.selectedWorkspace}
           openedAt={articleDialogOpenedAt}
           vocabulary={vocabularyOf(snapshot.articles)}
           onCreate={(draft) => session.createArticle(draft)}
@@ -164,7 +172,7 @@ function VaultView() {
         failure={snapshot.operationFailure}
         onDismiss={() => session.dismissOperationFailure()}
       />
-    </>
+    </InterfaceLanguageProvider>
   );
 }
 

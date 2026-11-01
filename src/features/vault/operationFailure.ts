@@ -1,4 +1,5 @@
 import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
+import type { Messages } from "../interfaceLanguage/messages";
 
 export type Operation =
   | "createArticle"
@@ -7,24 +8,34 @@ export type Operation =
   | "renameWorkspace"
   | "deleteWorkspace";
 
-/** An operation that did not happen, and the reason in the words of whoever refused it. */
-export type OperationFailure = { operation: Operation; message: string };
+export type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
 
-const FAILED_OPERATION_SENTENCES: Record<Operation, string> = {
-  createArticle: "建立文章失敗",
-  updateMetadata: "更新 metadata 失敗",
-  deleteArticle: "刪除文章失敗",
-  renameWorkspace: "重新命名 workspace 失敗",
-  deleteWorkspace: "刪除 workspace 失敗",
-};
+/** Why something did not happen. Put into words only when shown, so the words follow the interface language. */
+export type FailureReason =
+  | { kind: "reported"; message: string }
+  | { kind: "leavingRefused"; refusal: LeavingRefusal }
+  | { kind: "modifiedElsewhere" }
+  | { kind: "noWorkspaceSelected" };
 
-export const LEAVING_REFUSAL_MESSAGES: Record<Exclude<AutosaveSwitchOutcome, "switched">, string> = {
-  blockedByUnansweredWarning: "請先回答標題列的外部改動提示，再試一次。",
-  blockedByFailedSave: "上一次儲存失敗。再按一次就會放掉未儲存的變更並繼續。",
-};
+export type OperationFailure = { operation: Operation; reason: FailureReason };
 
-export const MODIFIED_ELSEWHERE_MESSAGE = "這篇文章剛剛被別的程式改過，什麼都沒有寫入。請再試一次。";
+export function reportedFailure(message: string): FailureReason {
+  return { kind: "reported", message };
+}
 
-export function describeOperationFailure({ operation, message }: OperationFailure): string {
-  return `${FAILED_OPERATION_SENTENCES[operation]}：${message}`;
+export function describeFailureReason(reason: FailureReason, messages: Messages): string {
+  switch (reason.kind) {
+    case "reported":
+      return reason.message;
+    case "leavingRefused":
+      return messages.leavingRefusals[reason.refusal];
+    case "modifiedElsewhere":
+      return messages.modifiedElsewhere;
+    case "noWorkspaceSelected":
+      return messages.noWorkspaceSelected;
+  }
+}
+
+export function describeOperationFailure({ operation, reason }: OperationFailure, messages: Messages): string {
+  return messages.failureWithReason(messages.failedOperations[operation], describeFailureReason(reason, messages));
 }

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 type ConfirmDeletionDialogProps = {
   heading: string;
@@ -23,6 +24,7 @@ export function ConfirmDeletionDialog({
   onCancel,
 }: ConfirmDeletionDialogProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const headingId = useId();
   const messageId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -60,7 +62,7 @@ export function ConfirmDeletionDialog({
         <div id={messageId}>{children}</div>
         <div className="dialog-actions">
           <button ref={cancelRef} type="button" disabled={isDeleting} onClick={onCancel}>
-            取消
+            {messages.cancel}
           </button>
           <button
             type="button"

@@ -57,7 +57,7 @@ describe("ImagePasteStatusLine", () => {
       }),
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("正在存圖片…");
+    expect(screen.getByRole("status")).toHaveTextContent("圖片儲存中…");
 
     await act(async () => {
       finish({ ok: true, payload: { images: [{ relativePath: "images/a.png" }] } });
@@ -73,7 +73,7 @@ describe("ImagePasteStatusLine", () => {
     );
     await act(() => Promise.resolve());
 
-    expect(screen.getByRole("alert")).toHaveTextContent("圖片沒有存進去：No space left on device");
+    expect(screen.getByRole("alert")).toHaveTextContent("圖片存不進去：No space left on device");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

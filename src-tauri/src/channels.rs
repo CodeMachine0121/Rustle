@@ -68,6 +68,10 @@ pub fn channel_handlers<R: Runtime>() -> Vec<ChannelHandler<R>> {
             tauri::generate_handler![commands::write_settings::write_settings],
         ),
         ChannelHandler::new(
+            Channel::ReadPreferredLocales,
+            tauri::generate_handler![commands::read_preferred_locales::read_preferred_locales],
+        ),
+        ChannelHandler::new(
             Channel::WatchCloseRequests,
             tauri::generate_handler![commands::watch_close_requests::watch_close_requests],
         ),

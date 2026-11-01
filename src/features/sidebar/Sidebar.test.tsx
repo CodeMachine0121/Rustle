@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import type { ChannelResult } from "../../ipc/channelResult";
 import type { Settings } from "../../ipc/settings";
+import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "../vault/VaultSession";
 import { Sidebar } from "./Sidebar";
@@ -70,21 +71,52 @@ describe("Sidebar", () => {
     renderSidebar(BLOG, session);
 
     const titles = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(titles).toEqual(["WORKSPACES▾", "STATUS▾", "TAGS▾"]);
-    expect(screen.getAllByRole("button")[0]).toHaveTextContent("All Notes");
+    expect(titles).toEqual(["WORKSPACES▾", "狀態▾", "標籤▾"]);
+    expect(screen.getAllByRole("button")[0]).toHaveTextContent("所有文章");
     expect(section("WORKSPACES")).toHaveTextContent("workspace 清單");
+  });
+
+  it("speaks English in its entry, titles, statuses and empty tag list when English is in use", async () => {
+    const { session } = await settingsSession();
+    render(
+      <InterfaceLanguageProvider language="en">
+        <Sidebar
+          snapshot={{ ...BLOG, articles: [article(null)] }}
+          settings={session}
+          workspaces={<p>workspaces</p>}
+          onSelectAllNotes={vi.fn()}
+          onToggleStatus={vi.fn()}
+          onToggleTag={vi.fn()}
+        />
+      </InterfaceLanguageProvider>,
+    );
+
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
+      "WORKSPACES▾",
+      "STATUS▾",
+      "TAGS▾",
+    ]);
+    expect(screen.getAllByRole("button")[0]).toHaveTextContent("All Notes");
+    expect(rowsOf("STATUS").map((row) => row.textContent)).toEqual([
+      "Active0",
+      "On Hold0",
+      "Completed0",
+      "Dropped0",
+      "No Status1",
+    ]);
+    expect(section("TAGS")).toHaveTextContent("No tags yet");
   });
 
   it("shows the five statuses with how many articles of the scope have each", async () => {
     const { session } = await settingsSession();
     renderSidebar(BLOG, session);
 
-    expect(rowsOf("STATUS").map((row) => row.textContent)).toEqual([
-      "Active2",
-      "On Hold0",
-      "Completed0",
-      "Dropped0",
-      "No Status1",
+    expect(rowsOf("狀態").map((row) => row.textContent)).toEqual([
+      "進行中2",
+      "暫停0",
+      "已完成0",
+      "已放棄0",
+      "未標記1",
     ]);
   });
 
@@ -92,22 +124,22 @@ describe("Sidebar", () => {
     const { session } = await settingsSession();
     renderSidebar({ ...BLOG, articles: [] }, session);
 
-    expect(rowsOf("STATUS").map((row) => row.textContent)).toEqual([
-      "Active0",
-      "On Hold0",
-      "Completed0",
-      "Dropped0",
-      "No Status0",
+    expect(rowsOf("狀態").map((row) => row.textContent)).toEqual([
+      "進行中0",
+      "暫停0",
+      "已完成0",
+      "已放棄0",
+      "未標記0",
     ]);
-    expect(within(section("TAGS")).getByText("還沒有標籤")).toBeInTheDocument();
-    expect(rowsOf("TAGS")).toHaveLength(0);
+    expect(within(section("標籤")).getByText("還沒有標籤")).toBeInTheDocument();
+    expect(rowsOf("標籤")).toHaveLength(0);
   });
 
   it("lists the tags most used first with their counts", async () => {
     const { session } = await settingsSession();
     renderSidebar(BLOG, session);
 
-    expect(rowsOf("TAGS").map((row) => row.textContent)).toEqual([
+    expect(rowsOf("標籤").map((row) => row.textContent)).toEqual([
       "work2",
       "bug1",
     ]);
@@ -117,10 +149,10 @@ describe("Sidebar", () => {
     const { session } = await settingsSession();
     renderSidebar({ ...BLOG, sidebarFilter: SidebarFilter.NONE.toggleStatus("active").toggleTag("bug") }, session);
 
-    expect(within(section("STATUS")).getByRole("button", { pressed: true })).toHaveTextContent("Active2");
-    expect(within(section("STATUS")).getByRole("button", { name: /^No Status/ })).toHaveTextContent("1");
-    expect(within(section("TAGS")).getByRole("button", { pressed: true })).toHaveTextContent("bug1");
-    expect(within(section("TAGS")).getByRole("button", { name: /^work/ })).toHaveTextContent("2");
+    expect(within(section("狀態")).getByRole("button", { pressed: true })).toHaveTextContent("進行中2");
+    expect(within(section("狀態")).getByRole("button", { name: /^未標記/ })).toHaveTextContent("1");
+    expect(within(section("標籤")).getByRole("button", { pressed: true })).toHaveTextContent("bug1");
+    expect(within(section("標籤")).getByRole("button", { name: /^work/ })).toHaveTextContent("2");
   });
 
   it("keeps counting Completed while Active is chosen", async () => {
@@ -128,12 +160,12 @@ describe("Sidebar", () => {
     const articles = [article("active"), article("active"), article("active"), article("completed")];
     renderSidebar({ ...BLOG, articles, sidebarFilter: SidebarFilter.NONE.toggleStatus("active") }, session);
 
-    expect(rowsOf("STATUS").map((row) => row.textContent)).toEqual([
-      "Active3",
-      "On Hold0",
-      "Completed1",
-      "Dropped0",
-      "No Status0",
+    expect(rowsOf("狀態").map((row) => row.textContent)).toEqual([
+      "進行中3",
+      "暫停0",
+      "已完成1",
+      "已放棄0",
+      "未標記0",
     ]);
   });
 
@@ -141,9 +173,9 @@ describe("Sidebar", () => {
     const { session } = await settingsSession();
     const handlers = renderSidebar(BLOG, session);
 
-    fireEvent.click(within(section("STATUS")).getByRole("button", { name: /^No Status/ }));
-    fireEvent.click(within(section("TAGS")).getByRole("button", { name: /^bug/ }));
-    fireEvent.click(screen.getByRole("button", { name: "All Notes" }));
+    fireEvent.click(within(section("狀態")).getByRole("button", { name: /^未標記/ }));
+    fireEvent.click(within(section("標籤")).getByRole("button", { name: /^bug/ }));
+    fireEvent.click(screen.getByRole("button", { name: "所有文章" }));
 
     expect(handlers.onToggleStatus).toHaveBeenCalledWith("noStatus");
     expect(handlers.onToggleTag).toHaveBeenCalledWith("bug");
@@ -154,18 +186,18 @@ describe("Sidebar", () => {
     const { session } = await settingsSession();
     renderSidebar({ ...BLOG, selectedWorkspace: null, showsAllNotes: true }, session);
 
-    expect(screen.getByRole("button", { name: "All Notes" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "所有文章" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("folds a section away on its title and unfolds it on the next click, writing each choice", async () => {
     const { session, channels } = await settingsSession();
     renderSidebar(BLOG, session);
-    const title = within(section("TAGS")).getByRole("button", { name: /^TAGS/ });
+    const title = within(section("標籤")).getByRole("button", { name: /^標籤/ });
 
     act(() => fireEvent.click(title));
 
     expect(title).toHaveAttribute("aria-expanded", "false");
-    expect(within(section("TAGS")).queryByRole("button", { name: /^work/ })).not.toBeInTheDocument();
+    expect(within(section("標籤")).queryByRole("button", { name: /^work/ })).not.toBeInTheDocument();
     expect(channels.writeSettings).toHaveBeenLastCalledWith(
       expect.objectContaining({ sidebar: { collapsedSections: ["tags"] } }),
     );
@@ -173,7 +205,7 @@ describe("Sidebar", () => {
     act(() => fireEvent.click(title));
 
     expect(title).toHaveAttribute("aria-expanded", "true");
-    expect(within(section("TAGS")).getByRole("button", { name: /^work/ })).toBeInTheDocument();
+    expect(within(section("標籤")).getByRole("button", { name: /^work/ })).toBeInTheDocument();
     expect(channels.writeSettings).toHaveBeenLastCalledWith(
       expect.objectContaining({ sidebar: { collapsedSections: [] } }),
     );
@@ -183,9 +215,9 @@ describe("Sidebar", () => {
     const { session } = await settingsSession(["tags", "workspaces"]);
     renderSidebar(BLOG, session);
 
-    expect(section("TAGS")).not.toHaveTextContent("work");
+    expect(section("標籤")).not.toHaveTextContent("work");
     expect(section("WORKSPACES")).not.toHaveTextContent("workspace 清單");
-    expect(rowsOf("STATUS")).toHaveLength(5);
+    expect(rowsOf("狀態")).toHaveLength(5);
   });
 
   it("still folds the section when the settings cannot be written, without a word about it", async () => {
@@ -194,9 +226,9 @@ describe("Sidebar", () => {
     );
     renderSidebar(BLOG, session);
 
-    act(() => fireEvent.click(within(section("TAGS")).getByRole("button", { name: /^TAGS/ })));
+    act(() => fireEvent.click(within(section("標籤")).getByRole("button", { name: /^標籤/ })));
 
-    expect(section("TAGS")).not.toHaveTextContent("work");
+    expect(section("標籤")).not.toHaveTextContent("work");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

@@ -1,10 +1,12 @@
 import type { ArticleVocabulary } from "../articleMetadata/articleVocabulary";
 import { ArticleMetadataForm } from "../articleMetadata/ArticleMetadataForm";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { ArticleCreation, ArticleDraft } from "../vault/VaultSession";
 
 const NO_METADATA: ArticleDraft = { title: "", status: null, tags: [] };
 
 type CreateArticleDialogProps = {
+  workspace: string;
   openedAt: Date;
   vocabulary: ArticleVocabulary;
   onCreate: (draft: ArticleDraft) => Promise<ArticleCreation>;
@@ -12,25 +14,26 @@ type CreateArticleDialogProps = {
 };
 
 /** The only place a new article's title, status and tags are chosen. */
-export function CreateArticleDialog({ openedAt, vocabulary, onCreate, onClose }: CreateArticleDialogProps) {
+export function CreateArticleDialog({ workspace, openedAt, vocabulary, onCreate, onClose }: CreateArticleDialogProps) {
+  const messages = useMessages();
   return (
     <ArticleMetadataForm
-      heading="新文章"
+      heading={messages.newArticleHeading(workspace)}
       initial={NO_METADATA}
       vocabulary={vocabulary}
       operation="createArticle"
-      submitLabel="建立"
-      blankTitleHint="標題是必填的"
+      submitLabel={messages.create}
+      blankTitleHint={messages.blankTitleOnCreate}
       note={
         <>
-          建立於 {formatMinute(openedAt)}
+          {messages.createdAt(formatMinute(openedAt))}
           <br />
-          建立與更新時間由 Rustle 自動維護
+          {messages.timesKeptOnCreate}
         </>
       }
       onSubmit={async (draft) => {
         const creation = await onCreate(draft);
-        return creation.outcome === "created" ? null : creation.message;
+        return creation.outcome === "created" ? null : creation.reason;
       }}
       onClose={onClose}
     />

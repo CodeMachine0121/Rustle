@@ -105,7 +105,7 @@ describe("SaveStatusBar", () => {
       payload: { outcome: "modifiedElsewhere", lastKnownModifiedAt: ARTICLE.lastKnownModifiedAt },
     });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("檔案在外部被改動過");
+    expect(screen.getByRole("alert")).toHaveTextContent("這個檔案在 Rustle 之外被改動過");
     expect(screen.getByRole("button", { name: "覆寫" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新載入" })).toBeInTheDocument();
   });
@@ -192,7 +192,7 @@ describe("SaveStatusBar", () => {
     });
 
     expect(screen.getByText("儲存失敗：gone")).toBeInTheDocument();
-    expect(screen.getByText("檔案在外部被改動過")).toBeInTheDocument();
+    expect(screen.getByText("這個檔案在 Rustle 之外被改動過")).toBeInTheDocument();
   });
 
   it("keeps the warning and both choices after a switch is refused", async () => {
@@ -209,7 +209,7 @@ describe("SaveStatusBar", () => {
 
     expect(outcome).toBe("blockedByUnansweredWarning");
     expect(screen.getByText("寫作的禪")).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("檔案在外部被改動過");
+    expect(screen.getByRole("alert")).toHaveTextContent("這個檔案在 Rustle 之外被改動過");
     expect(screen.getByRole("button", { name: "覆寫" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新載入" })).toBeInTheDocument();
     expect(saveBody).toHaveBeenCalledTimes(1);

@@ -3,6 +3,7 @@ mod stored_settings;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::interface_language::InterfaceLanguage;
 use crate::vault_name::VaultPathError;
 use stored_settings::StoredSettings;
 
@@ -15,6 +16,9 @@ pub struct Settings {
     pub indentation: IndentationSettings,
     pub preview_panel: PreviewPanelSettings,
     pub last_opened: LastOpenedSettings,
+    /// `None` until the user chooses one; the webview then follows the system.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interface_language: Option<InterfaceLanguage>,
     pub sidebar: SidebarSettings,
 }
 

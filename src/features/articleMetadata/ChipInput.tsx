@@ -1,6 +1,7 @@
 import { useId, type KeyboardEvent } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import { candidatesFor, withChip } from "./chipValues";
 
 const CHIP_KEYS = ["Enter", ","];
@@ -29,6 +30,7 @@ export function ChipInput({
   onTypedChange,
 }: ChipInputProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const inputId = useId();
   const candidates = candidatesFor(vocabulary, typed, values);
 
@@ -61,7 +63,7 @@ export function ChipInput({
             {value}
             <button
               type="button"
-              aria-label={`移除 ${value}`}
+              aria-label={messages.removeChip(value)}
               onClick={() => onValuesChange(values.filter((chip) => chip !== value))}
             >
               ×
@@ -80,7 +82,7 @@ export function ChipInput({
         />
       </div>
       {candidates.length > 0 && (
-        <ul className="chip-input__candidates" aria-label={`${label} 候選`}>
+        <ul className="chip-input__candidates" aria-label={messages.candidatesFor(label)}>
           {candidates.map((candidate) => (
             <li key={candidate}>
               <button type="button" onClick={() => addChip(candidate)}>

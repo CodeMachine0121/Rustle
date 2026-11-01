@@ -111,7 +111,7 @@ describe("WorkspaceColumn", () => {
   it("says in one line that the workspaces could not be read", () => {
     renderColumn({ ...EMPTY, workspaceListFailure: "permission denied" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("讀不到 workspace");
+    expect(screen.getByRole("alert")).toHaveTextContent("讀不到 vault");
     expect(screen.queryByText("建立你的第一個 workspace")).not.toBeInTheDocument();
   });
 

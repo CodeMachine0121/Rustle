@@ -1,3 +1,4 @@
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { TagCount } from "./sidebarCounts";
 import { SidebarRow } from "./SidebarRow";
 
@@ -8,8 +9,9 @@ type TagSectionProps = {
 };
 
 export function TagSection({ tags, chosen, onToggle }: TagSectionProps) {
+  const messages = useMessages();
   if (tags.length === 0) {
-    return <p className="empty-state">還沒有標籤</p>;
+    return <p className="empty-state">{messages.noTagsYet}</p>;
   }
   return (
     <ul className="column-list">

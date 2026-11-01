@@ -4,6 +4,7 @@ import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
 import { NewWorkspaceField } from "./NewWorkspaceField";
 import { RenameWorkspaceField } from "./RenameWorkspaceField";
 import type { VaultSnapshot } from "./VaultSession";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 type WorkspaceColumnProps = {
   snapshot: VaultSnapshot;
@@ -22,6 +23,7 @@ export function WorkspaceColumn({
 }: WorkspaceColumnProps) {
   const { workspaces, selectedWorkspace, workspaceListFailure, renameRejection } = snapshot;
   const [renaming, setRenaming] = useState<string | null>(null);
+  const messages = useMessages();
   return (
     <>
       <NewWorkspaceField
@@ -31,11 +33,11 @@ export function WorkspaceColumn({
       />
       {workspaceListFailure !== null && (
         <p className="column-message" role="alert">
-          讀不到 workspace：{workspaceListFailure}
+          {messages.vaultUnreadable(workspaceListFailure)}
         </p>
       )}
       {workspaceListFailure === null && workspaces.length === 0 && (
-        <p className="empty-state">建立你的第一個 workspace</p>
+        <p className="empty-state">{messages.firstWorkspace}</p>
       )}
       <ul className="column-list">
         {workspaces.map((workspace) => (
@@ -57,17 +59,17 @@ export function WorkspaceColumn({
                 <div className="row-actions">
                   <button
                     type="button"
-                    aria-label={`重新命名 ${workspace.name}`}
+                    aria-label={messages.renameWorkspace(workspace.name)}
                     onClick={() => setRenaming(workspace.name)}
                   >
-                    重新命名
+                    {messages.rename}
                   </button>
                   <button
                     type="button"
-                    aria-label={`刪除 ${workspace.name}`}
+                    aria-label={messages.deleteWorkspace(workspace.name)}
                     onClick={() => onDelete(workspace.name)}
                   >
-                    刪除
+                    {messages.delete}
                   </button>
                 </div>
               </>
@@ -86,6 +88,7 @@ type WorkspaceRowProps = {
 };
 
 function WorkspaceRow({ workspace, isSelected, onSelect }: WorkspaceRowProps) {
+  const messages = useMessages();
   return (
     <button
       type="button"
@@ -95,11 +98,11 @@ function WorkspaceRow({ workspace, isSelected, onSelect }: WorkspaceRowProps) {
     >
       <span className="row-title">{workspace.name}</span>
       {workspace.articleCount === null ? (
-        <span className="row-count" aria-label="讀不到篇數">
+        <span className="row-count" aria-label={messages.unknownArticleCount}>
           ?
         </span>
       ) : (
-        <span className="row-count" aria-label={`${workspace.articleCount} 篇文章`}>
+        <span className="row-count" aria-label={messages.articleCount(workspace.articleCount)}>
           {workspace.articleCount}
         </span>
       )}

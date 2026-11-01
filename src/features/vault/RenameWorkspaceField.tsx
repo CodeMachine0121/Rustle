@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
-import { WORKSPACE_NAME_REJECTION_EXPLANATIONS } from "./workspaceNameRejection";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 type RenameWorkspaceFieldProps = {
   workspace: string;
@@ -14,6 +14,7 @@ type RenameWorkspaceFieldProps = {
 /** Renames in place: Enter renames and Esc gives up, unless the input method owns the key. */
 export function RenameWorkspaceField({ workspace, rejection, onRename, onCancel }: RenameWorkspaceFieldProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const inputRef = useRef<HTMLInputElement>(null);
   const [typedName, setTypedName] = useState(workspace);
 
@@ -45,7 +46,7 @@ export function RenameWorkspaceField({ workspace, rejection, onRename, onCancel 
       <input
         ref={inputRef}
         type="text"
-        aria-label={`${workspace} 的新名稱`}
+        aria-label={messages.newNameFor(workspace)}
         value={typedName}
         onChange={(event) => setTypedName(event.target.value)}
         onKeyDown={handleKeyDown}
@@ -55,15 +56,15 @@ export function RenameWorkspaceField({ workspace, rejection, onRename, onCancel 
       />
       <div className="row-actions">
         <button type="button" onClick={onCancel}>
-          取消
+          {messages.cancel}
         </button>
         <button type="button" onClick={() => void rename()}>
-          重新命名
+          {messages.rename}
         </button>
       </div>
       {rejection !== null && (
         <p className="column-message" role="alert">
-          {WORKSPACE_NAME_REJECTION_EXPLANATIONS[rejection]}
+          {messages.workspaceNameRejections[rejection]}
         </p>
       )}
     </div>

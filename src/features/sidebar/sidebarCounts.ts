@@ -1,7 +1,7 @@
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import { STATUS_CHOICES, statusChoiceOf, type StatusChoice } from "./statusChoice";
 
-export type StatusCount = { choice: StatusChoice; label: string; count: number };
+export type StatusCount = { choice: StatusChoice; count: number };
 
 export type TagCount = { tag: string; count: number };
 
@@ -23,11 +23,7 @@ export function sidebarCounts(articles: readonly ArticleSummary[]): SidebarCount
     }
   }
   return {
-    statuses: STATUS_CHOICES.map(({ choice, label }) => ({
-      choice,
-      label,
-      count: statusCounts.get(choice) ?? 0,
-    })),
+    statuses: STATUS_CHOICES.map((choice) => ({ choice, count: statusCounts.get(choice) ?? 0 })),
     tags: [...tagCounts]
       .map(([tag, count]) => ({ tag, count }))
       .sort((first, second) => second.count - first.count || compareNames(first.tag, second.tag)),

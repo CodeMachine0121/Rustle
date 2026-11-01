@@ -71,6 +71,8 @@ function answerFromAVault(
           updatedAt: "2026-08-20T08:05:00.000Z",
           lastKnownModifiedAt: "2026-08-20T08:05:00.100Z",
         });
+      case "read_preferred_locales":
+        return Promise.resolve({ locales: ["zh-Hant-TW", "en-US"] });
       case "write_settings":
       case "watch_close_requests":
         return Promise.resolve(null);
@@ -122,6 +124,7 @@ describe("App", () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.mocked(invoke).mockReset();
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["zh-TW"]);
   });
 
   it("opens where the user left off", async () => {
@@ -140,7 +143,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByRole("button", { name: /^Blog/ });
-    expect(within(screen.getByRole("region", { name: "EDITOR" })).getByText("選一篇文章開始寫作")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "編輯區" })).getByText("還沒有選取文章")).toBeInTheDocument();
     expect(editorContent()).toBeNull();
   });
 
@@ -205,12 +208,13 @@ describe("App", () => {
     render(<App />);
     await waitFor(() => expect(editorContent()).not.toBeNull());
 
-    const regions = screen.getAllByRole("region");
-    const focusable = regions.map(
-      (region) => within(region).queryAllByRole("textbox").length + within(region).queryAllByRole("button").length,
+    const sidebar = screen.getByRole("navigation");
+    const columns = [sidebar, ...screen.getAllByRole("region").filter((region) => !sidebar.contains(region))];
+    const focusable = columns.map(
+      (column) => within(column).queryAllByRole("textbox").length + within(column).queryAllByRole("button").length,
     );
     const order = [...document.querySelectorAll("input, button, [contenteditable='true']")].map(
-      (element) => regions.findIndex((region) => region.contains(element)),
+      (element) => columns.findIndex((column) => column.contains(element)),
     );
 
     expect(focusable.every((count) => count > 0)).toBe(true);
@@ -220,7 +224,9 @@ describe("App", () => {
 
   it("says in one line that the vault could not be read and stays usable", async () => {
     vi.mocked(invoke).mockImplementation((command) =>
-      command === "list_workspaces"
+      command === "read_preferred_locales"
+        ? Promise.resolve({ locales: ["zh-Hant-TW"] })
+        : command === "list_workspaces"
         ? Promise.reject({ reason: "unexpected", message: "permission denied" })
         : Promise.resolve({
             indentation: { style: "spaces", width: 2 },
@@ -232,7 +238,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("讀不到 workspace");
+    expect(await screen.findByRole("alert")).toHaveTextContent("讀不到 vault");
     expect(screen.getByRole("textbox", { name: "新 workspace 名稱" })).toBeEnabled();
   });
 
@@ -351,7 +357,7 @@ describe("App", () => {
 
   describe("preview panel", () => {
     function previewRegion(): HTMLElement {
-      return screen.getByRole("region", { name: "PREVIEW" });
+      return screen.getByRole("region", { name: "預覽區" });
     }
 
     function typeAtTheEnd(text: string) {
@@ -379,8 +385,8 @@ describe("App", () => {
       render(<App />);
       await screen.findByRole("button", { name: /^Blog/ });
 
-      expect(screen.getAllByText("選一篇文章開始寫作")).toHaveLength(2);
-      expect(within(previewRegion()).getByText("選一篇文章開始寫作")).toBeInTheDocument();
+      expect(screen.getAllByText("還沒有選取文章")).toHaveLength(2);
+      expect(within(previewRegion()).getByText("還沒有選取文章")).toBeInTheDocument();
       expect(previewRegion().querySelector("[contenteditable], input, textarea")).toBeNull();
     });
 
@@ -392,11 +398,11 @@ describe("App", () => {
       expect(
         await within(previewRegion()).findByRole("heading", { name: "Q3 回顧" }),
       ).toBeInTheDocument();
-      expect(within(previewRegion()).queryByText("選一篇文章開始寫作")).not.toBeInTheDocument();
+      expect(within(previewRegion()).queryByText("還沒有選取文章")).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: /^Blog/ }));
 
-      expect(await within(previewRegion()).findByText("選一篇文章開始寫作")).toBeInTheDocument();
+      expect(await within(previewRegion()).findByText("還沒有選取文章")).toBeInTheDocument();
     });
 
     it("follows what is typed in the editor, not what is on disk", async () => {
@@ -419,7 +425,7 @@ describe("App", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "關閉預覽" }));
 
-      expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
       expect(screen.queryAllByRole("heading", { name: "Q3 回顧" })).toHaveLength(0);
       expect(invoke).toHaveBeenLastCalledWith("write_settings", {
         settings: {
@@ -480,7 +486,7 @@ describe("App", () => {
       render(<App />);
 
       expect(await screen.findByRole("button", { name: "開啟預覽" })).toBeInTheDocument();
-      expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
     });
 
     it("toggles with the shortcut written in the settings", async () => {
@@ -490,12 +496,14 @@ describe("App", () => {
 
       fireEvent.keyDown(window, { ctrlKey: true, altKey: true, key: "k", code: "KeyK" });
 
-      expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
     });
 
     it("stays usable when the settings cannot be read, without writing any", async () => {
       vi.mocked(invoke).mockImplementation((command) =>
-        command === "read_settings"
+        command === "read_preferred_locales"
+          ? Promise.resolve({ locales: ["zh-Hant-TW"] })
+          : command === "read_settings"
           ? Promise.reject({ reason: "unexpected", message: "permission denied" })
           : Promise.resolve([]),
       );
@@ -520,7 +528,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Title"), { target: { value: "New Article" } });
+    fireEvent.change(within(dialog).getByLabelText("標題"), { target: { value: "New Article" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "建立" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -553,7 +561,7 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "＋ 新文章" }));
 
-    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+    fireEvent.keyDown(screen.getByLabelText("標題"), { key: "Escape" });
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalledWith("create_article", expect.anything());
@@ -561,7 +569,7 @@ describe("App", () => {
 
   describe("sidebar", () => {
     function articlesRegion() {
-      return screen.getByRole("region", { name: "ARTICLES" });
+      return screen.getByRole("region", { name: "文章" });
     }
 
     it("lists every workspace under All Notes and opens an article from its own workspace", async () => {
@@ -569,7 +577,7 @@ describe("App", () => {
       render(<App />);
       await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
 
-      fireEvent.click(screen.getByRole("button", { name: "All Notes" }));
+      fireEvent.click(screen.getByRole("button", { name: "所有文章" }));
       const q3 = await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
       expect(q3).toHaveTextContent("Work");
       expect(screen.getByRole("button", { name: /^Blog/ })).toHaveAttribute("aria-pressed", "false");
@@ -583,12 +591,12 @@ describe("App", () => {
     it("narrows the list to the status clicked in the sidebar and clears it on another scope", async () => {
       answerFromAVault({ workspace: null, article: null });
       render(<App />);
-      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "所有文章" }));
       await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
-      const statusSection = screen.getByRole("region", { name: "STATUS" });
-      expect(within(statusSection).getByRole("button", { name: /^Completed/ })).toHaveTextContent("1");
+      const statusSection = screen.getByRole("region", { name: "狀態" });
+      expect(within(statusSection).getByRole("button", { name: /^已完成/ })).toHaveTextContent("1");
 
-      fireEvent.click(within(statusSection).getByRole("button", { name: /^Active/ }));
+      fireEvent.click(within(statusSection).getByRole("button", { name: /^進行中/ }));
 
       expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
       expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
@@ -596,19 +604,19 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
 
       expect(await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ })).toBeInTheDocument();
-      expect(within(statusSection).getByRole("button", { name: /^Active/ })).toHaveAttribute("aria-pressed", "false");
+      expect(within(statusSection).getByRole("button", { name: /^進行中/ })).toHaveAttribute("aria-pressed", "false");
     });
 
     it("keeps narrowing the list by a status whose section is folded", async () => {
       answerFromAVault({ workspace: null, article: null });
       render(<App />);
-      fireEvent.click(await screen.findByRole("button", { name: "All Notes" }));
+      fireEvent.click(await screen.findByRole("button", { name: "所有文章" }));
       await within(articlesRegion()).findByRole("button", { name: /^Q3 回顧/ });
-      fireEvent.click(within(screen.getByRole("region", { name: "STATUS" })).getByRole("button", { name: /^Active/ }));
+      fireEvent.click(within(screen.getByRole("region", { name: "狀態" })).getByRole("button", { name: /^進行中/ }));
 
-      fireEvent.click(screen.getByRole("button", { name: /^STATUS/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^狀態/ }));
 
-      expect(within(screen.getByRole("region", { name: "STATUS" })).queryByRole("button", { name: /^Active/ })).toBeNull();
+      expect(within(screen.getByRole("region", { name: "狀態" })).queryByRole("button", { name: /^進行中/ })).toBeNull();
       expect(within(articlesRegion()).queryByRole("button", { name: /^Q3 回顧/ })).not.toBeInTheDocument();
       expect(within(articlesRegion()).getByRole("button", { name: /^Tauri/ })).toBeInTheDocument();
     });
@@ -679,9 +687,9 @@ describe("App", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
       const dialog = screen.getByRole("dialog");
-      fireEvent.change(within(dialog).getByLabelText("Tags"), { target: { value: "隨" } });
+      fireEvent.change(within(dialog).getByLabelText("標籤"), { target: { value: "隨" } });
 
-      expect(within(dialog).getByRole("list", { name: "Tags 候選" })).toHaveTextContent("隨筆");
+      expect(within(dialog).getByRole("list", { name: "標籤 候選" })).toHaveTextContent("隨筆");
     });
   });
 
@@ -713,8 +721,8 @@ describe("App", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "編輯 Tauri 與 Electron 的 metadata" }));
       const dialog = screen.getByRole("dialog");
-      expect(within(dialog).getByLabelText("Title")).toHaveValue("Tauri 與 Electron");
-      fireEvent.change(within(dialog).getByLabelText("Title"), { target: { value: "新標題" } });
+      expect(within(dialog).getByLabelText("標題")).toHaveValue("Tauri 與 Electron");
+      fireEvent.change(within(dialog).getByLabelText("標題"), { target: { value: "新標題" } });
       fireEvent.click(within(dialog).getByRole("button", { name: "儲存" }));
 
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -755,7 +763,7 @@ describe("App", () => {
       await startInBlog();
 
       fireEvent.click(screen.getByRole("button", { name: "編輯 Zen of Writing 的 metadata" }));
-      fireEvent.change(screen.getByLabelText("Title"), { target: { value: "新標題" } });
+      fireEvent.change(screen.getByLabelText("標題"), { target: { value: "新標題" } });
       fireEvent.click(screen.getByRole("button", { name: "儲存" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
@@ -846,7 +854,7 @@ describe("App", () => {
       });
       await startInBlog();
       fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
-      fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Zen" } });
+      fireEvent.change(screen.getByLabelText("標題"), { target: { value: "Zen" } });
       fireEvent.click(screen.getByRole("button", { name: "建立" }));
       await waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
       fireEvent.click(screen.getByRole("button", { name: "取消" }));
@@ -860,5 +868,199 @@ describe("App", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });
-});
 
+  describe("interface language", () => {
+    function answerInLanguage(interfaceLanguage: string | undefined, systemLocales: string[]) {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answerFromTheVault = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        if (command === "read_preferred_locales") {
+          return { locales: systemLocales };
+        }
+        const answer = await answerFromTheVault?.(command, args);
+        return command === "read_settings" && interfaceLanguage !== undefined
+          ? { ...(answer as object), interfaceLanguage }
+          : answer;
+      });
+    }
+
+    function regionTitles() {
+      return screen
+        .getAllByRole("heading", { level: 2 })
+        .filter((heading) => heading.closest("nav") === null)
+        .map((heading) => heading.textContent);
+    }
+
+    async function openSettings(name = "設定") {
+      fireEvent.click(screen.getByRole("button", { name }));
+      return screen.findByRole("dialog");
+    }
+
+    async function renderWithTheArticleOpen() {
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+    }
+
+    it("puts the gear at the bottom of the sidebar", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      const sidebar = screen.getByRole("navigation", { name: "側邊欄" });
+      const gear = within(sidebar).getByRole("button", { name: "設定" });
+      expect(within(sidebar).getAllByRole("button").at(-1)).toBe(gear);
+      expect(gear.closest(".region-footer")).not.toBeNull();
+    });
+
+    it("speaks Chinese on a Chinese system until anything is chosen", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      expect(regionTitles()).toEqual(["文章", "編輯", "預覽"]);
+      expect(document.documentElement.lang).toBe("zh-Hant");
+    });
+
+    it("speaks English on a system in a language it does not support", async () => {
+      answerInLanguage(undefined, ["ja-JP"]);
+      render(<App />);
+
+      await waitFor(() => expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]));
+      expect(document.documentElement.lang).toBe("en");
+    });
+
+    it("speaks the language chosen before, whatever the system says", async () => {
+      answerInLanguage("en", ["zh-Hant-TW"]);
+      render(<App />);
+
+      await waitFor(() => expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]));
+      expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    });
+
+    it("changes the whole screen at once and remembers it with every other setting", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      const dialog = await openSettings();
+      expect(within(dialog).getByRole("heading", { name: "設定" })).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole("radio", { name: "English" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]);
+      expect(screen.getByRole("textbox", { name: "New workspace name" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: 'Delete "Zen of Writing"' })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
+      expect(invoke).toHaveBeenCalledWith("write_settings", {
+        settings: {
+          indentation: { style: "spaces", width: 2 },
+          previewPanel: { isOpen: true, widthRatio: 0.5 },
+          lastOpened: { workspace: "Blog", article: "zen-of-writing.md" },
+          sidebar: { collapsedSections: [] },
+          interfaceLanguage: "en",
+        },
+      });
+    });
+
+    it("leaves no Chinese of its own on screen in English, only the writer's words", async () => {
+      answerInLanguage("en", ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+      await waitFor(() => expect(regionTitles()).toContain("ARTICLES"));
+      const writersWords = ["正文的第一行。", "Tauri 與 Electron"];
+
+      const elements = [...document.body.querySelectorAll("*")];
+      const shown = [
+        ...elements.flatMap((element) =>
+          [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent ?? ""),
+        ),
+        ...elements.flatMap((element) =>
+          ["aria-label", "placeholder", "title"].map((attribute) => element.getAttribute(attribute) ?? ""),
+        ),
+      ];
+      const rustlesOwnChinese = shown
+        .map((text) => writersWords.reduce((rest, words) => rest.replaceAll(words, ""), text))
+        .filter((text) => /\p{Script=Han}/u.test(text));
+
+      expect(rustlesOwnChinese).toEqual([]);
+    });
+
+    it("keeps the product name as the page title in both languages", async () => {
+      document.title = "Rustle";
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
+      expect(document.title).toBe("Rustle");
+      fireEvent.click(within(await openSettings("Settings")).getByRole("radio", { name: "中文" }));
+
+      expect(document.title).toBe("Rustle");
+    });
+
+    it("changes nothing on screen when the language in use is chosen", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+      const before = document.querySelector(".app-layout")?.textContent;
+
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "中文" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.querySelector(".app-layout")?.textContent).toBe(before);
+    });
+
+    it.each(["Escape", "a click on the dimmed backdrop"] as const)(
+      "closes on %s without changing the language",
+      async (way) => {
+        answerInLanguage(undefined, ["zh-Hant-TW"]);
+        await renderWithTheArticleOpen();
+        const dialog = await openSettings();
+
+        if (way === "Escape") {
+          fireEvent.keyDown(within(dialog).getByRole("radio", { name: "中文" }), { key: "Escape" });
+        } else {
+          fireEvent.click(screen.getByTestId("settings-backdrop"));
+        }
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(regionTitles()).toEqual(["文章", "編輯", "預覽"]);
+        expect(screen.getByRole("button", { name: "設定" })).toHaveFocus();
+        expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
+      },
+    );
+
+    it("keeps the body, its unsaved change and the cursor when the language changes", async () => {
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+      const content = editorContent();
+      const view = content === null ? null : EditorView.findFromDOM(content);
+      if (content === null || view === null) {
+        throw new Error("the editor did not render");
+      }
+      act(() => view.dispatch({ changes: { from: 0, insert: "新的" }, selection: { anchor: 2 } }));
+
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
+
+      expect(EditorView.findFromDOM(content)).toBe(view);
+      expect(view.state.doc.toString()).toBe("新的正文的第一行。");
+      expect(view.state.selection.main.head).toBe(2);
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+      await waitFor(
+        () => expect(invoke).toHaveBeenCalledWith("save_body", expect.objectContaining({ body: "新的正文的第一行。" })),
+        { timeout: 2000 },
+      );
+    });
+
+    it("sends no language with a new article, so the file does not depend on it", async () => {
+      answerFromAVaultThatCreatesArticles();
+      await renderWithTheArticleOpen();
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "＋ New article" }));
+      fireEvent.change(screen.getByLabelText("Title"), { target: { value: "New Article" } });
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Create" })));
+
+      expect(invoke).toHaveBeenCalledWith("create_article", {
+        workspace: "Blog",
+        title: "New Article",
+        status: null,
+        tags: [],
+      });
+    });
+  });
+});

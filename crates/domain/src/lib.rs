@@ -11,6 +11,7 @@ mod clock;
 mod identifier_generator;
 mod image_asset_repository;
 mod image_converter;
+mod interface_language;
 mod local_timestamp;
 mod metadata_update;
 mod pasted_image;
@@ -44,6 +45,9 @@ pub use image_asset_repository::{ImageAssetRepository, ImageAssetRepositoryError
 #[cfg(any(test, feature = "mocks"))]
 pub use image_converter::MockImageConverter;
 pub use image_converter::{ImageConversionError, ImageConverter};
+#[cfg(any(test, feature = "mocks"))]
+pub use interface_language::MockLanguagePreferences;
+pub use interface_language::{InterfaceLanguage, LanguagePreferences};
 pub use local_timestamp::LocalTimestamp;
 pub use metadata_update::MetadataUpdate;
 pub use pasted_image::{ImageStorage, PNG_EXTENSION, PastedImage};

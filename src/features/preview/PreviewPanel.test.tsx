@@ -21,7 +21,7 @@ describe("PreviewPanel", () => {
       <PreviewPanel previewedBody={new PreviewedBody(editorSession(), new CompositionState())} />,
     );
 
-    expect(screen.getByText("選一篇文章開始寫作")).toBeInTheDocument();
+    expect(screen.getByText("還沒有選取文章")).toBeInTheDocument();
     expect(container.querySelector("[contenteditable], input, textarea")).toBeNull();
   });
 
@@ -42,7 +42,7 @@ describe("PreviewPanel", () => {
     );
 
     expect(screen.getByRole("heading", { level: 1, name: "只有正文" })).toBeInTheDocument();
-    expect(screen.queryByText("選一篇文章開始寫作")).not.toBeInTheDocument();
+    expect(screen.queryByText("還沒有選取文章")).not.toBeInTheDocument();
   });
 
   it("shows an image of the article's workspace through the vault scheme", async () => {
@@ -80,7 +80,7 @@ describe("PreviewPanel", () => {
     );
 
     expect(screen.getByRole("article", { name: "預覽內容" })).toBeEmptyDOMElement();
-    expect(screen.queryByText("選一篇文章開始寫作")).not.toBeInTheDocument();
+    expect(screen.queryByText("還沒有選取文章")).not.toBeInTheDocument();
   });
 
   describe("scroll sync", () => {

@@ -129,7 +129,7 @@ describe("AutosavedEditor", () => {
     act(() => {
       content.dispatchEvent(paste);
     });
-    expect(screen.getByRole("status")).toHaveTextContent("正在存圖片…");
+    expect(screen.getByRole("status")).toHaveTextContent("圖片儲存中…");
 
     await act(async () => {
       finish();

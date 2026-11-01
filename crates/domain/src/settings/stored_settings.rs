@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 
+use crate::interface_language::InterfaceLanguage;
+
 use super::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
     SidebarSection, SidebarSettings,
@@ -37,6 +39,7 @@ pub(super) struct StoredSettings {
     indentation: Tolerant<StoredIndentation>,
     preview_panel: Tolerant<StoredPreviewPanel>,
     last_opened: Tolerant<StoredLastOpened>,
+    interface_language: Tolerant<Option<InterfaceLanguage>>,
     sidebar: Tolerant<StoredSidebar>,
 }
 
@@ -109,6 +112,7 @@ impl From<StoredSettings> for Settings {
                 workspace: last_opened.workspace.or(None),
                 article: last_opened.article.or(None),
             },
+            interface_language: stored.interface_language.or(None),
             sidebar: stored.sidebar.or_default().into(),
         }
     }

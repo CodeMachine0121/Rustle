@@ -27,7 +27,7 @@ describe("EditorColumn", () => {
   it("offers nowhere to type while no article is open", () => {
     const { container } = renderColumn(NOTHING_OPEN);
 
-    expect(screen.getByText("選一篇文章開始寫作")).toBeInTheDocument();
+    expect(screen.getByText("還沒有選取文章")).toBeInTheDocument();
     expect(container.querySelector("[contenteditable], textarea, input")).toBeNull();
   });
 

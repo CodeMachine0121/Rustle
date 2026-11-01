@@ -69,7 +69,7 @@ describe("ArticleColumn", () => {
 
     const row = screen.getByRole("button", { name: /^Tauri 與 Electron 的取捨/ });
     expect(row).toHaveTextContent("2026-08-20");
-    expect(row).toHaveTextContent("Active");
+    expect(row).toHaveTextContent("進行中");
     expect(row).not.toHaveTextContent("Blog");
     expect(row).toHaveTextContent("tauri");
     expect(row).toHaveTextContent("electron");
@@ -131,13 +131,13 @@ describe("ArticleColumn", () => {
   it("asks for a workspace when none is selected", () => {
     renderColumn({ ...BLOG, selectedWorkspace: null, articles: [] });
 
-    expect(screen.getByText("選一個 workspace")).toBeInTheDocument();
+    expect(screen.getByText("先選一個 workspace")).toBeInTheDocument();
   });
 
   it("says in one line that the articles could not be read", () => {
     renderColumn({ ...BLOG, articles: [], articleListFailure: "permission denied" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("讀不到文章");
+    expect(screen.getByRole("alert")).toHaveTextContent("讀不到這個 workspace");
   });
 
   it("offers to edit the metadata of and to delete every article", () => {
@@ -360,7 +360,7 @@ describe("ArticleColumn ordering and filtering", () => {
     expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing"]);
     const openRow = screen.getByRole("button", { name: /^Zen of Writing/ });
     expect(openRow).toHaveAttribute("aria-pressed", "true");
-    expect(openRow).toHaveTextContent("開著的・不符合篩選");
+    expect(openRow).toHaveTextContent("開著・不符合篩選");
     expect(screen.getByRole("button", { name: /^Tauri/ })).not.toHaveTextContent("不符合篩選");
     expect(onSelect).not.toHaveBeenCalled();
   });
@@ -408,7 +408,7 @@ describe("ArticleColumn with the sidebar and All Notes", () => {
       selectedArticle: { workspace: "Blog", fileName: "no-title.md" },
     });
 
-    expect(screen.getByRole("button", { name: /^no-title/ })).toHaveTextContent("開著的");
+    expect(screen.getByRole("button", { name: /^no-title/ })).toHaveTextContent("開著・不符合篩選");
   });
 
   it("lists two articles with the same file name from two workspaces as two rows, each naming its workspace", () => {
@@ -441,13 +441,13 @@ describe("ArticleColumn with the sidebar and All Notes", () => {
     fireEvent.click(screen.getByRole("button", { name: "＋ 新文章" }));
 
     expect(onCreateArticle).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent("請先選一個 workspace");
+    expect(screen.getByRole("alert")).toHaveTextContent("請先在左邊選一個 workspace");
   });
 
   it("says the vault has no articles under All Notes instead of inviting a first one", () => {
     renderColumn({ ...ALL_NOTES, articles: [] });
 
-    expect(screen.getByText("還沒有任何文章")).toBeInTheDocument();
+    expect(screen.getByText("vault 裡還沒有文章")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "建立第一篇文章" })).not.toBeInTheDocument();
   });
 });

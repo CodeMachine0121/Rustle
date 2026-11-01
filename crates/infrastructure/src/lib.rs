@@ -10,6 +10,7 @@ mod raster_image_converter;
 mod resolved_vault_scope;
 mod system_clipboard;
 mod system_clock;
+mod system_language_preferences;
 mod system_trash;
 mod uuid_generator;
 
@@ -22,5 +23,6 @@ pub use raster_image_converter::RasterImageConverter;
 pub use resolved_vault_scope::ResolvedVaultScope;
 pub use system_clipboard::SystemClipboard;
 pub use system_clock::SystemClock;
+pub use system_language_preferences::SystemLanguagePreferences;
 pub use system_trash::SystemTrash;
 pub use uuid_generator::UuidGenerator;

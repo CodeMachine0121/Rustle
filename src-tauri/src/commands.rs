@@ -10,6 +10,7 @@ pub mod list_all_articles;
 pub mod list_articles;
 pub mod list_workspaces;
 pub mod read_body;
+pub mod read_preferred_locales;
 pub mod read_settings;
 pub mod rename_workspace;
 pub mod save_body;

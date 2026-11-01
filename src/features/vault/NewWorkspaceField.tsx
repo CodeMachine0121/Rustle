@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 
 import type { WorkspaceNameRejection } from "../../ipc/createWorkspaceOutcome";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
-import { WORKSPACE_NAME_REJECTION_EXPLANATIONS } from "./workspaceNameRejection";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 
 type NewWorkspaceFieldProps = {
   rejection: WorkspaceNameRejection | null;
@@ -12,6 +12,7 @@ type NewWorkspaceFieldProps = {
 
 export function NewWorkspaceField({ rejection, failure, onCreate }: NewWorkspaceFieldProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const [typedName, setTypedName] = useState("");
 
   const submit = async () => {
@@ -28,14 +29,14 @@ export function NewWorkspaceField({ rejection, failure, onCreate }: NewWorkspace
     void submit();
   };
 
-  const problem = rejection === null ? failure : WORKSPACE_NAME_REJECTION_EXPLANATIONS[rejection];
+  const problem = rejection === null ? failure : messages.workspaceNameRejections[rejection];
 
   return (
     <div className="new-workspace-field">
       <input
         type="text"
-        aria-label="新 workspace 名稱"
-        placeholder="＋ 新增 workspace"
+        aria-label={messages.newWorkspaceName}
+        placeholder={messages.newWorkspacePlaceholder}
         value={typedName}
         onChange={(event) => setTypedName(event.target.value)}
         onKeyDown={handleKeyDown}
