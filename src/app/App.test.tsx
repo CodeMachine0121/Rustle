@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { undo } from "@codemirror/commands";
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -1946,7 +1947,7 @@ describe("App", () => {
       expect(isZen()).toBe(false);
     });
 
-    it("cuts what Vim deletes onto the system clipboard and pastes what the clipboard holds", async () => {
+    it("pastes what the system clipboard holds and yanks onto it, in a vault with Vim on", async () => {
       answerWithVimMode(true);
       const answer = vi.mocked(invoke).getMockImplementation();
       vi.mocked(invoke).mockImplementation(async (command, args) =>
@@ -1960,9 +1961,9 @@ describe("App", () => {
       press(content, "p");
       expect(view.state.doc.toString()).toBe("正營收成長文的第一行。");
 
-      press(content, "0");
-      press(content, "x");
-      expect(invoke).toHaveBeenCalledWith("write_clipboard_text", { text: "正" });
+      act(() => view.dispatch({ selection: EditorSelection.single(1, 5), userEvent: "select.pointer" }));
+      press(content, "y");
+      expect(invoke).toHaveBeenCalledWith("write_clipboard_text", { text: "營收成長" });
     });
 
     it("still saves a pasted image into the workspace with Vim on", async () => {
