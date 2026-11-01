@@ -80,6 +80,7 @@ No code implements an Out of Scope item (no shrink key, no menu translation, no 
 - Conforms: 35/41 clauses ✅ (85%)
 - Violations: none
 - Mis-asserted: AC-24 — the close path (`close_window_on_request` → `Window::close`) has no automated test: Tauri's mock runtime closes a window without any trace a test can read, and native menus cannot be pressed from a test. Kept as an explicit manual check in `docs/ime-regression-checklist.md` (Cmd+W / Shift+Cmd+W line)
+- Scope note on AC-18..AC-20 and BR-7: the APP tests only prove that no JS path sends a close request on Cmd+W. Cmd+W used to close the window through a native menu accelerator, which jsdom cannot observe. The real guard against "Cmd+W closes the window" is MENU (no Cmd+W row, both Close Window rows rebound to Shift+Cmd+W) plus the manual Cmd+W / Shift+Cmd+W line in `docs/ime-regression-checklist.md`
 - Partial (each an explicit, justified manual or compile-time item): AC-26, AC-27, AC-28 (the stock rows are pinned row by row against `Menu::default`; pressing Cmd+Q / copy / paste / undo / redo through the native menu is manual, same checklist line); NFR-4 (compile-time `cfg`); NFR-5 (nothing to test)
 - Gaps: none
 - Unclear: none
