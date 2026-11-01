@@ -26,7 +26,7 @@ describe("channels", () => {
     expect(invoke).toHaveBeenLastCalledWith(commandName, undefined);
   });
 
-  it("offers exactly the channels the backend registers", () => {
+  it("offers exactly the channels listed in this test", () => {
     expect(Object.keys(channels).sort()).toEqual(Object.keys(COMMAND_NAMES).sort());
   });
 });

@@ -65,3 +65,29 @@ fn a_name_that_is_not_a_channel_is_rejected_as_unknown() {
             .contains("format_disk")
     );
 }
+
+#[test]
+fn the_webview_channel_list_matches_the_backend_channels() {
+    let webview_channels = include_str!("../../src/ipc/channels.ts");
+    let mut called_command_names: Vec<&str> = webview_channels
+        .split("callChannel")
+        .skip(1)
+        .filter(|call| call.starts_with(['<', '(']))
+        .filter_map(|call| call.split('"').nth(1))
+        .collect();
+
+    let mut expected: Vec<&str> = Channel::ALL
+        .iter()
+        .map(|channel| channel.command_name())
+        .collect();
+    expected.sort_unstable();
+    called_command_names.sort_unstable();
+    assert_eq!(called_command_names, expected);
+
+    for channel in Channel::ALL {
+        assert!(
+            webview_channels.contains(&format!("{}:", channel.name())),
+            "{channel} is not exposed to the webview"
+        );
+    }
+}
