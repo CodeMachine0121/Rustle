@@ -86,7 +86,7 @@ export class VaultSession {
       return;
     }
     if (article !== null && this.#snapshot.articles.some(({ fileName }) => fileName === article)) {
-      await this.#openArticle(article, selection);
+      await this.#openArticle(workspace, article, selection);
     }
   }
 
@@ -103,7 +103,7 @@ export class VaultSession {
       return;
     }
     const selection = this.#beginSelection();
-    if (await this.#openArticle(fileName, selection)) {
+    if (await this.#openArticle(workspace, fileName, selection)) {
       this.#remember(workspace, fileName);
     }
   }
@@ -156,11 +156,7 @@ export class VaultSession {
     return true;
   }
 
-  async #openArticle(fileName: string, selection: number): Promise<boolean> {
-    const workspace = this.#snapshot.selectedWorkspace;
-    if (workspace === null) {
-      return false;
-    }
+  async #openArticle(workspace: string, fileName: string, selection: number): Promise<boolean> {
     this.#update({ selectedArticle: fileName, bodyFailure: null });
     const result = await this.#channels.readBody(workspace, fileName);
     if (selection !== this.#latestSelection) {
