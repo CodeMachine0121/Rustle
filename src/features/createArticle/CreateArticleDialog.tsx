@@ -2,7 +2,7 @@ import type { ArticleVocabulary } from "../articleMetadata/articleVocabulary";
 import { ArticleMetadataForm } from "../articleMetadata/ArticleMetadataForm";
 import type { ArticleCreation, ArticleDraft } from "../vault/VaultSession";
 
-const NO_METADATA: ArticleDraft = { title: "", category: [], tags: [] };
+const NO_METADATA: ArticleDraft = { title: "", status: null, tags: [] };
 
 type CreateArticleDialogProps = {
   openedAt: Date;
@@ -11,7 +11,7 @@ type CreateArticleDialogProps = {
   onClose: () => void;
 };
 
-/** The only place a new article's title, categories and tags are typed. */
+/** The only place a new article's title, status and tags are chosen. */
 export function CreateArticleDialog({ openedAt, vocabulary, onCreate, onClose }: CreateArticleDialogProps) {
   return (
     <ArticleMetadataForm

@@ -8,11 +8,12 @@ import type { ArticleDraft, MetadataEdit } from "../vault/VaultSession";
 import { EditArticleMetadataDialog } from "./EditArticleMetadataDialog";
 
 const TAURI: ArticleSummary = {
+  workspace: "Blog",
   fileName: "tauri.md",
   title: "舊標題",
   createdAt: "2026-08-20T14:32:05+08:00",
   updatedAt: "2026-08-21T09:10:00+08:00",
-  category: ["技術筆記"],
+  status: "active",
   tags: ["electron"],
   hasIncompleteMetadata: false,
 };
@@ -30,7 +31,7 @@ function renderDialog({
     <CompositionProvider state={composition}>
       <EditArticleMetadataDialog
         article={article}
-        vocabulary={{ category: ["技術筆記", "桌面開發"], tags: ["electron"] }}
+        vocabulary={{ tags: ["electron", "技術筆記"] }}
         onSave={onSave}
         onClose={onClose}
       />
@@ -52,11 +53,12 @@ function saveButton() {
 }
 
 describe("EditArticleMetadataDialog", () => {
-  it("opens with the article's title, categories and tags filled in", () => {
+  it("opens with the article's title, status and tags filled in, and no Category field", () => {
     renderDialog();
 
     expect(field("Title")).toHaveValue("舊標題");
-    expect(screen.getByRole("button", { name: "移除 技術筆記" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("active");
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "移除 electron" })).toBeInTheDocument();
     expect(field("Title")).toHaveFocus();
   });
@@ -69,7 +71,7 @@ describe("EditArticleMetadataDialog", () => {
     expect(dialog).toHaveTextContent("更新於 2026-08-21 09:10");
     expect(dialog).toHaveTextContent("不能編輯");
     expect(container.querySelector('input[type="date"], input[type="time"], input[type="datetime-local"]')).toBeNull();
-    expect(screen.getAllByRole("textbox")).toHaveLength(3);
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
   });
 
   it("keeps the time a file wrote after midnight in its own zone on its own date", () => {
@@ -97,10 +99,41 @@ describe("EditArticleMetadataDialog", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("offers the workspace's words while typing a category", () => {
-    renderDialog({ article: { ...TAURI, category: [] } });
+  it("shows No Status for an article without one and offers only the five choices", () => {
+    renderDialog({ article: { ...TAURI, status: null } });
 
-    fireEvent.change(field("Category"), { target: { value: "技" } });
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("noStatus");
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Active",
+      "On Hold",
+      "Completed",
+      "Dropped",
+      "No Status",
+    ]);
+  });
+
+  it("saves the status chosen in place of the old one", () => {
+    const { onSave } = renderDialog();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Status" }), { target: { value: "completed" } });
+    fireEvent.click(saveButton());
+
+    expect(onSave).toHaveBeenCalledWith({ title: "舊標題", status: "completed", tags: ["electron"] });
+  });
+
+  it("saves no status when No Status is chosen", () => {
+    const { onSave } = renderDialog();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Status" }), { target: { value: "noStatus" } });
+    fireEvent.click(saveButton());
+
+    expect(onSave).toHaveBeenCalledWith({ title: "舊標題", status: null, tags: ["electron"] });
+  });
+
+  it("offers the scope's tags while typing a tag", () => {
+    renderDialog({ article: { ...TAURI, tags: [] } });
+
+    fireEvent.change(field("Tags"), { target: { value: "技" } });
 
     expect(screen.getByRole("button", { name: "技術筆記" })).toBeInTheDocument();
   });
@@ -152,7 +185,7 @@ describe("EditArticleMetadataDialog", () => {
 
     fireEvent.keyDown(field("Title"), { key: "Enter" });
 
-    expect(onSave).toHaveBeenCalledWith({ title: "新標題", category: ["技術筆記"], tags: ["electron", "tauri"] });
+    expect(onSave).toHaveBeenCalledWith({ title: "新標題", status: "active", tags: ["electron", "tauri"] });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 

@@ -13,6 +13,7 @@ import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
+import { Sidebar } from "../features/sidebar/Sidebar";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { OperationFailureNotice } from "../features/vault/OperationFailureNotice";
@@ -75,19 +76,28 @@ function VaultView() {
   return (
     <>
       <AppLayout
-        workspaces={
-          <WorkspaceColumn
+        sidebar={
+          <Sidebar
             snapshot={snapshot}
-            onSelect={(workspace) => void session.selectWorkspace(workspace)}
-            onCreate={(typedName) => session.createWorkspace(typedName)}
-            onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
-            onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
+            settings={settings}
+            onSelectAllNotes={() => void session.selectAllNotes()}
+            onToggleStatus={(choice) => session.toggleStatusFilter(choice)}
+            onToggleTag={(tag) => session.toggleTagFilter(tag)}
+            workspaces={
+              <WorkspaceColumn
+                snapshot={snapshot}
+                onSelect={(workspace) => void session.selectWorkspace(workspace)}
+                onCreate={(typedName) => session.createWorkspace(typedName)}
+                onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
+                onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
+              />
+            }
           />
         }
         articles={
           <ArticleColumn
             snapshot={snapshot}
-            onSelect={(fileName) => void session.selectArticle(fileName)}
+            onSelect={(article) => void session.selectArticle(article)}
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
             onEditMetadata={setArticleBeingEdited}
             onDelete={setArticleToDelete}
@@ -125,7 +135,7 @@ function VaultView() {
         <EditArticleMetadataDialog
           article={articleBeingEdited}
           vocabulary={vocabularyOf(snapshot.articles)}
-          onSave={(draft) => session.updateMetadata(articleBeingEdited.fileName, draft)}
+          onSave={(draft) => session.updateMetadata(articleBeingEdited, draft)}
           onClose={() => setArticleBeingEdited(null)}
         />
       )}
@@ -133,7 +143,7 @@ function VaultView() {
         <ArticleDeletionDialog
           title={articleToDelete.title}
           onConfirm={async () => {
-            await session.deleteArticle(articleToDelete.fileName);
+            await session.deleteArticle(articleToDelete);
             setArticleToDelete(null);
           }}
           onCancel={() => setArticleToDelete(null)}

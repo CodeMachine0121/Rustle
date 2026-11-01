@@ -1,7 +1,7 @@
 use rustle_domain::{
     ArticleDocument, ArticleDraft, ArticleDraftError, ArticleFileName, ArticleRepository,
-    ArticleRepositoryError, ArticleWrite, Clock, LocalTimestamp, UneditableFrontMatter,
-    WorkspaceName,
+    ArticleRepositoryError, ArticleStatus, ArticleWrite, Clock, LocalTimestamp,
+    UneditableFrontMatter, WorkspaceName,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -39,7 +39,7 @@ impl<'a, Articles: ArticleRepository, UpdateClock: Clock>
         Self { articles, clock }
     }
 
-    /// Writes the title, categories and tags and a fresh `updated_at`, and
+    /// Writes the title, status and tags and a fresh `updated_at`, and
     /// answers with the row read back from what was written. A blank title
     /// writes nothing, and neither does a file changed since it was read.
     pub fn execute(
@@ -47,10 +47,10 @@ impl<'a, Articles: ArticleRepository, UpdateClock: Clock>
         workspace: &WorkspaceName,
         article: &ArticleFileName,
         title: &str,
-        category: &[String],
+        status: Option<ArticleStatus>,
         tags: &[String],
     ) -> Result<MetadataUpdateOutcome, UpdateArticleMetadataError> {
-        let draft = ArticleDraft::new(title, category, tags)?;
+        let draft = ArticleDraft::new(title, status, tags)?;
         let stored = self.articles.read(workspace, article)?;
         let now = self.clock.now();
         let updated_at = LocalTimestamp::new(now, self.clock.local_offset_seconds(now));
@@ -64,6 +64,7 @@ impl<'a, Articles: ArticleRepository, UpdateClock: Clock>
             {
                 ArticleWrite::Written { .. } => MetadataUpdateOutcome::Updated {
                     article: ArticleSummary::new(
+                        workspace,
                         article,
                         ArticleDocument::parse(&text).metadata(article),
                     ),

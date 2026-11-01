@@ -91,7 +91,7 @@ body {
   border-right: 1px solid var(--color-border);
 }
 
-.workspaces-region {
+.sidebar-region {
   flex: 0 0 200px;
   background: var(--color-sidebar);
 }
@@ -223,6 +223,7 @@ body {
 
 .row-count,
 .row-details,
+.row-workspace,
 .row-tags {
   font-size: 12px;
   color: var(--color-muted-text);
@@ -240,6 +241,28 @@ body {
 .incomplete-marker {
   font-size: 12px;
   color: var(--color-warning);
+}
+
+.all-notes-row {
+  width: auto;
+  margin: 8px 8px 0;
+}
+
+.sidebar-section-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.sidebar-section-toggle:hover {
+  color: var(--color-text);
 }
 
 .empty-state,

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
+import { statusLabelOf } from "../sidebar/statusChoice";
 import {
   ARTICLE_ORDERS,
   articleOrderNamed,
@@ -9,29 +10,40 @@ import {
   type ArticleOrder,
 } from "./articleArrangement";
 import { ArticleFilterField } from "./ArticleFilterField";
-import type { VaultSnapshot } from "./VaultSession";
+import { isSameArticle } from "./articleLocation";
+import { CHOOSE_A_WORKSPACE_FIRST, type VaultSnapshot } from "./VaultSession";
 
 const LEADING_DATE = /^\d{4}-\d{2}-\d{2}/;
 
 type ArticleColumnProps = {
   snapshot: VaultSnapshot;
-  onSelect: (fileName: string) => void;
+  onSelect: (article: ArticleSummary) => void;
   onCreateArticle: () => void;
   onEditMetadata: (article: ArticleSummary) => void;
   onDelete: (article: ArticleSummary) => void;
 };
 
 /**
- * The selected workspace's articles, filtered and ordered on screen only:
- * the snapshot's list, the selection and the files stay as they are.
+ * The scope's articles, filtered and ordered on screen only: the
+ * snapshot's list, the selection and the files stay as they are. Under All
+ * Notes a new article is refused, as it would have no workspace to go in.
  */
 export function ArticleColumn(props: ArticleColumnProps) {
   const { snapshot, onCreateArticle } = props;
   const [filterText, setFilterText] = useState("");
   const [order, setOrder] = useState<ArticleOrder>(DEFAULT_ARTICLE_ORDER);
-  if (snapshot.selectedWorkspace === null) {
+  const [creationRefusedIn, setCreationRefusedIn] = useState<VaultSnapshot["articles"] | null>(null);
+  if (snapshot.selectedWorkspace === null && !snapshot.showsAllNotes) {
     return <p className="empty-state">選一個 workspace</p>;
   }
+  const isCreationRefused = snapshot.showsAllNotes && creationRefusedIn === snapshot.articles;
+  const createArticle = () => {
+    if (snapshot.showsAllNotes) {
+      setCreationRefusedIn(snapshot.articles);
+      return;
+    }
+    onCreateArticle();
+  };
   return (
     <>
       <div className="article-list-controls">
@@ -48,10 +60,15 @@ export function ArticleColumn(props: ArticleColumnProps) {
           ))}
         </select>
       </div>
-      <button type="button" className="new-article-button" onClick={onCreateArticle}>
+      <button type="button" className="new-article-button" onClick={createArticle}>
         ＋ 新文章
       </button>
-      <ArticleList {...props} filterText={filterText} order={order} />
+      {isCreationRefused && (
+        <p className="column-message" role="alert">
+          {CHOOSE_A_WORKSPACE_FIRST}
+        </p>
+      )}
+      <ArticleList {...props} onCreateArticle={createArticle} filterText={filterText} order={order} />
     </>
   );
 }
@@ -67,10 +84,10 @@ function ArticleList({
   onEditMetadata,
   onDelete,
 }: ArticleListProps) {
-  const { articles, selectedArticle, articleListFailure } = snapshot;
+  const { articles, selectedArticle, articleListFailure, sidebarFilter, showsAllNotes } = snapshot;
   const rows = useMemo(
-    () => arrangeArticles(articles, { filterText, order, openArticle: selectedArticle }),
-    [articles, filterText, order, selectedArticle],
+    () => arrangeArticles(articles, { filterText, sidebarFilter, order, openArticle: selectedArticle }),
+    [articles, filterText, sidebarFilter, order, selectedArticle],
   );
   if (articleListFailure !== null) {
     return (
@@ -78,6 +95,9 @@ function ArticleList({
         讀不到文章：{articleListFailure}
       </p>
     );
+  }
+  if (articles.length === 0 && showsAllNotes) {
+    return <p className="empty-state">還沒有任何文章</p>;
   }
   if (articles.length === 0) {
     return (
@@ -92,11 +112,12 @@ function ArticleList({
   return (
     <ul className="column-list">
       {rows.map(({ article, isOutsideFilter }) => (
-        <li key={article.fileName} className="column-item">
+        <li key={`${article.workspace}/${article.fileName}`} className="column-item">
           <ArticleRow
             article={article}
-            isSelected={article.fileName === selectedArticle}
+            isSelected={isSameArticle(selectedArticle, article)}
             isOutsideFilter={isOutsideFilter}
+            showsWorkspace={showsAllNotes}
             onSelect={onSelect}
           />
           <div className="row-actions">
@@ -121,20 +142,22 @@ type ArticleRowProps = {
   article: ArticleSummary;
   isSelected: boolean;
   isOutsideFilter: boolean;
-  onSelect: (fileName: string) => void;
+  showsWorkspace: boolean;
+  onSelect: (article: ArticleSummary) => void;
 };
 
-function ArticleRow({ article, isSelected, isOutsideFilter, onSelect }: ArticleRowProps) {
+function ArticleRow({ article, isSelected, isOutsideFilter, showsWorkspace, onSelect }: ArticleRowProps) {
   const createdDate = LEADING_DATE.exec(article.createdAt)?.[0] ?? article.createdAt;
-  const details = [createdDate, ...article.category].filter((detail) => detail !== "");
+  const details = [createdDate, statusLabelOf(article) ?? ""].filter((detail) => detail !== "");
   return (
     <button
       type="button"
       className="column-row article-row"
       aria-pressed={isSelected}
-      onClick={() => onSelect(article.fileName)}
+      onClick={() => onSelect(article)}
     >
       <span className="row-title">{article.title}</span>
+      {showsWorkspace && <span className="row-workspace">{article.workspace}</span>}
       {details.length > 0 && <span className="row-details">{details.join(" · ")}</span>}
       {article.tags.length > 0 && (
         <span className="row-tags">
@@ -146,7 +169,7 @@ function ArticleRow({ article, isSelected, isOutsideFilter, onSelect }: ArticleR
         </span>
       )}
       {article.hasIncompleteMetadata && <span className="incomplete-marker">metadata 不完整</span>}
-      {isOutsideFilter && <span className="open-article-marker">開著・不符合篩選</span>}
+      {isOutsideFilter && <span className="open-article-marker">開著的・不符合篩選</span>}
     </button>
   );
 }

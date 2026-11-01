@@ -6,6 +6,7 @@ mod tests;
 use thiserror::Error;
 
 use crate::article_metadata::ArticleMetadata;
+use crate::article_status::ArticleStatus;
 use crate::metadata_update::MetadataUpdate;
 use crate::vault_name::ArticleFileName;
 
@@ -55,6 +56,12 @@ impl ArticleDocument {
     pub fn metadata(&self, file_name: &ArticleFileName) -> ArticleMetadata {
         let mapping = self.front_matter.as_ref().and_then(FrontMatter::mapping);
         ArticleMetadata::read(mapping.as_ref(), file_name)
+    }
+
+    /// The status the front matter names, if it is one of the four.
+    pub fn status(&self) -> Option<ArticleStatus> {
+        let mapping = self.front_matter.as_ref().and_then(FrontMatter::mapping);
+        ArticleMetadata::status_in(mapping.as_ref())
     }
 
     pub fn with_body(self, body: impl Into<String>) -> Self {

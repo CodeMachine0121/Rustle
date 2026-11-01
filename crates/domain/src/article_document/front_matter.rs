@@ -107,7 +107,7 @@ impl FrontMatter {
                 FieldValue::Text(text) => {
                     mapping.replace(key, Yaml::String(text.to_owned()));
                 }
-                FieldValue::List([]) => {
+                FieldValue::List([]) | FieldValue::Removed => {
                     mapping.remove(&key);
                 }
                 FieldValue::List(items) => {

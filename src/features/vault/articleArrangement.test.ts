@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { ArticleSummary } from "../../ipc/articleSummary";
+import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
+import { SidebarFilter } from "../sidebar/SidebarFilter";
 import {
   arrangeArticles,
   articleOrderNamed,
@@ -9,10 +10,11 @@ import {
 
 function article(fields: Partial<ArticleSummary> & { fileName: string }): ArticleSummary {
   return {
+    workspace: "Blog",
     title: fields.fileName,
     createdAt: "",
     updatedAt: "",
-    category: [],
+    status: null,
     tags: [],
     hasIncompleteMetadata: false,
     ...fields,
@@ -45,23 +47,30 @@ const THREE = [
   article({
     fileName: "tauri.md",
     title: "Tauri 與 Electron",
-    category: ["技術筆記"],
-    tags: ["tauri", "electron"],
+    status: "active",
+    tags: ["tauri", "electron", "技術"],
   }),
-  article({ fileName: "zen.md", title: "Zen of Writing", category: ["隨筆"] }),
+  article({ fileName: "zen.md", title: "Zen of Writing", status: "active", tags: ["隨筆"] }),
   article({ fileName: "tauri-note.md", title: "日常" }),
 ];
 
 function ordered(articles: ArticleSummary[], order: ArticleOrder): string[] {
-  return arrangeArticles(articles, { filterText: "", order, openArticle: null }).map(
-    ({ article: { fileName } }) => fileName,
+  return arrangeArticles(articles, {
+    filterText: "",
+    sidebarFilter: SidebarFilter.NONE,
+    order,
+    openArticle: null,
+  }).map(({ article: { fileName } }) => fileName);
+}
+
+function filtered(text: string, sidebarFilter = SidebarFilter.NONE): string[] {
+  return arrangeArticles(THREE, { filterText: text, sidebarFilter, order: "title", openArticle: null }).map(
+    ({ article: { title } }) => title,
   );
 }
 
-function filtered(text: string, openArticle: string | null = null): string[] {
-  return arrangeArticles(THREE, { filterText: text, order: "title", openArticle }).map(
-    ({ article: { title } }) => title,
-  );
+function blog(fileName: string): ArticleLocation {
+  return { workspace: "Blog", fileName };
 }
 
 describe("arrangeArticles ordering", () => {
@@ -131,11 +140,11 @@ describe("arrangeArticles ordering", () => {
 describe("arrangeArticles filtering", () => {
   it.each([
     ["the title", "Zen", ["Zen of Writing"]],
-    ["a category", "技術", ["Tauri 與 Electron"]],
+    ["a tag in another script", "技術", ["Tauri 與 Electron"]],
     ["a tag", "electron", ["Tauri 與 Electron"]],
     ["any letter case", "ELECTRON", ["Tauri 與 Electron"]],
     ["the trimmed text", " Zen ", ["Zen of Writing"]],
-    ["nothing outside title, categories and tags", "tauri", ["Tauri 與 Electron"]],
+    ["nothing outside title and tags", "tauri", ["Tauri 與 Electron"]],
     ["nothing at all", "xyz", []],
   ])("matches %s", (_case, text, expected) => {
     expect(filtered(text)).toEqual(expected);
@@ -146,7 +155,12 @@ describe("arrangeArticles filtering", () => {
   });
 
   it("keeps the open article even when it does not match, and says so", () => {
-    const rows = arrangeArticles(THREE, { filterText: "技術", order: "title", openArticle: "zen.md" });
+    const rows = arrangeArticles(THREE, {
+      filterText: "技術",
+      sidebarFilter: SidebarFilter.NONE,
+      order: "title",
+      openArticle: blog("zen.md"),
+    });
 
     expect(rows.map(({ article: { title }, isOutsideFilter }) => [title, isOutsideFilter])).toEqual([
       ["Tauri 與 Electron", false],
@@ -157,31 +171,108 @@ describe("arrangeArticles filtering", () => {
   it("orders what is left", () => {
     expect(filtered("e")).toEqual(["Tauri 與 Electron", "Zen of Writing"]);
 
-    const rows = arrangeArticles(FOUR, { filterText: "a", order: "title", openArticle: null });
+    const rows = arrangeArticles(FOUR, {
+      filterText: "a",
+      sidebarFilter: SidebarFilter.NONE,
+      order: "title",
+      openArticle: null,
+    });
 
     expect(rows.map(({ article: { title } }) => title)).toEqual(["Alpha", "Beta", "Tauri 與 Electron"]);
   });
 
-  it("orders and filters five hundred articles without a visible pause", () => {
+  it("orders and filters five hundred articles from five workspaces without a visible pause", () => {
     const many = Array.from({ length: 500 }, (_, index) =>
       article({
+        workspace: `Workspace ${index % 5}`,
         fileName: `article-${index}.md`,
         title: `第 ${index} 篇 writing notes`,
         createdAt: `2026-0${(index % 9) + 1}-1${index % 10}T0${index % 10}:00:00+08:00`,
-        category: [index % 2 === 0 ? "技術筆記" : "隨筆"],
-        tags: ["tauri", `tag-${index}`],
+        status: index % 2 === 0 ? "active" : "dropped",
+        tags: [index % 4 === 0 ? "技術筆記" : "隨筆", `tag-${index}`],
       }),
     );
 
     const started = performance.now();
     const rows = arrangeArticles(many, {
-      filterText: "技術",
+      filterText: "writing",
+      sidebarFilter: SidebarFilter.NONE.toggleStatus("active").toggleTag("技術筆記"),
       order: "createdNewestFirst",
       openArticle: null,
     });
     const elapsedMilliseconds = performance.now() - started;
 
-    expect(rows).toHaveLength(250);
+    expect(rows).toHaveLength(125);
     expect(elapsedMilliseconds).toBeLessThan(50);
+  });
+});
+
+describe("arrangeArticles with the sidebar filter", () => {
+  const MIXED = [
+    article({ fileName: "a.md", title: "A 桌面", status: "active", tags: ["work"] }),
+    article({ fileName: "b.md", title: "B 桌面", status: "active" }),
+    article({ fileName: "c.md", title: "C 筆記", status: "active", tags: ["work"] }),
+    article({ fileName: "d.md", title: "D 桌面", status: "completed", tags: ["work"] }),
+  ];
+
+  function shown(text: string, sidebarFilter: SidebarFilter, openArticle: ArticleLocation | null = null) {
+    return arrangeArticles(MIXED, { filterText: text, sidebarFilter, order: "title", openArticle }).map(
+      ({ article: { fileName }, isOutsideFilter }) => (isOutsideFilter ? `${fileName} (open)` : fileName),
+    );
+  }
+
+  it("keeps only the articles with both the chosen status and every chosen tag", () => {
+    expect(shown("", SidebarFilter.NONE.toggleStatus("active").toggleTag("work"))).toEqual(["a.md", "c.md"]);
+  });
+
+  it("adds the text filter on top of the sidebar filter", () => {
+    expect(shown("桌面", SidebarFilter.NONE.toggleStatus("active"))).toEqual(["a.md", "b.md"]);
+  });
+
+  it("keeps the open article that the sidebar filter leaves out, and says so", () => {
+    expect(shown("", SidebarFilter.NONE.toggleStatus("active"), blog("d.md"))).toEqual([
+      "a.md",
+      "b.md",
+      "c.md",
+      "d.md (open)",
+    ]);
+  });
+
+  it("keeps only the open article of the right workspace when two share a file name", () => {
+    const twins = [
+      article({ workspace: "Blog", fileName: "zen.md", status: "completed" }),
+      article({ workspace: "Work", fileName: "zen.md", status: "completed" }),
+    ];
+
+    const rows = arrangeArticles(twins, {
+      filterText: "",
+      sidebarFilter: SidebarFilter.NONE.toggleStatus("active"),
+      order: "title",
+      openArticle: { workspace: "Work", fileName: "zen.md" },
+    });
+
+    expect(rows.map(({ article: { workspace } }) => workspace)).toEqual(["Work"]);
+  });
+
+  it("puts a tie across workspaces in workspace name order, then file name order", () => {
+    const same = "2026-08-20T00:30:00+08:00";
+    const ties = [
+      article({ workspace: "Work", fileName: "b.md", title: "Zen", createdAt: same }),
+      article({ workspace: "Blog", fileName: "z.md", title: "Zen", createdAt: same }),
+      article({ workspace: "Work", fileName: "a.md", title: "Zen", createdAt: same }),
+    ];
+
+    const rows = arrangeArticles(ties, {
+      filterText: "",
+      sidebarFilter: SidebarFilter.NONE,
+      order: "createdNewestFirst",
+      openArticle: null,
+    });
+
+    expect(rows.map(({ article: { workspace, fileName } }) => `${workspace}/${fileName}`)).toEqual([
+      "Blog/z.md",
+      "Work/a.md",
+      "Work/b.md",
+    ]);
   });
 });

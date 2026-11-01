@@ -14,23 +14,24 @@ export type PreviewSlot = {
 };
 
 type AppLayoutProps = {
-  workspaces: ReactNode;
+  sidebar: ReactNode;
   articles: ReactNode;
   editor: ReactNode;
   preview?: PreviewSlot;
 };
 
 /**
- * The four columns, left to right. The editor and an open preview share the
+ * The four columns, left to right: the sidebar (its sections carry their
+ * own titles), the articles, the editor and the preview. The editor and an open preview share the
  * writing area, split by a draggable divider; a folded preview leaves only a
  * handle at the edge, and the editor takes its width.
  */
-export function AppLayout({ workspaces, articles, editor, preview }: AppLayoutProps) {
+export function AppLayout({ sidebar, articles, editor, preview }: AppLayoutProps) {
   return (
     <main className="app-layout">
-      <LayoutRegion title="WORKSPACES" className="workspaces-region">
-        {workspaces}
-      </LayoutRegion>
+      <nav className="layout-region sidebar-region" aria-label="SIDEBAR">
+        <div className="region-body">{sidebar}</div>
+      </nav>
       <LayoutRegion title="ARTICLES" className="articles-region">
         {articles}
       </LayoutRegion>
