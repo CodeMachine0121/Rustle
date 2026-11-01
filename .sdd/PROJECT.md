@@ -9,7 +9,7 @@ A local, offline Markdown writing app for someone who writes in Chinese every da
 | Area | Choice |
 | :--- | :--- |
 | Shell | Tauri `2.12.5` (`tauri-build 2.7.4`, `wry 0.57.1`), `@tauri-apps/cli` / `@tauri-apps/api` `2.12.4`, `tauri-plugin-opener 2.7.2` (Rust side only) |
-| Rust | stable `1.95` (MSRV 1.90), edition 2024; `serde 1.0.229`, `serde_json 1.0.154`, `thiserror 2.0.21`, `url 2.5.8`, `tempfile 3.27.0`, `yaml-rust2 0.13.0` (domain: front matter parsing only) |
+| Rust | stable `1.95` (MSRV 1.90), edition 2024; `serde 1.0.229`, `serde_json 1.0.154`, `chrono 0.4.45` (infrastructure only, `clock` feature: the local UTC offset), `thiserror 2.0.21`, `url 2.5.8`, `tempfile 3.27.0`, `yaml-rust2 0.13.0` (domain: front matter parsing only) |
 | Rust tests | built-in harness, `rstest 0.28.0`, `tempfile`, `mockall 0.15.0` (domain `mocks` feature, e.g. `MockClock`), Tauri `test` feature (mock runtime) |
 | Frontend | TypeScript `6.0.3` (strict), React `19.3.1`, Vite `8.3.5`, CodeMirror 6 (`@codemirror/view 6.43.15`, `state 6.7.6`, `lang-markdown 6.5.2`, `language 6.13.1`, `commands 6.11.1`) |
 | Frontend tests / lint | Vitest `5.0.5` + happy-dom `21.0.4` + Testing Library; ESLint `9.39.5` + typescript-eslint `8.72.1` (`no-explicit-any` is an error) |
@@ -21,8 +21,8 @@ Upgrading Tauri or CodeMirror requires re-running `docs/ime-regression-checklist
 
 ```
 Cargo.toml                    workspace + [workspace.dependencies] (versions pinned with =)
-crates/domain/                rustle-domain: names, VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleFileNameSlug, UtcTimestamp, repository traits, Clock. No I/O
-crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody, SaveArticleBody, ListWorkspaces, ListArticles, CreateWorkspace, ReadSettings, WriteSettings
+crates/domain/                rustle-domain: names, VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleDraft, ArticleFileNameSlug, UtcTimestamp, LocalTimestamp, repository traits, Clock. No I/O
+crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody, SaveArticleBody, ListWorkspaces, ListArticles, CreateWorkspace, CreateArticle, ReadSettings, WriteSettings
 crates/infrastructure/        rustle-infrastructure: ResolvedVaultScope, FileSystemSettingsRepository, FileSystemArticleRepository, FileSystemWorkspaceRepository, SystemClock, write_atomically
 src-tauri/                    assembly root: channels, commands, CSP, navigation guard, custom schemes, window
   src/channel.rs              the channel contract (one line per channel)
@@ -35,7 +35,7 @@ src/                          webview (React + CodeMirror)
   app/                        App shell (AppLayout: four columns) and global CSS with light/dark color tokens
   ipc/                        callChannel (the only invoke), channels (typed wrappers), ChannelResult
   shared/composition/         CompositionState, CompositionProvider/useCompositionState, CompositionAwareDebouncer
-  features/<feature>/         one folder per feature (editor/, vault/, autosave/)
+  features/<feature>/         one folder per feature (editor/, vault/, autosave/, articleMetadata/, createArticle/)
 docs/ime-regression-checklist.md  manual IME runbook + release checklist
 ```
 
@@ -63,7 +63,15 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 
 **Articles on disk**: `rustle_domain::ArticleRepository` has `read` and a guarded `write(workspace, article, text, expected_modified_at) -> ArticleWrite::{Written { modified_at }, ModifiedElsewhere}`; there is no unguarded write — read first if you need the current modification time. `FileSystemArticleRepository` is managed Tauri state built in `configure(builder, vault_scope)`; a command takes it as `State<'_, FileSystemArticleRepository>` and hands it to its use case. `readBody(workspace, fileName)` → `ArticleBody { workspace, fileName, body, lastKnownModifiedAt }` (ISO 8601 UTC, `UtcTimestamp`). `saveBody({ workspace, fileName, body, lastKnownModifiedAt, overwrite })` → `SavedBody` (`outcome: "saved" | "modifiedElsewhere"`).
 
-**Time**: take `rustle_domain::Clock` (`SystemClock` in production, `MockClock` in tests) and format with `UtcTimestamp`; never call `SystemTime::now()` in a use case.
+**Time**: take `rustle_domain::Clock` (`SystemClock` in production, `MockClock` in tests); never call `SystemTime::now()` in a use case. Modification times and autosave's `updated_at` are `UtcTimestamp` (`…Z`, compared as strings). Times a person reads in the file (`created_at`/`updated_at` written at creation) are `LocalTimestamp::new(now, clock.local_offset_seconds(now))` → `2026-08-20T00:30:00+08:00`, so the list's leading date is the writer's date.
+
+**Creating an article**: `ArticleRepository::create(workspace, article, text)` opens create-new (never replaces; a taken name is `ArticleRepositoryError::AlreadyExists { article }` naming `workspace/file`, no absolute path) and fsyncs. The rules of a new article live in `rustle_domain::ArticleDraft` (`new` rejects a blank title and cleans categories/tags, `file_name(entries)` counts every name in the folder, `to_text(created_at)`). `createArticle({ workspace, title, category, tags })` → `ArticleSummary`. In the webview, `VaultSession.createArticle(draft)` → `{ outcome: "created" } | { outcome: "failed", message }` refreshes both lists, opens the article and remembers it.
+
+**Another file that does not exist yet** (e.g. pasted images): `ResolvedVaultScope` judges a missing path by its nearest existing ancestor (the workspace folder's links resolved); create it create-new like `FileSystemArticleRepository::create`.
+
+**Metadata form (webview)**: `src/features/articleMetadata/` has `ChipInput` (Enter/`,` add, Backspace on empty removes, × removes, IME-safe, reports composition), `withChip` / `candidatesFor` and `vocabularyOf(articles)` (the selected workspace's categories and tags from the listed rows). A metadata-editing dialog composes these like `CreateArticleDialog`; a dialog is a `div role="dialog"` with no `<form>` (no implicit submit, no focus restore stealing the editor's focus).
+
+**Handing the keyboard to the editor**: pass `focusEditor: true` to `ArticleHolder.openArticle`; it flows to `EditorDocument.takesFocus` → `MarkdownEditor focusOnShow`, applied only when a new document is shown. Opening from the list never passes it, so the keyboard stays on the list.
 
 **Opening / leaving an article (webview)**: the app owns one `AutosaveSession` (`src/features/autosave/`) and hands it to `VaultSession` as its `ArticleHolder`. Change the open article only through `await session.openArticle({ article: ArticleBody, title })` or `session.closeArticle()`, and act only when the answer is `"switched"` (`blockedByUnansweredWarning` / `blockedByFailedSave` mean the title bar is already explaining why); `VaultSession` already does this for every click and keeps the previous selection when refused. The editor body follows `session.document` (`AutosavedEditor` inside `EditorColumn`); do not remount the editor yourself. Anything that writes the open article from elsewhere: leave through `closeArticle`, write, then `openArticle` with the fresh `ArticleBody`.
 
@@ -71,9 +79,9 @@ src/ (webview) ──invoke──▶ src-tauri ──▶ rustle-application ─�
 
 **Settings**: `rustle_domain::Settings` has `indentation`, `previewPanel { isOpen, widthRatio }`, `lastOpened { workspace, article }` and no vault path. A new field = one field on `Settings` + one on the private tolerant shape in `settings/stored_settings.rs` (a wrong type or out-of-range value falls back to that field's default). `FileSystemSettingsRepository` keeps unknown keys, writes atomically and checks the location against the vault on every call. `readSettings` (a broken file reads as defaults) and `writeSettings(settings)` are wired; the webview type is `src/ipc/settings.ts`.
 
-**Vault listing**: `WorkspaceRepository` (`vault_entries`, `workspace_entries`, `create`) answers raw `VaultEntry { name, kind: Folder | File | Unreachable }` lists, links already resolved and confined. What counts is decided only on `VaultEntry` (`as_workspace`, `as_article`, `compare_names`, `clashes_with`) and `WorkspaceNameRequest::judge`. A new listing rule is one method there. Channels: `listWorkspaces()`, `listArticles(workspace)`, `createWorkspace(name)` → `{ outcome: "created", workspace } | { outcome: "rejected", reason }` (a rejection is a value, not a failure).
+**Vault listing**: `WorkspaceRepository` (`vault_entries`, `workspace_entries`, `create`) answers raw `VaultEntry { name, kind: Folder | File | Unreachable }` lists, links already resolved and confined. What counts is decided only on `VaultEntry` (`as_workspace`, `as_article`, `compare_names`, `clashes_with`) and `WorkspaceNameRequest::judge`. A new listing rule is one method there. Channels: `listWorkspaces()`, `listArticles(workspace)`, `createWorkspace(name)`, `createArticle(request)` → `{ outcome: "created", workspace } | { outcome: "rejected", reason }` (a rejection is a value, not a failure).
 
-**Selection (webview)**: `src/features/vault/VaultSession.ts` is the single owner of the selected workspace/article, the lists, the body and the per-column failure lines; every click goes through `selectWorkspace` / `selectArticle`, a late answer to an older click is dropped, and each selection is written to `lastOpened`. Leaving the open article asks the `ArticleHolder` (autosave) first; clicking the open article again does nothing. Create-article and filtering plug in there. Bind with `useVaultSnapshot(session)`.
+**Selection (webview)**: `src/features/vault/VaultSession.ts` is the single owner of the selected workspace/article, the lists, the body and the per-column failure lines; every click goes through `selectWorkspace` / `selectArticle`, a late answer to an older click is dropped, and each selection is written to `lastOpened`. Leaving the open article asks the `ArticleHolder` (autosave) first; clicking the open article again does nothing. Filtering plugs in there. Bind with `useVaultSnapshot(session)`.
 
 **Layout**: `AppLayout({ workspaces, articles, editor, preview? })`; the preview slice passes `preview` and the region appears on the right.
 
