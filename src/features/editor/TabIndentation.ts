@@ -3,6 +3,7 @@ import { indentUnit } from "@codemirror/language";
 import {
   EditorSelection,
   EditorState,
+  Facet,
   type ChangeSpec,
   type Extension,
   type Line,
@@ -14,6 +15,15 @@ import type { IndentUnit } from "./IndentUnit";
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
 const ESCAPE_ROUTE_MILLISECONDS = 2000;
+
+/** Something in the editor that, while it has work in progress, takes Tab or Esc before indentation does. */
+export type IndentationKeyClaim = {
+  claimTab(view: EditorView, backward: boolean): boolean;
+  claimEscape(view: EditorView): boolean;
+};
+
+/** Asked in order before Tab indents and before Esc arms the way out; none claiming leaves both as they were. */
+export const indentationKeyClaims = Facet.define<IndentationKeyClaim>();
 
 /** Owns the Tab key of one editor: Tab indents, Shift+Tab outdents, Esc then Tab (within two seconds) lets focus leave. */
 export class TabIndentation {
@@ -118,11 +128,26 @@ class TabKeyListener {
     return this.#escapeArmedAt !== null && Date.now() - this.#escapeArmedAt <= ESCAPE_ROUTE_MILLISECONDS;
   }
 
+  #claims(): readonly IndentationKeyClaim[] {
+    return this.#view.state.facet(indentationKeyClaims);
+  }
+
+  #escapeClaimed(event: KeyboardEvent): boolean {
+    if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+      return false;
+    }
+    const claimed = this.#claims().some((claim) => claim.claimEscape(this.#view));
+    if (claimed) {
+      event.preventDefault();
+    }
+    return claimed;
+  }
+
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
     const composing = this.#composition.ownsKey(event);
     if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) {
       if (!MODIFIER_KEYS.has(event.key)) {
-        const arms = event.key === "Escape" && !composing;
+        const arms = event.key === "Escape" && !composing && !this.#escapeClaimed(event);
         this.#escapeArmedAt = arms ? Date.now() : null;
       }
       return;
@@ -133,7 +158,7 @@ class TabKeyListener {
       return;
     }
     event.preventDefault();
-    if (composing) {
+    if (composing || this.#claims().some((claim) => claim.claimTab(this.#view, event.shiftKey))) {
       return;
     }
     if (event.shiftKey) {
