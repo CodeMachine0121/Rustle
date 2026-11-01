@@ -1,8 +1,9 @@
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState } from "@codemirror/state";
+import type { EditorState, Transaction } from "@codemirror/state";
 
 import { TableRow } from "../editor/TableRow";
 
+const SLASH = "/";
 const CODE_NODES = new Set(["FencedCode", "CodeBlock"]);
 const ONLY_BLANKS = /^[ \t]*$/;
 const ENDS_WITH_BLANK = /\s$/;
@@ -10,12 +11,27 @@ const INDENTED_CODE_COLUMNS = 4;
 const TAB_STOP = 4;
 
 /**
- * Whether a half-width slash inserted at `position` of `state` (the document
- * before the slash) is a command that opens the snippet menu rather than
- * content: it starts the line or follows a blank, and it is not in code
+ * Where the slash is, when `transaction` is a half-width slash typed as a
+ * command that opens the snippet menu rather than as content: typed (not
+ * pasted), alone, at the line start or after a blank, and not in code
  * (fenced, or indented as deep as Markdown's indented code) or a table row.
  */
-export function slashOpensSnippetMenu(state: EditorState, position: number): boolean {
+export function slashOpeningSnippetMenu(transaction: Transaction): number | null {
+  if (!transaction.isUserEvent("input.type")) {
+    return null;
+  }
+  const insertions: number[] = [];
+  transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+    insertions.push(fromA === toA && inserted.toString() === SLASH ? fromA : -1);
+  });
+  const [position] = insertions;
+  if (insertions.length !== 1 || position === undefined || position < 0) {
+    return null;
+  }
+  return isCommandPosition(transaction.startState, position) ? position : null;
+}
+
+function isCommandPosition(state: EditorState, position: number): boolean {
   const line = state.doc.lineAt(position);
   const textBefore = line.text.slice(0, position - line.from);
   if (textBefore !== "" && !ENDS_WITH_BLANK.test(textBefore)) {

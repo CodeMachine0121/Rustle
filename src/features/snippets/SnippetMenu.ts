@@ -6,7 +6,7 @@ import type { CompositionState } from "../../shared/composition/CompositionState
 import type { Snippet } from "./Snippet";
 import type { SnippetCatalog } from "./SnippetCatalog";
 import type { SnippetFields } from "./SnippetFields";
-import { slashOpensSnippetMenu } from "./slashTrigger";
+import { slashOpeningSnippetMenu } from "./slashTrigger";
 
 const SLASH = "/";
 
@@ -55,7 +55,7 @@ export class SnippetMenu {
     return [
       this.#menu,
       EditorState.transactionExtender.of((transaction) => {
-        const slashAt = this.#typedSlashAt(transaction);
+        const slashAt = slashOpeningSnippetMenu(transaction);
         return slashAt === null ? null : { effects: openMenu.of(slashAt) };
       }),
       Prec.highest(
@@ -111,22 +111,6 @@ export class SnippetMenu {
       userEvent: "input.snippet",
       scrollIntoView: true,
     });
-  }
-
-  /** Where the slash went, when this transaction is a slash typed where the menu may open. */
-  #typedSlashAt(transaction: Transaction): number | null {
-    if (!transaction.isUserEvent("input.type")) {
-      return null;
-    }
-    const insertions: number[] = [];
-    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-      insertions.push(fromA === toA && inserted.toString() === SLASH ? fromA : -1);
-    });
-    const [slashAt] = insertions;
-    if (insertions.length !== 1 || slashAt === undefined || slashAt < 0) {
-      return null;
-    }
-    return slashOpensSnippetMenu(transaction.startState, slashAt) ? slashAt : null;
   }
 
   #defineMenu(): StateField<OpenMenu | null> {
