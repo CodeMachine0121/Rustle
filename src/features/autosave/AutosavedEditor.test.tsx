@@ -5,6 +5,8 @@ import { CompositionProvider } from "../../shared/composition/CompositionContext
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { AutosaveSession } from "./AutosaveSession";
 import { ImagePaste } from "../imagePaste/ImagePaste";
+import { SettingsSession } from "../settings/SettingsSession";
+import { VimModeSession } from "../vim/VimModeSession";
 import { AutosavedEditor } from "./AutosavedEditor";
 
 function renderEditor() {
@@ -25,7 +27,7 @@ function renderEditor() {
   );
   const view = render(
     <CompositionProvider state={composition}>
-      <AutosavedEditor session={session} />
+      <AutosavedEditor session={session} vimModes={new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }))} />
     </CompositionProvider>,
   );
   const content = () => {
@@ -123,7 +125,7 @@ describe("AutosavedEditor", () => {
     const imagePaste = new ImagePaste(composition, { saveClipboardImage }, session);
     const view = render(
       <CompositionProvider state={composition}>
-        <AutosavedEditor session={session} imagePaste={imagePaste} />
+        <AutosavedEditor session={session} imagePaste={imagePaste} vimModes={new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }))} />
       </CompositionProvider>,
     );
     await act(() => session.openArticle({ article: { ...ARTICLE, body: "" }, title: "寫作的禪" }));

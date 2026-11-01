@@ -54,6 +54,7 @@ fn reads_the_stored_values() {
             sidebar: SidebarSettings::default(),
             font_size: FontSizeSettings::default(),
             theme: None,
+            vim_mode: false,
         }
     );
 }
@@ -388,4 +389,44 @@ fn a_broken_theme_costs_no_other_setting() {
         settings.interface_language,
         Some(InterfaceLanguage::English)
     );
+}
+
+#[test]
+fn has_vim_mode_off_until_it_is_turned_on() {
+    let settings = read(json!({}));
+
+    assert!(!settings.vim_mode);
+    assert!(
+        serde_json::to_value(&settings)
+            .expect("serializable")
+            .get("vimMode")
+            .is_none()
+    );
+}
+
+#[test]
+fn reads_and_writes_vim_mode_turned_on() {
+    let settings = read(json!({ "vimMode": true }));
+
+    assert!(settings.vim_mode);
+    assert_eq!(
+        serde_json::to_value(&settings).expect("serializable")["vimMode"],
+        json!(true)
+    );
+}
+
+#[rstest::rstest]
+#[case::text(json!({ "vimMode": "yes" }))]
+#[case::number(json!({ "vimMode": 1 }))]
+#[case::object(json!({ "vimMode": { "on": true } }))]
+#[case::null(json!({ "vimMode": null }))]
+fn reads_vim_mode_that_is_not_true_or_false_as_off(#[case] stored: serde_json::Value) {
+    assert!(!read(stored).vim_mode);
+}
+
+#[test]
+fn a_broken_vim_mode_costs_no_other_setting() {
+    let settings = read(json!({ "vimMode": "yes", "theme": "forest" }));
+
+    assert_eq!(settings.theme, Some("forest".to_owned()));
 }

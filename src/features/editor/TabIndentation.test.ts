@@ -2,7 +2,7 @@ import { history, undo } from "@codemirror/commands";
 import { EditorSelection, EditorState, Prec, type SelectionRange } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { CompositionState } from "../../shared/composition/CompositionState";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
@@ -21,7 +21,6 @@ const openViews: EditorView[] = [];
 
 afterEach(() => {
   openViews.splice(0).forEach((view) => view.destroy());
-  vi.useRealTimers();
 });
 
 function openEditor({
@@ -368,104 +367,33 @@ describe("Tab does nothing but indent", () => {
   });
 });
 
-describe("keyboard escape route", () => {
-  it("still lets the focus leave on a Tab within two seconds of Esc", () => {
-    vi.useFakeTimers();
+describe("Esc then Tab", () => {
+  it("indents: the keyboard no longer leaves the editor through Esc and Tab", () => {
     const { view } = openEditor({ doc: "字" });
 
     press(view, "Escape");
-    vi.advanceTimersByTime(2000);
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("字");
-    expect(event.defaultPrevented).toBe(false);
-  });
-
-  it("goes back to indenting when no Tab came within two seconds of Esc", () => {
-    vi.useFakeTimers();
-    const { view } = openEditor({ doc: "字" });
-
-    press(view, "Escape");
-    vi.advanceTimersByTime(2001);
     const event = pressTab(view);
 
     expect(textOf(view)).toBe("  字");
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it("lets the Tab right after Esc move the focus instead of indenting", () => {
-    const { view } = openEditor({ doc: "字" });
-
-    press(view, "Escape");
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("字");
-    expect(event.defaultPrevented).toBe(false);
-  });
-
-  it("lets Shift+Tab right after Esc move the focus backwards", () => {
+  it("outdents on Shift+Tab right after Esc", () => {
     const { view } = openEditor({ doc: "  字" });
 
     press(view, "Escape");
-    press(view, "Shift", { shiftKey: true });
     const event = pressShiftTab(view);
 
-    expect(textOf(view)).toBe("  字");
-    expect(event.defaultPrevented).toBe(false);
-  });
-
-  it("goes back to indenting once another key was pressed after Esc", () => {
-    const { view } = openEditor({ doc: "字" });
-
-    press(view, "Escape");
-    press(view, "a");
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("  字");
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("hands the Tab after Esc past every other Tab binding in the editor", () => {
-    const { view } = openEditor({ doc: "字", competingTabBinding: true });
-
-    press(view, "Escape");
-    const event = pressTab(view);
-
     expect(textOf(view)).toBe("字");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("leaves an Esc nothing claims to the rest of the app", () => {
+    const { view } = openEditor({ doc: "字" });
+
+    const event = press(view, "Escape");
+
     expect(event.defaultPrevented).toBe(false);
-  });
-
-  it("goes back to indenting once the mouse was pressed in the editor after Esc", () => {
-    const { view } = openEditor({ doc: "字" });
-
-    press(view, "Escape");
-    fireEvent.mouseDown(view.dom);
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("  字");
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("goes back to indenting once the editor lost focus after Esc", () => {
-    const { view } = openEditor({ doc: "字" });
-
-    press(view, "Escape");
-    fireEvent.focusOut(view.contentDOM);
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("  字");
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("is used up by the one Tab that escaped", () => {
-    const { view } = openEditor({ doc: "字" });
-
-    press(view, "Escape");
-    pressTab(view);
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("  字");
-    expect(event.defaultPrevented).toBe(true);
   });
 });
 
@@ -526,18 +454,6 @@ describe("Tab during a composition belongs to the input method", () => {
     const event = pressTab(view, { isComposing: true });
 
     expect(textOf(view)).toBe("字");
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("does not let Esc during a composition open the escape route", () => {
-    const { view, composition } = openEditor({ doc: "字" });
-    composition.start();
-    press(view, "Escape");
-    composition.end();
-
-    const event = pressTab(view);
-
-    expect(textOf(view)).toBe("  字");
     expect(event.defaultPrevented).toBe(true);
   });
 

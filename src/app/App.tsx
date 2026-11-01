@@ -30,6 +30,7 @@ import { OperationFailureNotice } from "../features/vault/OperationFailureNotice
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
+import { VimModeSession } from "../features/vim/VimModeSession";
 import { useWritingLayout } from "../features/writingLayout/useWritingLayout";
 import { ViewModeButtons, ZenButton } from "../features/writingLayout/WritingControls";
 import { WritingLayout } from "../features/writingLayout/WritingLayout";
@@ -62,6 +63,7 @@ function VaultView() {
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const [fontSizes] = useState(() => new EditingSurfaceFontSizes(settings, composition));
   const [themes] = useState(() => new ThemeSession(settings, browserThemeEnvironment()));
+  const [vimModes] = useState(() => new VimModeSession(settings));
   const snapshot = useVaultSnapshot(session);
   const fontSize = useEditingSurfaceFontSizes(fontSizes);
   const previewPanel = usePreviewPanel(settings);
@@ -142,6 +144,7 @@ function VaultView() {
             scrollSynchronizer={scrollSynchronizer}
             imagePaste={imagePaste}
             fontSizePixels={fontSize.editor.pixels}
+            vimModes={vimModes}
           />
         }
         sidebarFooter={
@@ -149,6 +152,7 @@ function VaultView() {
             language={interfaceLanguage.language}
             onChoose={interfaceLanguage.choose}
             theme={theme}
+            vimModes={vimModes}
           />
         }
         writing={writing}

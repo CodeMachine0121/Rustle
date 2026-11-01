@@ -756,7 +756,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("stays in Zen Mode when Esc hands the keyboard away from the editor", async () => {
+    it("leaves Zen Mode on an Esc in the editor that nothing else takes", async () => {
       await startWithZenOpen();
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
       const content = editorContent();
@@ -766,8 +766,8 @@ describe("App", () => {
 
       fireEvent.keyDown(content, { key: "Escape" });
 
-      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
-      expect(section("文章")).not.toBeVisible();
+      expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
+      expect(section("文章")).toBeVisible();
     });
 
     it("never writes Zen Mode or preview only into the settings", async () => {
@@ -1797,6 +1797,204 @@ describe("App", () => {
       expect(screen.queryByRole("dialog", { name: "設定" })).not.toBeInTheDocument();
       expect(paintedColour("text")).toBe("#d3c6aa");
       expect(writtenThemes()).toEqual([]);
+    });
+  });
+
+  describe("vim mode", () => {
+    function answerWithVimMode(vimMode: unknown) {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        const answered = await answer?.(command, args);
+        return command === "read_settings" ? { ...(answered as object), vimMode } : answered;
+      });
+    }
+
+    async function startEditing(): Promise<{ content: HTMLElement; view: EditorView }> {
+      render(<App />);
+      await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+      const content = editorContent();
+      const view = content === null ? null : EditorView.findFromDOM(content);
+      if (content === null || view === null) {
+        throw new Error("no editor");
+      }
+      return { content, view };
+    }
+
+    function press(content: HTMLElement, key: string): KeyboardEvent {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      act(() => {
+        content.dispatchEvent(event);
+      });
+      return event;
+    }
+
+    function modeLabel(): string | null {
+      return document.querySelector(".vim-mode-label")?.textContent ?? null;
+    }
+
+    function isZen(): boolean {
+      return screen.getByRole("button", { name: "Zen Mode" }).getAttribute("aria-pressed") === "true";
+    }
+
+    it("is off for a vault that never mentioned it, with nothing between the path and the indicator", async () => {
+      answerWithVimMode(undefined);
+      await startEditing();
+
+      expect(modeLabel()).toBeNull();
+      expect(saveStatusLine()).toHaveTextContent(/^Blog❯zen-of-writing\.md$/u);
+    });
+
+    it("is off, without any error, when the settings hold something that is not on or off", async () => {
+      answerWithVimMode("yes");
+      const { content, view } = await startEditing();
+
+      press(content, "x");
+
+      expect(modeLabel()).toBeNull();
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("is on in Normal mode when the vault remembered it", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+
+      press(content, "x");
+
+      expect(modeLabel()).toBe("NORMAL");
+      expect(view.state.doc.toString()).toBe("文的第一行。");
+    });
+
+    it("turns on from the settings at once, in Normal mode, and remembers it", async () => {
+      answerWithVimMode(undefined);
+      const { content, view } = await startEditing();
+
+      fireEvent.click(screen.getByRole("button", { name: "設定" }));
+      fireEvent.click(screen.getByRole("switch", { name: "Vim 模式" }));
+      press(content, "x");
+
+      expect(modeLabel()).toBe("NORMAL");
+      expect(view.state.doc.toString()).toBe("文的第一行。");
+      expect(invoke).toHaveBeenCalledWith(
+        "write_settings",
+        expect.objectContaining({ settings: expect.objectContaining({ vimMode: true }) }),
+      );
+    });
+
+    it("turns off from the settings at once and the label is gone", async () => {
+      answerWithVimMode(true);
+      await startEditing();
+
+      fireEvent.click(screen.getByRole("button", { name: "設定" }));
+      fireEvent.click(screen.getByRole("switch", { name: "Vim 模式" }));
+
+      expect(modeLabel()).toBeNull();
+    });
+
+    it("shows the path, then the mode, then the save indicator", async () => {
+      answerWithVimMode(true);
+      const { content } = await startEditing();
+
+      press(content, "i");
+
+      const parts = [...saveStatusLine().children].map((child) => child.textContent);
+      expect(parts.slice(0, 2)).toEqual(["Blog❯zen-of-writing.md", "INSERT"]);
+      expect(saveStatusLine().lastElementChild).toHaveClass("save-indicator");
+    });
+
+    it("takes the menu, then Insert, then Zen Mode, one Esc at a time", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      press(content, "i");
+      act(() => view.dispatch({ changes: { from: 0, insert: "/" }, selection: { anchor: 1 }, userEvent: "input.type" }));
+      expect(view.dom.querySelector(".snippet-menu")).not.toBeNull();
+
+      press(content, "Escape");
+      expect([view.dom.querySelector(".snippet-menu"), modeLabel(), isZen()]).toEqual([null, "INSERT", true]);
+
+      press(content, "Escape");
+      expect([modeLabel(), isZen()]).toEqual(["NORMAL", true]);
+
+      press(content, "Escape");
+      expect([modeLabel(), isZen()]).toEqual(["NORMAL", false]);
+    });
+
+    it("cancels a pending operator and leaves Zen Mode with the same Esc, the text untouched", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+
+      press(content, "d");
+      press(content, "Escape");
+      press(content, "w");
+
+      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", false, "正文的第一行。"]);
+    });
+
+    it("leaves Zen Mode on Esc with Vim off only after the menu is closed", async () => {
+      answerWithVimMode(undefined);
+      const { content, view } = await startEditing();
+      fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
+      act(() => view.dispatch({ changes: { from: 0, insert: "/" }, selection: { anchor: 1 }, userEvent: "input.type" }));
+
+      press(content, "Escape");
+      expect(isZen()).toBe(true);
+
+      press(content, "Escape");
+      expect(isZen()).toBe(false);
+    });
+
+    it("does nothing on Esc in Normal mode outside Zen Mode", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+
+      const escape = press(content, "Escape");
+
+      expect([modeLabel(), isZen(), view.state.doc.toString()]).toEqual(["NORMAL", false, "正文的第一行。"]);
+      expect(escape.defaultPrevented).toBe(false);
+    });
+
+    it("toggles the preview on its shortcut in Visual mode, as always", async () => {
+      answerWithVimMode(true);
+      const { content, view } = await startEditing();
+      act(() => view.dispatch({ selection: { anchor: 0, head: 2 }, userEvent: "select.pointer" }));
+      expect(modeLabel()).toBe("VISUAL");
+
+      fireEvent.keyDown(content, { metaKey: true, shiftKey: true, key: "P", code: "KeyP" });
+
+      expect(screen.getByRole("button", { name: "只有編輯" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("puts the editor's font size back with Cmd+0 in Normal mode, as always", async () => {
+      answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+      const answer = vi.mocked(invoke).getMockImplementation();
+      vi.mocked(invoke).mockImplementation(async (command, args) => {
+        const answered = await answer?.(command, args);
+        return command === "read_settings"
+          ? { ...(answered as object), vimMode: true, fontSize: { editor: 18 } }
+          : answered;
+      });
+      const { content, view } = await startEditing();
+      await waitFor(() => expect(view.dom.style.fontSize).toBe("18px"));
+
+      fireEvent.pointerOver(content);
+      fireEvent.keyDown(content, { key: "0", metaKey: true });
+
+      expect(modeLabel()).toBe("NORMAL");
+      expect(view.dom.style.fontSize).toBe("15px");
+      expect(view.state.doc.toString()).toBe("正文的第一行。");
+    });
+
+    it("shows neither the status line nor the mode in preview only", async () => {
+      answerWithVimMode(true);
+      await startEditing();
+
+      fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
+
+      expect(screen.queryByRole("contentinfo", { name: "儲存狀態列" })).not.toBeInTheDocument();
+      expect(document.querySelector(".vim-mode-label")).not.toBeVisible();
     });
   });
 });

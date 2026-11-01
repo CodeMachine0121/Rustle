@@ -3,13 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { FOLLOW_SYSTEM } from "../theme/ThemeCatalog";
+import { SettingsSession } from "../settings/SettingsSession";
+import { VimModeSession } from "../vim/VimModeSession";
 import { SettingsEntry } from "./SettingsEntry";
 
 function renderEntry() {
   const onChoose = vi.fn();
   render(
     <CompositionProvider>
-      <SettingsEntry language="zh" onChoose={onChoose} theme={{ choice: FOLLOW_SYSTEM, themes: [], choose: vi.fn() }} />
+      <SettingsEntry language="zh" onChoose={onChoose} theme={{ choice: FOLLOW_SYSTEM, themes: [], choose: vi.fn() }}
+        vimModes={new VimModeSession(new SettingsSession({ readSettings: vi.fn(), writeSettings: vi.fn() }))}
+      />
     </CompositionProvider>,
   );
   return onChoose;

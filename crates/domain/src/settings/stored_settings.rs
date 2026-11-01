@@ -47,6 +47,7 @@ pub(super) struct StoredSettings {
     sidebar: Tolerant<StoredSidebar>,
     font_size: Tolerant<StoredFontSize>,
     theme: Tolerant<Option<String>>,
+    vim_mode: Tolerant<bool>,
 }
 
 #[derive(Deserialize, Default)]
@@ -138,6 +139,7 @@ impl From<StoredSettings> for Settings {
             sidebar: stored.sidebar.or_default().into(),
             font_size: stored.font_size.or_default().into(),
             theme: stored.theme.or(None),
+            vim_mode: stored.vim_mode.or(false),
         }
     }
 }

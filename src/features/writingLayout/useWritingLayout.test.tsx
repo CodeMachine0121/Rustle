@@ -117,4 +117,65 @@ describe("useWritingLayout", () => {
 
     expect(result.current.isZen).toBe(true);
   });
+
+  describe("Esc as the last rung", () => {
+    async function renderInZen() {
+      const rendered = await renderLayout();
+      act(() => rendered.layout.toggleZen());
+      return rendered;
+    }
+
+    function pressEscape(init: KeyboardEventInit = {}, takenEarlier = false): KeyboardEvent {
+      const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true, ...init });
+      if (takenEarlier) {
+        event.preventDefault();
+      }
+      act(() => {
+        document.body.dispatchEvent(event);
+      });
+      return event;
+    }
+
+    it("leaves Zen Mode on an Esc nothing else took", async () => {
+      const { result } = await renderInZen();
+
+      pressEscape();
+
+      expect(result.current.isZen).toBe(false);
+    });
+
+    it("stays in Zen Mode when something earlier took that Esc", async () => {
+      const { result } = await renderInZen();
+
+      pressEscape({}, true);
+
+      expect(result.current.isZen).toBe(true);
+    });
+
+    it("stays in Zen Mode while the input method owns the Esc", async () => {
+      const { result, composition } = await renderInZen();
+      act(() => composition.start());
+
+      pressEscape();
+
+      expect(result.current.isZen).toBe(true);
+    });
+
+    it("stays in Zen Mode on Esc with a modifier", async () => {
+      const { result } = await renderInZen();
+
+      pressEscape({ shiftKey: true });
+
+      expect(result.current.isZen).toBe(true);
+    });
+
+    it("leaves only one rung per Esc: the next Esc does nothing more", async () => {
+      const { result } = await renderInZen();
+
+      pressEscape();
+      pressEscape();
+
+      expect(result.current).toEqual({ viewMode: "sideBySide", isZen: false, controlsLiveIn: "editor" });
+    });
+  });
 });

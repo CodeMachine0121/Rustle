@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
+import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 
@@ -12,6 +12,8 @@ import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { SnippetCatalog } from "../snippets/SnippetCatalog";
 import { SnippetExpansion } from "../snippets/SnippetExpansion";
+import { VimEditing } from "../vim/VimEditing";
+import type { VimMode } from "../vim/VimModeSession";
 import { cursorLineHighlight } from "./cursorLineHighlight";
 import { EditorScrollPane } from "./EditorScrollPane";
 import { EmphasisShortcuts } from "./EmphasisShortcuts";
@@ -38,6 +40,8 @@ type MarkdownEditorProps = {
   onBodyChange?: BodyChangeListener;
   scrollSynchronizer?: ScrollSynchronizer;
   fontSizePixels?: number;
+  vimEnabled?: boolean;
+  onVimModeChange?: (mode: VimMode) => void;
 };
 
 /**
@@ -55,6 +59,8 @@ type MarkdownEditorProps = {
  * A new `fontSizePixels` resizes the text in place and re-measures it, so
  * the text, cursor, undo history and composition are untouched.
  * A half-width slash opens the shipped snippets (see `SnippetExpansion`).
+ * With `vimEnabled` the editor is modal (see `VimEditing`); turning it on or
+ * off changes the keys in place and reports every mode to `onVimModeChange`.
  */
 export function MarkdownEditor({
   documentKey,
@@ -66,6 +72,8 @@ export function MarkdownEditor({
   onBodyChange,
   scrollSynchronizer,
   fontSizePixels,
+  vimEnabled = false,
+  onVimModeChange,
 }: MarkdownEditorProps) {
   const composition = useCompositionState();
   const snippetMenuLabel = useMessages().snippetMenu;
@@ -76,6 +84,7 @@ export function MarkdownEditor({
   const appliedPlacementRef = useRef<number | null>(null);
   const onBodyChangeRef = useRef(onBodyChange);
   const [indentationCompartment] = useState(() => new Compartment());
+  const [vimEditing] = useState(() => new VimEditing(composition, vimEnabled));
 
   useEffect(() => {
     onBodyChangeRef.current = onBodyChange;
@@ -84,6 +93,10 @@ export function MarkdownEditor({
   useEffect(() => {
     snippetMenuLabelRef.current = snippetMenuLabel;
   }, [snippetMenuLabel]);
+
+  useEffect(() => {
+    vimEditing.reportModesTo((mode) => onVimModeChange?.(mode));
+  }, [vimEditing, onVimModeChange]);
 
   const indentationStyle = indentation?.style;
   const indentationWidth = indentation?.width;
@@ -120,6 +133,10 @@ export function MarkdownEditor({
   }, [fontSizePixels]);
 
   useEffect(() => {
+    viewRef.current?.dispatch({ effects: vimEditing.switchTo(vimEnabled) });
+  }, [vimEditing, vimEnabled]);
+
+  useEffect(() => {
     const view = viewRef.current;
     if (view === null) {
       return;
@@ -147,7 +164,7 @@ export function MarkdownEditor({
         EditorState.create({
           doc: body,
           extensions: [
-            editorExtensions(composition, indentationCompartment.of(tabIndentation)),
+            editorExtensions(composition, indentationCompartment.of(tabIndentation), vimEditing),
             new SnippetExpansion(composition, SHIPPED_SNIPPETS, () => snippetMenuLabelRef.current).extension(),
             imagePaste?.extension() ?? [],
             EditorView.updateListener.of((update) => {
@@ -155,6 +172,7 @@ export function MarkdownEditor({
                 onBodyChangeRef.current?.(update.state.doc.toString());
               }
             }),
+            vimEditing.extension(),
           ],
         }),
       );
@@ -185,6 +203,7 @@ export function MarkdownEditor({
     indentationStyle,
     indentationWidth,
     indentationCompartment,
+    vimEditing,
   ]);
 
   return <div className="markdown-editor" ref={hostRef} />;
@@ -200,15 +219,17 @@ function putCursorOnLine(view: EditorView, line: number) {
   view.focus();
 }
 
-function editorExtensions(composition: CompositionState, tabIndentation: Extension) {
+function editorExtensions(composition: CompositionState, tabIndentation: Extension, vimEditing: VimEditing) {
   return [
     tabIndentation,
     new TableRowContinuation(composition).extension(),
     new EmphasisShortcuts(composition).extension(),
     new ExtendSelection(composition).extension(),
     history(),
-    keymap.of([...editorDefaultKeymap, ...historyKeymap]),
-    markdown(),
+    keymap.of(historyKeymap),
+    vimEditing.typingKeys(editorDefaultKeymap),
+    markdown({ addKeymap: false }),
+    Prec.high(vimEditing.typingKeys(markdownKeymap)),
     xcodeTheme(),
     cursorLineHighlight(),
     EditorView.lineWrapping,

@@ -90,6 +90,14 @@ describe("SaveStatusLine", () => {
     expect(screen.getByRole("img", { name: "已存進檔案" }).querySelector("svg")).toHaveClass("lucide-check");
   });
 
+  it("puts the mode label between the article path and the save indicator", async () => {
+    render(<SaveStatusLine session={session} modeLabel={<span className="mode-label">INSERT</span>} />);
+    await openArticle();
+
+    const parts = [...statusLine().children].map((child) => child.className);
+    expect(parts).toEqual(["article-path", "mode-label", "save-indicator save-indicator--saved"]);
+  });
+
   it("spins as soon as the body changes, before anything is written", async () => {
     render(<SaveStatusLine session={session} />);
     await openArticle();
