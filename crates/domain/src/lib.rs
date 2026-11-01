@@ -4,6 +4,7 @@ mod article_document;
 mod article_file_name_slug;
 mod article_metadata;
 mod article_repository;
+mod clock;
 mod metadata_update;
 mod settings;
 mod utc_timestamp;
@@ -16,6 +17,9 @@ pub use article_metadata::ArticleMetadata;
 pub use article_repository::{
     ArticleRepository, ArticleRepositoryError, ArticleWrite, StoredArticle,
 };
+pub use clock::Clock;
+#[cfg(any(test, feature = "mocks"))]
+pub use clock::MockClock;
 pub use metadata_update::MetadataUpdate;
 pub use settings::{Settings, SettingsError, SettingsRepository};
 pub use utc_timestamp::UtcTimestamp;

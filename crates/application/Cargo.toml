@@ -10,6 +10,7 @@ rustle-domain.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
+rustle-domain = { workspace = true, features = ["mocks"] }
 rustle-infrastructure.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true

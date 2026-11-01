@@ -5,12 +5,17 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+mocks = ["dep:mockall"]
+
 [dependencies]
+mockall = { workspace = true, optional = true }
 serde.workspace = true
 thiserror.workspace = true
 yaml-rust2.workspace = true
 
 [dev-dependencies]
+mockall.workspace = true
 rstest.workspace = true
 
 [lints]
