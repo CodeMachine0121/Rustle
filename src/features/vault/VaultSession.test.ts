@@ -5,6 +5,7 @@ import type { ChannelResult } from "../../ipc/channelResult";
 import type { CreateWorkspaceOutcome } from "../../ipc/createWorkspaceOutcome";
 import type { Settings } from "../../ipc/settings";
 import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
+import { SettingsSession } from "../settings/SettingsSession";
 import { VaultSession, type ArticleHolder, type VaultChannels } from "./VaultSession";
 
 function ok<Payload>(payload: Payload): Promise<ChannelResult<Payload>> {
@@ -300,6 +301,22 @@ describe("VaultSession", () => {
 
     expect(channels.writeSettings).toHaveBeenNthCalledWith(1, settingsWith({ workspace: "Blog", article: null }));
     expect(channels.writeSettings).toHaveBeenLastCalledWith(settingsWith({ workspace: "Blog", article: "a.md" }));
+  });
+
+  it("keeps a change another feature made to the shared settings when it remembers a selection", async () => {
+    const channels = vaultChannels();
+    const settings = new SettingsSession(channels);
+    const session = new VaultSession(channels, articleHolder(), settings);
+    await session.start();
+
+    settings.change((current) => ({ ...current, previewPanel: { ...current.previewPanel, isOpen: true } }));
+    await session.selectWorkspace("Work");
+
+    expect(channels.writeSettings).toHaveBeenLastCalledWith({
+      ...STORED_SETTINGS,
+      previewPanel: { ...STORED_SETTINGS.previewPanel, isOpen: true },
+      lastOpened: { workspace: "Work", article: null },
+    });
   });
 
   it("does not write settings it never managed to read", async () => {
