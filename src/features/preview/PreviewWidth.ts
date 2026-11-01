@@ -31,8 +31,9 @@ export class PreviewWidth {
     return PreviewWidth.of(this.ratio - pixelsToTheRight / areaWidth);
   }
 
-  /** One step to the right narrows the preview by five points. */
+  /** One step to the right narrows the preview by five points, landing on a whole percent. */
   steppedBy(stepsToTheRight: number): PreviewWidth {
-    return PreviewWidth.of(this.ratio - stepsToTheRight * PreviewWidth.STEP_RATIO);
+    const stepped = this.ratio - stepsToTheRight * PreviewWidth.STEP_RATIO;
+    return PreviewWidth.of(Math.round(stepped * 100) / 100);
   }
 }

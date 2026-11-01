@@ -31,6 +31,15 @@ describe("PreviewWidth", () => {
     expect(PreviewWidth.of(0.2).steppedBy(1).ratio).toBeCloseTo(0.2);
   });
 
+  it("lands on a whole percent however many steps are taken", () => {
+    let width = PreviewWidth.of(0.5);
+    for (let step = 0; step < 4; step += 1) {
+      width = width.steppedBy(1);
+    }
+
+    expect(width.ratio).toBe(0.3);
+  });
+
   it("says its share in whole percent", () => {
     expect(PreviewWidth.of(0.354).percent).toBe(35);
   });
