@@ -596,6 +596,18 @@ describe("MarkdownEditor marks and emphasis", () => {
     expect(editor.state.doc.toString()).toBe("  正文");
   });
 
+  it("grows the selection from the word to the link with the extend selection key", () => {
+    const { content, editor } = editorOn("看[今天的天氣](https://example.com)這裡", EditorSelection.single(4));
+
+    pressShortcut(content, "w");
+    const word = editor.state.sliceDoc(editor.state.selection.main.from, editor.state.selection.main.to);
+    pressShortcut(content, "w");
+    const link = editor.state.sliceDoc(editor.state.selection.main.from, editor.state.selection.main.to);
+
+    expect([word, link]).toEqual(["今天的天氣", "[今天的天氣](https://example.com)"]);
+    expect(editor.state.doc.toString()).toBe("看[今天的天氣](https://example.com)這裡");
+  });
+
   it("selects nothing with the italic shortcut while composing", () => {
     const { content, editor } = editorOn("看[連結](https://example.com)這裡", EditorSelection.single(3));
     fireEvent.compositionStart(content);

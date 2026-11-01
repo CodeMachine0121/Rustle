@@ -12,12 +12,13 @@ import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { cursorLineHighlight } from "./cursorLineHighlight";
 import { EditorScrollPane } from "./EditorScrollPane";
 import { EmphasisShortcuts } from "./EmphasisShortcuts";
+import { ExtendSelection } from "./ExtendSelection";
 import { IndentUnit, type IndentationSettings } from "./IndentUnit";
 import { TableRowContinuation } from "./TableRowContinuation";
 import { TabIndentation } from "./TabIndentation";
 import { xcodeTheme } from "./xcodeTheme";
 
-// Mod-I is italic now; selecting the enclosing syntax node is retired.
+// Mod-I is italic now; selecting the enclosing syntax node moved to Mod-W (ExtendSelection).
 const editorDefaultKeymap = defaultKeymap.filter((binding) => binding.key !== "Mod-i");
 
 type BodyChangeListener = (body: string) => void;
@@ -178,6 +179,7 @@ function editorExtensions(composition: CompositionState, tabIndentation: Extensi
     tabIndentation,
     new TableRowContinuation(composition).extension(),
     new EmphasisShortcuts(composition).extension(),
+    new ExtendSelection(composition).extension(),
     history(),
     keymap.of([...editorDefaultKeymap, ...historyKeymap]),
     markdown(),
