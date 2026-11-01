@@ -17,17 +17,6 @@ pub enum ChannelRegistryError {
     UnknownChannel(String),
 }
 
-impl From<ChannelRegistryError> for CommandError {
-    fn from(error: ChannelRegistryError) -> Self {
-        match error {
-            ChannelRegistryError::UnknownChannel(command_name) => {
-                CommandError::unknown_channel(&command_name)
-            }
-            other => CommandError::unexpected(other),
-        }
-    }
-}
-
 pub trait ChannelBound {
     fn channel(&self) -> Channel;
 }
@@ -100,8 +89,10 @@ impl<R: Runtime> ChannelRegistry<ChannelHandler<R>> {
             let command_name = invoke.message.command().to_owned();
             match self.handler_named(&command_name) {
                 Ok(handler) => (handler.invoke)(invoke),
-                Err(error) => {
-                    invoke.resolver.reject(CommandError::from(error));
+                Err(_) => {
+                    invoke
+                        .resolver
+                        .reject(CommandError::unknown_channel(&command_name));
                     true
                 }
             }
