@@ -4,10 +4,10 @@ use std::path::PathBuf;
 use rstest::rstest;
 use rustle_application::{
     ArticleSummary, CreateWorkspace, CreateWorkspaceOutcome, ListArticles, ListWorkspaces,
-    ReadSettings, WorkspaceSummary,
+    ReadSettings, WorkspaceSummary, WriteSettings,
 };
 use rustle_domain::{
-    Settings, SettingsError, VaultScope, WorkspaceName, WorkspaceNameRejection,
+    LastOpenedSettings, Settings, SettingsError, VaultScope, WorkspaceName, WorkspaceNameRejection,
     WorkspaceRepositoryError,
 };
 use rustle_infrastructure::{
@@ -416,6 +416,24 @@ fn a_vault_that_cannot_hold_folders_is_an_error_not_a_rejection() {
         CreateWorkspace::new(&workspaces).execute("Notes"),
         Err(WorkspaceRepositoryError::Unreadable { .. })
     ));
+}
+
+#[test]
+fn reads_back_the_settings_it_wrote() {
+    let vault = Vault::create();
+    let settings = Settings {
+        last_opened: LastOpenedSettings {
+            workspace: Some("Blog".to_owned()),
+            article: Some("a.md".to_owned()),
+        },
+        ..Settings::default()
+    };
+
+    WriteSettings::new(&FileSystemSettingsRepository::in_vault(vault.scope()))
+        .execute(&settings)
+        .expect("settings written");
+
+    assert_eq!(vault.read_settings(), Ok(settings));
 }
 
 #[test]
