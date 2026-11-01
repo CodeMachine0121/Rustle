@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
 
+import { PaneDivider } from "../features/preview/PaneDivider";
+import type { PreviewWidth } from "../features/preview/PreviewWidth";
+
 export type PreviewSlot = {
   isOpen: boolean;
   content: ReactNode;
   onOpen: () => void;
   onClose: () => void;
+  width: PreviewWidth;
+  onResize: (width: PreviewWidth) => void;
+  onResizeEnd: (width: PreviewWidth) => void;
 };
 
 type AppLayoutProps = {
@@ -15,8 +21,9 @@ type AppLayoutProps = {
 };
 
 /**
- * The four columns, left to right. A folded preview leaves only a handle at
- * the edge, and the editor takes its width.
+ * The four columns, left to right. The editor and an open preview share the
+ * writing area, split by a draggable divider; a folded preview leaves only a
+ * handle at the edge, and the editor takes its width.
  */
 export function AppLayout({ workspaces, articles, editor, preview }: AppLayoutProps) {
   return (
@@ -27,38 +34,49 @@ export function AppLayout({ workspaces, articles, editor, preview }: AppLayoutPr
       <LayoutRegion title="ARTICLES" className="articles-region">
         {articles}
       </LayoutRegion>
-      <LayoutRegion title="EDITOR" className="editor-region">
-        {editor}
-      </LayoutRegion>
-      {preview !== undefined &&
-        (preview.isOpen ? (
-          <LayoutRegion
-            title="PREVIEW"
-            className="preview-region"
-            action={
-              <button
-                type="button"
-                className="region-action"
-                aria-label="關閉預覽"
-                onClick={preview.onClose}
-              >
-                ✕
-              </button>
-            }
-          >
-            {preview.content}
-          </LayoutRegion>
-        ) : (
+      <div className="writing-area">
+        <LayoutRegion title="EDITOR" className="editor-region">
+          {editor}
+        </LayoutRegion>
+        {preview !== undefined && <PreviewColumn preview={preview} />}
+      </div>
+    </main>
+  );
+}
+
+function PreviewColumn({ preview }: { preview: PreviewSlot }) {
+  if (!preview.isOpen) {
+    return (
+      <button type="button" className="preview-handle" aria-label="開啟預覽" onClick={preview.onOpen}>
+        ◀ 預覽
+      </button>
+    );
+  }
+  return (
+    <>
+      <PaneDivider
+        width={preview.width}
+        onResize={preview.onResize}
+        onResizeEnd={preview.onResizeEnd}
+      />
+      <LayoutRegion
+        title="PREVIEW"
+        className="preview-region"
+        flexBasis={`${preview.width.ratio * 100}%`}
+        action={
           <button
             type="button"
-            className="preview-handle"
-            aria-label="開啟預覽"
-            onClick={preview.onOpen}
+            className="region-action"
+            aria-label="關閉預覽"
+            onClick={preview.onClose}
           >
-            ◀ 預覽
+            ✕
           </button>
-        ))}
-    </main>
+        }
+      >
+        {preview.content}
+      </LayoutRegion>
+    </>
   );
 }
 
@@ -66,12 +84,17 @@ type LayoutRegionProps = {
   title: string;
   className: string;
   action?: ReactNode;
+  flexBasis?: string;
   children: ReactNode;
 };
 
-function LayoutRegion({ title, className, action, children }: LayoutRegionProps) {
+function LayoutRegion({ title, className, action, flexBasis, children }: LayoutRegionProps) {
   return (
-    <section className={`layout-region ${className}`} aria-label={title}>
+    <section
+      className={`layout-region ${className}`}
+      aria-label={title}
+      style={flexBasis === undefined ? undefined : { flexBasis }}
+    >
       <div className="region-header">
         <h2 className="region-title">{title}</h2>
         {action}

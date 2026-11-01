@@ -1,7 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
+import { CompositionProvider } from "../../shared/composition/CompositionContext";
+import { CompositionState } from "../../shared/composition/CompositionState";
 import { ArticleColumn } from "./ArticleColumn";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "./VaultSession";
 
@@ -39,13 +41,15 @@ function renderColumn(
   { onEditMetadata = vi.fn(), onDelete = vi.fn() } = {},
 ) {
   render(
-    <ArticleColumn
-      snapshot={snapshot}
-      onSelect={onSelect}
-      onCreateArticle={onCreateArticle}
-      onEditMetadata={onEditMetadata}
-      onDelete={onDelete}
-    />,
+    <CompositionProvider>
+      <ArticleColumn
+        snapshot={snapshot}
+        onSelect={onSelect}
+        onCreateArticle={onCreateArticle}
+        onEditMetadata={onEditMetadata}
+        onDelete={onDelete}
+      />
+    </CompositionProvider>,
   );
   return onSelect;
 }
@@ -143,5 +147,229 @@ describe("ArticleColumn", () => {
     expect(onEditMetadata).toHaveBeenCalledWith(TAURI);
     expect(onDelete).toHaveBeenCalledWith(NO_TITLE);
     expect(screen.getAllByRole("button", { name: /metadata$/ })[0]).toHaveTextContent("編輯 metadata");
+  });
+});
+
+const ZEN: ArticleSummary = {
+  fileName: "zen.md",
+  title: "Zen of Writing",
+  createdAt: "2026-08-18T09:00:00+08:00",
+  updatedAt: "2026-08-20T18:00:00+08:00",
+  category: ["隨筆"],
+  tags: [],
+  hasIncompleteMetadata: false,
+};
+
+const DAILY: ArticleSummary = {
+  fileName: "tauri-note.md",
+  title: "日常",
+  createdAt: "2026-08-19T22:00:00+08:00",
+  updatedAt: "2026-08-19T22:00:00+08:00",
+  category: [],
+  tags: [],
+  hasIncompleteMetadata: false,
+};
+
+const THREE: VaultSnapshot = { ...BLOG, articles: [TAURI, ZEN, DAILY] };
+
+function renderControlledColumn(snapshot: VaultSnapshot) {
+  const composition = new CompositionState();
+  const onSelect = vi.fn();
+  const onCreateArticle = vi.fn();
+  render(
+    <CompositionProvider state={composition}>
+      <ArticleColumn
+        snapshot={snapshot}
+        onSelect={onSelect}
+        onCreateArticle={onCreateArticle}
+        onEditMetadata={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    </CompositionProvider>,
+  );
+  return { composition, onSelect, onCreateArticle };
+}
+
+function rowTitles(): string[] {
+  return Array.from(document.querySelectorAll(".article-row .row-title")).map(
+    (title) => title.textContent ?? "",
+  );
+}
+
+function filterField(): HTMLElement {
+  return screen.getByRole("textbox", { name: "篩選文章" });
+}
+
+function typeIntoFilter(text: string) {
+  fireEvent.change(filterField(), { target: { value: text } });
+}
+
+describe("ArticleColumn ordering and filtering", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("lists the newest article first by default", () => {
+    renderControlledColumn(THREE);
+
+    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "日常", "Zen of Writing"]);
+  });
+
+  it("reorders by title without selecting anything and keeps the open article selected", () => {
+    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: "zen.md" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "排序" }), { target: { value: "title" } });
+
+    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing", "日常"]);
+    expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("filters once typing has paused for the shared delay", () => {
+    renderControlledColumn(THREE);
+
+    typeIntoFilter("z");
+    act(() => vi.advanceTimersByTime(50));
+    typeIntoFilter("ze");
+    act(() => vi.advanceTimersByTime(50));
+    typeIntoFilter("zen");
+    act(() => vi.advanceTimersByTime(149));
+    expect(rowTitles()).toHaveLength(3);
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(rowTitles()).toEqual(["Zen of Writing"]);
+  });
+
+  it("shows the typed text at once", () => {
+    renderControlledColumn(THREE);
+
+    typeIntoFilter("z");
+
+    expect(filterField()).toHaveValue("z");
+  });
+
+  it("does not filter while composing and filters once the composition has ended", () => {
+    const { composition } = renderControlledColumn(THREE);
+
+    fireEvent.compositionStart(filterField());
+    typeIntoFilter("ㄐ");
+    typeIntoFilter("技術");
+    act(() => vi.advanceTimersByTime(2000));
+    expect(composition.isComposing).toBe(true);
+    expect(rowTitles()).toHaveLength(3);
+
+    fireEvent.compositionEnd(filterField());
+    act(() => vi.advanceTimersByTime(150));
+    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨"]);
+  });
+
+  it("leaves an Enter that confirms a candidate to the input method", () => {
+    renderControlledColumn(THREE);
+    fireEvent.compositionStart(filterField());
+    typeIntoFilter("技術");
+
+    const notCancelled = fireEvent.keyDown(filterField(), { key: "Enter", keyCode: 229 });
+
+    expect(notCancelled).toBe(true);
+    expect(rowTitles()).toHaveLength(3);
+  });
+
+  it("applies the typed text at once on Enter", () => {
+    renderControlledColumn(THREE);
+    typeIntoFilter("zen");
+
+    const notCancelled = fireEvent.keyDown(filterField(), { key: "Enter", keyCode: 13 });
+
+    expect(notCancelled).toBe(false);
+    expect(filterField().closest("form")).toBeNull();
+    expect(rowTitles()).toEqual(["Zen of Writing"]);
+  });
+
+  it("does nothing on other keys", () => {
+    renderControlledColumn(THREE);
+    typeIntoFilter("zen");
+
+    const notCancelled = fireEvent.keyDown(filterField(), { key: "a", keyCode: 65 });
+
+    expect(notCancelled).toBe(true);
+    expect(rowTitles()).toHaveLength(3);
+  });
+
+  it("clears the filter on Escape", () => {
+    renderControlledColumn(THREE);
+    typeIntoFilter("zen");
+    act(() => vi.advanceTimersByTime(150));
+
+    fireEvent.keyDown(filterField(), { key: "Escape", keyCode: 27 });
+
+    expect(filterField()).toHaveValue("");
+    expect(rowTitles()).toHaveLength(3);
+  });
+
+  it("leaves an Escape during composition to the input method", () => {
+    const { composition } = renderControlledColumn(THREE);
+    typeIntoFilter("zen");
+    act(() => vi.advanceTimersByTime(150));
+    composition.start();
+
+    fireEvent.keyDown(filterField(), { key: "Escape", keyCode: 27 });
+
+    expect(filterField()).toHaveValue("zen");
+    expect(rowTitles()).toEqual(["Zen of Writing"]);
+  });
+
+  it("ends the shared composition when the field loses focus", () => {
+    const { composition } = renderControlledColumn(THREE);
+    fireEvent.compositionStart(filterField());
+
+    fireEvent.blur(filterField());
+
+    expect(composition.isComposing).toBe(false);
+  });
+
+  it("says that nothing matches instead of inviting a first article", () => {
+    renderControlledColumn(THREE);
+
+    typeIntoFilter("xyz");
+    act(() => vi.advanceTimersByTime(150));
+
+    expect(rowTitles()).toEqual([]);
+    expect(screen.getByText("沒有符合的文章")).toBeInTheDocument();
+    expect(screen.queryByText("建立第一篇文章")).not.toBeInTheDocument();
+  });
+
+  it("keeps the open article marked when the filter leaves it out, without selecting anything", () => {
+    const { onSelect } = renderControlledColumn({ ...THREE, selectedArticle: "zen.md" });
+
+    typeIntoFilter("技術");
+    act(() => vi.advanceTimersByTime(150));
+
+    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing"]);
+    const openRow = screen.getByRole("button", { name: /^Zen of Writing/ });
+    expect(openRow).toHaveAttribute("aria-pressed", "true");
+    expect(openRow).toHaveTextContent("開著・不符合篩選");
+    expect(screen.getByRole("button", { name: /^Tauri/ })).not.toHaveTextContent("不符合篩選");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("filters and orders together", () => {
+    renderControlledColumn(THREE);
+
+    typeIntoFilter("i");
+    act(() => vi.advanceTimersByTime(150));
+    expect(rowTitles()).toEqual(["Tauri 與 Electron 的取捨", "Zen of Writing"]);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "排序" }), {
+      target: { value: "updatedNewestFirst" },
+    });
+
+    expect(rowTitles()).toEqual(["Zen of Writing", "Tauri 與 Electron 的取捨"]);
   });
 });

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositionProvider } from "../../shared/composition/CompositionContext";
 import { CompositionState } from "../../shared/composition/CompositionState";
 import type { IndentationSettings } from "./IndentUnit";
+import { ScrollSynchronizer, type ScrollPane } from "../preview/ScrollSynchronizer";
 import { MarkdownEditor } from "./MarkdownEditor";
 
 function renderEditor(
@@ -324,6 +325,63 @@ describe("MarkdownEditor", () => {
       undo(editor);
 
       expect(content.textContent).toBe("  同樣的字");
+    });
+  });
+
+  describe("scroll sync", () => {
+    function previewPane(): ScrollPane & { scroll: () => void } {
+      let listener: () => void = () => undefined;
+      return {
+        scroll: () => listener(),
+        listen: (onScroll) => {
+          listener = onScroll;
+          return () => undefined;
+        },
+        position: () => 0,
+        maximumPosition: () => 500,
+        lineAtTop: () => 0,
+        positionForLine: (line) => line * 20,
+        scrollTo: vi.fn(),
+      };
+    }
+
+    function renderSynchronizedEditor(synchronizer: ScrollSynchronizer) {
+      const view = render(
+        <CompositionProvider>
+          <MarkdownEditor documentKey="a" body={"第一行\n第二行"} scrollSynchronizer={synchronizer} />
+        </CompositionProvider>,
+      );
+      const scroller = view.container.querySelector(".cm-scroller");
+      if (!(scroller instanceof HTMLElement)) {
+        throw new Error("the editor did not render its scroller");
+      }
+      return { scroller, unmount: view.unmount };
+    }
+
+    it("leads the preview while mounted", () => {
+      const synchronizer = new ScrollSynchronizer();
+      const pane = previewPane();
+      synchronizer.attach("preview", pane);
+      const { scroller } = renderSynchronizedEditor(synchronizer);
+
+      Object.defineProperty(scroller, "scrollTop", { value: 40, configurable: true });
+      fireEvent.scroll(scroller);
+
+      expect(pane.scrollTo).toHaveBeenCalledWith(500);
+    });
+
+    it("stops leading once unmounted", () => {
+      const synchronizer = new ScrollSynchronizer();
+      const pane = previewPane();
+      synchronizer.attach("preview", pane);
+      const { scroller, unmount } = renderSynchronizedEditor(synchronizer);
+
+      unmount();
+      Object.defineProperty(scroller, "scrollTop", { value: 40, configurable: true });
+      fireEvent.scroll(scroller);
+      pane.scroll();
+
+      expect(pane.scrollTo).not.toHaveBeenCalled();
     });
   });
 });

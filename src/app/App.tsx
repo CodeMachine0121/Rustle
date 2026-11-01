@@ -10,6 +10,7 @@ import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditA
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
+import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
@@ -40,6 +41,7 @@ function VaultView() {
   const [settings] = useState(() => new SettingsSession(channels));
   const [session] = useState(() => new VaultSession(channels, autosave, settings));
   const [previewedBody] = useState(() => new PreviewedBody(autosave, composition));
+  const [scrollSynchronizer] = useState(() => new ScrollSynchronizer());
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
@@ -91,12 +93,24 @@ function VaultView() {
             onDelete={setArticleToDelete}
           />
         }
-        editor={<EditorColumn snapshot={snapshot} autosave={autosave} imagePaste={imagePaste} />}
+        editor={
+          <EditorColumn
+            snapshot={snapshot}
+            autosave={autosave}
+            scrollSynchronizer={scrollSynchronizer}
+            imagePaste={imagePaste}
+          />
+        }
         preview={{
           isOpen: previewPanel.isOpen,
-          content: <PreviewPanel previewedBody={previewedBody} />,
+          content: (
+            <PreviewPanel previewedBody={previewedBody} scrollSynchronizer={scrollSynchronizer} />
+          ),
           onOpen: previewPanel.open,
           onClose: previewPanel.close,
+          width: previewPanel.width,
+          onResize: previewPanel.resize,
+          onResizeEnd: previewPanel.commitWidth,
         }}
       />
       {articleDialogOpenedAt !== null && (

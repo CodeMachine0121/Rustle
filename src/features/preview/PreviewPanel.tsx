@@ -1,29 +1,52 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { NoArticleState } from "../vault/NoArticleState";
 import type { PreviewedBody } from "./PreviewedBody";
+import { PreviewScrollPane } from "./PreviewScrollPane";
 import { renderPreviewHtml } from "./renderPreviewHtml";
+import type { ScrollSynchronizer } from "./ScrollSynchronizer";
 
 type PreviewPanelProps = {
   previewedBody: PreviewedBody;
+  scrollSynchronizer?: ScrollSynchronizer;
 };
 
-export function PreviewPanel({ previewedBody }: PreviewPanelProps) {
+/** The rendered body; while one is shown it is the preview side of the scroll sync. */
+export function PreviewPanel({ previewedBody, scrollSynchronizer }: PreviewPanelProps) {
   const body = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.body);
   const workspace = useSyncExternalStore(previewedBody.subscribe, () => previewedBody.workspace);
   if (body === null) {
     return <NoArticleState />;
   }
-  return <PreviewContent body={body} workspace={workspace} />;
+  return <PreviewContent body={body} workspace={workspace} scrollSynchronizer={scrollSynchronizer} />;
 }
 
-function PreviewContent({ body, workspace }: { body: string; workspace: string | null }) {
+type PreviewContentProps = {
+  body: string;
+  workspace: string | null;
+  scrollSynchronizer?: ScrollSynchronizer;
+};
+
+function PreviewContent({ body, workspace, scrollSynchronizer }: PreviewContentProps) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const html = useMemo(() => renderPreviewHtml(body, workspace), [body, workspace]);
+  const lineCount = useMemo(() => body.split("\n").length, [body]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (scroller === null || scrollSynchronizer === undefined) {
+      return;
+    }
+    return scrollSynchronizer.attach("preview", new PreviewScrollPane(scroller, lineCount));
+  }, [scrollSynchronizer, lineCount]);
+
   return (
-    <article
-      className="preview-content"
-      aria-label="預覽內容"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className="preview-scroller" ref={scrollerRef}>
+      <article
+        className="preview-content"
+        aria-label="預覽內容"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }
