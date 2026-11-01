@@ -14,6 +14,7 @@ type SyntaxNode = ReturnType<SyntaxTree["resolveInner"]>;
 const PARSE_TIMEOUT_MILLISECONDS = 50;
 
 const CODE_NODES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
+const EMPHASIS_NODES = new Set(["Emphasis", "StrongEmphasis"]);
 const ONLY_MARKS_OR_SPACE = /^[\s*_]*$/;
 
 /**
@@ -78,8 +79,9 @@ export class InlineEmphasis {
 
   /**
    * The two mark runs of the emphasis whose content, or whole extent, is
-   * exactly `from`–`to`, as deletions. The parser decides which marks open
-   * and close. Underscores between letters are no emphasis to the parser,
+   * exactly `from`–`to`, as deletions. Content wrapped in one more emphasis
+   * counts too: `***重點***` is italic around bold. The parser decides which
+   * marks open and close. Underscores between letters are no emphasis to the parser,
    * yet a writer who typed `__重點__` meant bold, so an exact underscore run
    * on both sides counts too.
    */
@@ -90,9 +92,17 @@ export class InlineEmphasis {
       if (node.name !== this.#nodeName || opening === null || closing === null) {
         continue;
       }
+      const inner = opening.nextSibling;
       const isContent = opening.to === from && closing.from === to;
       const isWhole = node.from === from && node.to === to;
-      if (isContent || isWhole) {
+      const isAroundOneEmphasis =
+        inner !== null &&
+        EMPHASIS_NODES.has(inner.name) &&
+        inner.from === opening.to &&
+        inner.to === closing.from &&
+        inner.firstChild?.to === from &&
+        inner.lastChild?.from === to;
+      if (isContent || isWhole || isAroundOneEmphasis) {
         return [
           { from: opening.from, to: opening.to },
           { from: closing.from, to: closing.to },

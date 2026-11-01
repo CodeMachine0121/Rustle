@@ -112,6 +112,15 @@ describe("the bold shortcut", () => {
     expect(shown(view)).toBe(after);
   });
 
+  it("returns italic words to italic when pressed twice", () => {
+    const { view } = openEditor("這是*⟨重點⟩*的地方");
+
+    press(view, "b");
+    press(view, "b");
+
+    expect(shown(view)).toBe("這是*⟨重點⟩*的地方");
+  });
+
   it("lets the writer type bold text into the empty pair", () => {
     const { view } = openEditor("‸");
 
@@ -199,6 +208,8 @@ describe("the italic shortcut", () => {
     ["wraps the selected words", "這是⟨重點⟩的地方", "這是*⟨重點⟩*的地方"],
     ["unwraps selected italic words", "這是*⟨重點⟩*的地方", "這是⟨重點⟩的地方"],
     ["unwraps italic written with underscores", "the _⟨point⟩_ here", "the ⟨point⟩ here"],
+    ["unwraps the italic around bold words", "這是***⟨重點⟩***的地方", "這是**⟨重點⟩**的地方"],
+    ["unwraps the italic around a bold word between spaces", "the ***⟨word⟩*** x", "the **⟨word⟩** x"],
     ["drops an empty pair on an empty line", "‸", "*‸*"],
     [
       "wraps the word in a link instead of selecting the link",
@@ -221,6 +232,15 @@ describe("the italic shortcut", () => {
 
     expect(shown(view)).toBe("這是⟨重點⟩的地方");
     expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("returns bold words to bold when pressed twice", () => {
+    const { view } = openEditor("這是**⟨重點⟩**的地方");
+
+    press(view, "i");
+    press(view, "i");
+
+    expect(shown(view)).toBe("這是**⟨重點⟩**的地方");
   });
 
   it("does not unwrap bold", () => {
