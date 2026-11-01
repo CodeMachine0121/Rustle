@@ -1,3 +1,4 @@
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import { describeOperationFailure, type OperationFailure } from "./operationFailure";
 
 type OperationFailureNoticeProps = {
@@ -6,14 +7,15 @@ type OperationFailureNoticeProps = {
 };
 
 export function OperationFailureNotice({ failure, onDismiss }: OperationFailureNoticeProps) {
+  const messages = useMessages();
   if (failure === null) {
     return null;
   }
   return (
     <div className="operation-failure-notice" role="alert">
-      <span>{describeOperationFailure(failure)}</span>
+      <span>{describeOperationFailure(failure, messages)}</span>
       <button type="button" className="region-action" onClick={onDismiss}>
-        關閉提示
+        {messages.dismiss}
       </button>
     </div>
   );

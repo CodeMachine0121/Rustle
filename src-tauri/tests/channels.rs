@@ -80,3 +80,12 @@ fn the_webview_channel_list_matches_the_backend_channels() {
         );
     }
 }
+
+#[test]
+fn answers_the_system_preferred_locales() {
+    let (_app, window) = app();
+
+    let answer = call(&window, "read_preferred_locales").expect("answered");
+
+    assert!(answer["locales"].is_array(), "{answer}");
+}

@@ -84,7 +84,7 @@ fn lists_the_articles_of_a_workspace_with_their_metadata() {
     let app = RunningApp::start();
     app.write(
         "Blog/tauri.md",
-        "---\ntitle: Tauri 與 Electron 的取捨\ncreated_at: 2026-08-20T14:32:05+08:00\ncategory: 技術筆記\ntags:\n  - tauri\n---\n",
+        "---\ntitle: Tauri 與 Electron 的取捨\ncreated_at: 2026-08-20T14:32:05+08:00\ncategory: 技術筆記\nstatus: On Hold\ntags:\n  - tauri\n---\n",
     );
 
     let payload = app
@@ -94,15 +94,39 @@ fn lists_the_articles_of_a_workspace_with_their_metadata() {
     assert_eq!(
         payload,
         json!([{
+            "workspace": "Blog",
             "fileName": "tauri.md",
             "title": "Tauri 與 Electron 的取捨",
             "createdAt": "2026-08-20T14:32:05+08:00",
             "updatedAt": "",
-            "category": ["技術筆記"],
+            "status": "onHold",
             "tags": ["tauri"],
             "hasIncompleteMetadata": false
         }])
     );
+}
+
+#[test]
+fn lists_the_articles_of_every_workspace() {
+    let app = RunningApp::start();
+    app.write("Work/zen.md", "---\ntitle: Zen\nstatus: active\n---\n");
+    app.write("Blog/zen.md", "---\ntitle: Zen\n---\n");
+
+    let payload = app.call("list_all_articles", json!({})).expect("listed");
+
+    let rows: Vec<(&str, &str)> = payload
+        .as_array()
+        .expect("a list")
+        .iter()
+        .map(|row| {
+            (
+                row["workspace"].as_str().expect("workspace"),
+                row["fileName"].as_str().expect("file name"),
+            )
+        })
+        .collect();
+    assert_eq!(rows, [("Blog", "zen.md"), ("Work", "zen.md")]);
+    assert_eq!(payload[1]["status"], json!("active"));
 }
 
 #[test]
@@ -192,7 +216,8 @@ fn writes_settings_that_read_back_and_keeps_keys_it_does_not_know() {
     let settings = json!({
         "indentation": { "style": "tab", "width": 4 },
         "previewPanel": { "isOpen": false, "widthRatio": 0.3 },
-        "lastOpened": { "workspace": "Blog", "article": "zen-of-writing.md" }
+        "lastOpened": { "workspace": "Blog", "article": "zen-of-writing.md" },
+        "sidebar": { "collapsedSections": ["status", "tags"] }
     });
 
     app.call("write_settings", json!({ "settings": settings }))
@@ -253,7 +278,7 @@ fn creates_an_article_and_answers_with_its_row() {
             json!({
                 "workspace": "Blog",
                 "title": "Zen of Writing",
-                "category": ["技術筆記"],
+                "status": "active",
                 "tags": ["electron"],
             }),
         )
@@ -261,7 +286,8 @@ fn creates_an_article_and_answers_with_its_row() {
 
     assert_eq!(payload["fileName"], json!("zen-of-writing-2.md"));
     assert_eq!(payload["title"], json!("Zen of Writing"));
-    assert_eq!(payload["category"], json!(["技術筆記"]));
+    assert_eq!(payload["status"], json!("active"));
+    assert_eq!(payload["workspace"], json!("Blog"));
     assert_eq!(payload["tags"], json!(["electron"]));
     assert_eq!(payload["hasIncompleteMetadata"], json!(false));
     assert_eq!(payload["createdAt"], payload["updatedAt"]);
@@ -285,7 +311,7 @@ fn refuses_to_create_an_article_without_a_title_and_writes_nothing() {
     let failure = app
         .call(
             "create_article",
-            json!({ "workspace": "Blog", "title": "   ", "category": [], "tags": [] }),
+            json!({ "workspace": "Blog", "title": "   ", "status": null, "tags": [] }),
         )
         .expect_err("blank title");
 
@@ -309,7 +335,7 @@ fn refuses_to_create_an_article_in_a_workspace_that_links_outside_the_vault() {
     let failure = app
         .call(
             "create_article",
-            json!({ "workspace": "Escape", "title": "Zen", "category": [], "tags": [] }),
+            json!({ "workspace": "Escape", "title": "Zen", "tags": [] }),
         )
         .expect_err("outside the vault");
 
@@ -324,7 +350,7 @@ fn refuses_a_workspace_name_with_a_path_in_it() {
     let failure = app
         .call(
             "create_article",
-            json!({ "workspace": "../Elsewhere", "title": "Zen", "category": [], "tags": [] }),
+            json!({ "workspace": "../Elsewhere", "title": "Zen", "status": null, "tags": [] }),
         )
         .expect_err("outside the vault");
 
@@ -346,7 +372,7 @@ fn updates_an_articles_metadata_and_answers_with_its_row() {
                 "workspace": "Blog",
                 "fileName": "tauri.md",
                 "title": "新標題",
-                "category": ["技術筆記"],
+                "status": "completed",
                 "tags": []
             }),
         )
@@ -354,10 +380,10 @@ fn updates_an_articles_metadata_and_answers_with_its_row() {
 
     assert_eq!(payload["outcome"], json!("updated"));
     assert_eq!(payload["article"]["title"], json!("新標題"));
-    assert_eq!(payload["article"]["category"], json!(["技術筆記"]));
+    assert_eq!(payload["article"]["status"], json!("completed"));
     let text = fs::read_to_string(app.vault_root.join("Blog/tauri.md")).expect("readable");
     assert!(text.starts_with("---\ntitle: 新標題\ndraft: true\nupdated_at: "));
-    assert!(text.ends_with("category:\n  - 技術筆記\n---\n正文第一行。\n"));
+    assert!(text.ends_with("status: completed\n---\n正文第一行。\n"));
 }
 
 #[test]
@@ -372,7 +398,7 @@ fn refuses_a_blank_title_in_a_metadata_update_and_writes_nothing() {
                 "workspace": "Blog",
                 "fileName": "tauri.md",
                 "title": "   ",
-                "category": [],
+                "status": null,
                 "tags": []
             }),
         )

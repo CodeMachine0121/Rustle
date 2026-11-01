@@ -91,7 +91,7 @@ body {
   border-right: 1px solid var(--color-border);
 }
 
-.workspaces-region {
+.sidebar-region {
   flex: 0 0 200px;
   background: var(--color-sidebar);
 }
@@ -223,6 +223,7 @@ body {
 
 .row-count,
 .row-details,
+.row-workspace,
 .row-tags {
   font-size: 12px;
   color: var(--color-muted-text);
@@ -240,6 +241,28 @@ body {
 .incomplete-marker {
   font-size: 12px;
   color: var(--color-warning);
+}
+
+.all-notes-row {
+  width: auto;
+  margin: 8px 8px 0;
+}
+
+.sidebar-section-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.sidebar-section-toggle:hover {
+  color: var(--color-text);
 }
 
 .empty-state,
@@ -428,6 +451,7 @@ body {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -618,4 +642,78 @@ body {
 
 .image-paste-status--failed {
   color: var(--color-error);
+}
+
+.region-title:lang(zh) {
+  letter-spacing: 0.02em;
+}
+
+.region-footer {
+  flex: 0 0 auto;
+  display: flex;
+  padding: 6px 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-button {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted-text);
+  cursor: pointer;
+}
+
+.settings-button:hover,
+.settings-button:focus-visible,
+.settings-button[aria-expanded="true"] {
+  color: var(--color-text);
+  background: var(--color-selected);
+}
+
+.settings-button__mark {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.settings-dialog {
+  width: min(360px, calc(100% - 32px));
+}
+
+.settings-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-item h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-options {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-options button {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.settings-options button[aria-checked="true"] {
+  border-color: var(--color-link);
+  background: var(--color-selected);
 }

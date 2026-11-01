@@ -8,11 +8,12 @@ import type { ArticleDraft, MetadataEdit } from "../vault/VaultSession";
 import { EditArticleMetadataDialog } from "./EditArticleMetadataDialog";
 
 const TAURI: ArticleSummary = {
+  workspace: "Blog",
   fileName: "tauri.md",
   title: "舊標題",
   createdAt: "2026-08-20T14:32:05+08:00",
   updatedAt: "2026-08-21T09:10:00+08:00",
-  category: ["技術筆記"],
+  status: "active",
   tags: ["electron"],
   hasIncompleteMetadata: false,
 };
@@ -30,7 +31,7 @@ function renderDialog({
     <CompositionProvider state={composition}>
       <EditArticleMetadataDialog
         article={article}
-        vocabulary={{ category: ["技術筆記", "桌面開發"], tags: ["electron"] }}
+        vocabulary={{ tags: ["electron", "技術筆記"] }}
         onSave={onSave}
         onClose={onClose}
       />
@@ -52,13 +53,14 @@ function saveButton() {
 }
 
 describe("EditArticleMetadataDialog", () => {
-  it("opens with the article's title, categories and tags filled in", () => {
+  it("opens with the article's title, status and tags filled in, and no Category field", () => {
     renderDialog();
 
-    expect(field("Title")).toHaveValue("舊標題");
-    expect(screen.getByRole("button", { name: "移除 技術筆記" })).toBeInTheDocument();
+    expect(field("標題")).toHaveValue("舊標題");
+    expect(screen.getByRole("combobox", { name: "狀態" })).toHaveValue("active");
+    expect(screen.queryByLabelText("分類")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "移除 electron" })).toBeInTheDocument();
-    expect(field("Title")).toHaveFocus();
+    expect(field("標題")).toHaveFocus();
   });
 
   it("shows both times as text in the file's own time zone, with no field to fill in", () => {
@@ -69,7 +71,7 @@ describe("EditArticleMetadataDialog", () => {
     expect(dialog).toHaveTextContent("更新於 2026-08-21 09:10");
     expect(dialog).toHaveTextContent("不能編輯");
     expect(container.querySelector('input[type="date"], input[type="time"], input[type="datetime-local"]')).toBeNull();
-    expect(screen.getAllByRole("textbox")).toHaveLength(3);
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
   });
 
   it("keeps the time a file wrote after midnight in its own zone on its own date", () => {
@@ -88,28 +90,59 @@ describe("EditArticleMetadataDialog", () => {
   it("cannot save a blank title and says why", () => {
     const { onSave } = renderDialog();
 
-    fireEvent.change(field("Title"), { target: { value: "   " } });
+    fireEvent.change(field("標題"), { target: { value: "   " } });
     fireEvent.click(saveButton());
-    fireEvent.keyDown(field("Title"), { key: "Enter" });
+    fireEvent.keyDown(field("標題"), { key: "Enter" });
 
     expect(saveButton()).toBeDisabled();
     expect(screen.getByText("請先輸入標題，「儲存」才會啟用。")).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("offers the workspace's words while typing a category", () => {
-    renderDialog({ article: { ...TAURI, category: [] } });
+  it("shows No Status for an article without one and offers only the five choices", () => {
+    renderDialog({ article: { ...TAURI, status: null } });
 
-    fireEvent.change(field("Category"), { target: { value: "技" } });
+    expect(screen.getByRole("combobox", { name: "狀態" })).toHaveValue("noStatus");
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "進行中",
+      "暫停",
+      "已完成",
+      "已放棄",
+      "未標記",
+    ]);
+  });
+
+  it("saves the status chosen in place of the old one", () => {
+    const { onSave } = renderDialog();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "狀態" }), { target: { value: "completed" } });
+    fireEvent.click(saveButton());
+
+    expect(onSave).toHaveBeenCalledWith({ title: "舊標題", status: "completed", tags: ["electron"] });
+  });
+
+  it("saves no status when No Status is chosen", () => {
+    const { onSave } = renderDialog();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "狀態" }), { target: { value: "noStatus" } });
+    fireEvent.click(saveButton());
+
+    expect(onSave).toHaveBeenCalledWith({ title: "舊標題", status: null, tags: ["electron"] });
+  });
+
+  it("offers the scope's tags while typing a tag", () => {
+    renderDialog({ article: { ...TAURI, tags: [] } });
+
+    fireEvent.change(field("標籤"), { target: { value: "技" } });
 
     expect(screen.getByRole("button", { name: "技術筆記" })).toBeInTheDocument();
   });
 
   it("closes on Escape without saving", () => {
     const { onSave, onClose } = renderDialog();
-    fireEvent.change(field("Title"), { target: { value: "新標題" } });
+    fireEvent.change(field("標題"), { target: { value: "新標題" } });
 
-    fireEvent.keyDown(field("Title"), { key: "Escape" });
+    fireEvent.keyDown(field("標題"), { key: "Escape" });
 
     expect(onClose).toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
@@ -121,11 +154,11 @@ describe("EditArticleMetadataDialog", () => {
   ])("does not save on an Enter %s", (_case, enter, composing) => {
     const { onSave } = renderDialog();
     if (composing) {
-      fireEvent.compositionStart(field("Title"));
+      fireEvent.compositionStart(field("標題"));
     }
-    fireEvent.change(field("Title"), { target: { value: "新標題" } });
+    fireEvent.change(field("標題"), { target: { value: "新標題" } });
 
-    fireEvent.keyDown(field("Title"), enter);
+    fireEvent.keyDown(field("標題"), enter);
 
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -134,10 +167,10 @@ describe("EditArticleMetadataDialog", () => {
   it("neither saves on Enter nor closes on Escape while composing", () => {
     const { onSave, onClose } = renderDialog();
 
-    fireEvent.compositionStart(field("Title"));
-    fireEvent.change(field("Title"), { target: { value: "新標題" } });
-    fireEvent.keyDown(field("Title"), { key: "Enter" });
-    fireEvent.keyDown(field("Title"), { key: "Escape" });
+    fireEvent.compositionStart(field("標題"));
+    fireEvent.change(field("標題"), { target: { value: "新標題" } });
+    fireEvent.keyDown(field("標題"), { key: "Enter" });
+    fireEvent.keyDown(field("標題"), { key: "Escape" });
 
     expect(onSave).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
@@ -145,19 +178,19 @@ describe("EditArticleMetadataDialog", () => {
 
   it("saves the trimmed title and every chip, the unfinished one too, on Enter after composing", async () => {
     const { onSave, onClose } = renderDialog();
-    fireEvent.compositionStart(field("Title"));
-    fireEvent.change(field("Title"), { target: { value: "  新標題  " } });
-    fireEvent.compositionEnd(field("Title"));
-    fireEvent.change(field("Tags"), { target: { value: "tauri" } });
+    fireEvent.compositionStart(field("標題"));
+    fireEvent.change(field("標題"), { target: { value: "  新標題  " } });
+    fireEvent.compositionEnd(field("標題"));
+    fireEvent.change(field("標籤"), { target: { value: "tauri" } });
 
-    fireEvent.keyDown(field("Title"), { key: "Enter" });
+    fireEvent.keyDown(field("標題"), { key: "Enter" });
 
-    expect(onSave).toHaveBeenCalledWith({ title: "新標題", category: ["技術筆記"], tags: ["electron", "tauri"] });
+    expect(onSave).toHaveBeenCalledWith({ title: "新標題", status: "active", tags: ["electron", "tauri"] });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it("stays open and says why when the update failed", async () => {
-    const onSave = vi.fn((): Promise<MetadataEdit> => Promise.resolve({ outcome: "failed", message: "磁碟已滿" }));
+    const onSave = vi.fn((): Promise<MetadataEdit> => Promise.resolve({ outcome: "failed", reason: { kind: "reported", message: "磁碟已滿" } }));
     const { onClose } = renderDialog({ onSave });
 
     fireEvent.click(saveButton());

@@ -4,7 +4,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use rustle_application::{ArticleSummary, CreateArticle, CreateArticleError, ListArticles};
 use rustle_domain::{
-    ArticleDraftError, ArticleRepositoryError, MockClock, VaultScope, WorkspaceName,
+    ArticleDraftError, ArticleRepositoryError, ArticleStatus, MockClock, VaultScope, WorkspaceName,
     WorkspaceRepositoryError,
 };
 use rustle_infrastructure::{
@@ -59,7 +59,7 @@ impl Vault {
         root: &Path,
         workspace: &str,
         title: &str,
-        category: &[&str],
+        status: Option<ArticleStatus>,
         tags: &[&str],
     ) -> Result<ArticleSummary, CreateArticleError> {
         let workspaces = FileSystemWorkspaceRepository::in_vault(Self::scope_at(root));
@@ -73,7 +73,7 @@ impl Vault {
         CreateArticle::new(&workspaces, &articles, &self.clock).execute(
             &WorkspaceName::parse(workspace).expect("valid workspace name"),
             title,
-            &owned(category),
+            status,
             &owned(tags),
         )
     }
@@ -81,10 +81,10 @@ impl Vault {
     fn create_article(
         &self,
         title: &str,
-        category: &[&str],
+        status: Option<ArticleStatus>,
         tags: &[&str],
     ) -> Result<ArticleSummary, CreateArticleError> {
-        self.create_article_at(&self.root, "Blog", title, category, tags)
+        self.create_article_at(&self.root, "Blog", title, status, tags)
     }
 
     fn text_of(&self, relative_path: &str) -> String {
@@ -114,7 +114,7 @@ fn writes_a_front_matter_named_after_the_title_and_no_body() {
     vault
         .create_article(
             "Tauri 與 Electron 的取捨",
-            &["技術筆記", "桌面開發"],
+            Some(ArticleStatus::Active),
             &["tauri", "electron"],
         )
         .expect("created");
@@ -125,7 +125,7 @@ fn writes_a_front_matter_named_after_the_title_and_no_body() {
          title: Tauri 與 Electron 的取捨\n\
          created_at: 2026-08-20T14:32:05+00:00\n\
          updated_at: 2026-08-20T14:32:05+00:00\n\
-         category:\n  - 技術筆記\n  - 桌面開發\n\
+         status: active\n\
          tags:\n  - tauri\n  - electron\n\
          ---\n"
     );
@@ -137,7 +137,7 @@ fn writes_the_creation_time_in_the_writers_own_time_zone() {
     let vault = Vault::at(half_past_midnight_in_taipei, TAIPEI_OFFSET_SECONDS);
 
     let summary = vault
-        .create_article("Zen of Writing", &[], &[])
+        .create_article("Zen of Writing", None, &[])
         .expect("created");
 
     let text = vault.text_of("Blog/zen-of-writing.md");
@@ -154,11 +154,11 @@ fn writes_the_creation_time_in_the_writers_own_time_zone() {
 }
 
 #[test]
-fn writes_only_title_and_times_without_category_or_tags() {
+fn writes_only_title_and_times_without_status_or_tags() {
     let vault = Vault::create();
 
     vault
-        .create_article("Zen of Writing", &[], &[])
+        .create_article("Zen of Writing", None, &[])
         .expect("created");
 
     assert_eq!(
@@ -168,19 +168,25 @@ fn writes_only_title_and_times_without_category_or_tags() {
 }
 
 #[test]
-fn trims_drops_blank_and_repeated_categories() {
+fn an_article_created_without_a_status_has_none() {
+    let vault = Vault::create();
+
+    let summary = vault.create_article("Zen", None, &[]).expect("created");
+
+    assert_eq!(summary.status, None);
+    assert!(!vault.text_of("Blog/zen.md").contains("status"));
+}
+
+#[test]
+fn an_article_created_with_a_status_has_it() {
     let vault = Vault::create();
 
     let summary = vault
-        .create_article("Zen", &["  技術筆記  ", "", "技術筆記", "桌面開發"], &[])
+        .create_article("Zen", Some(ArticleStatus::Active), &[])
         .expect("created");
 
-    assert_eq!(summary.category, ["技術筆記", "桌面開發"]);
-    assert!(
-        vault
-            .text_of("Blog/zen.md")
-            .contains("category:\n  - 技術筆記\n  - 桌面開發\n")
-    );
+    assert_eq!(summary.status, Some(ArticleStatus::Active));
+    assert!(vault.text_of("Blog/zen.md").contains("\nstatus: active\n"));
 }
 
 #[test]
@@ -188,17 +194,22 @@ fn answers_with_the_row_the_file_itself_describes() {
     let vault = Vault::create();
 
     let summary = vault
-        .create_article("  Zen of Writing  ", &[], &["electron"])
+        .create_article(
+            "  Zen of Writing  ",
+            Some(ArticleStatus::Completed),
+            &["electron"],
+        )
         .expect("created");
 
     assert_eq!(
         serde_json::to_value(&summary).expect("serializable"),
         json!({
+            "workspace": "Blog",
             "fileName": "zen-of-writing.md",
             "title": "Zen of Writing",
             "createdAt": "2026-08-20T14:32:05+00:00",
             "updatedAt": "2026-08-20T14:32:05+00:00",
-            "category": [],
+            "status": "completed",
             "tags": ["electron"],
             "hasIncompleteMetadata": false,
         })
@@ -217,7 +228,7 @@ fn numbers_a_taken_name_and_leaves_the_existing_article_untouched() {
     vault.file("Blog/zen-of-writing.md", "別人的文章");
 
     let summary = vault
-        .create_article("Zen of Writing", &[], &[])
+        .create_article("Zen of Writing", None, &[])
         .expect("created");
 
     assert_eq!(summary.file_name, "zen-of-writing-2.md");
@@ -229,7 +240,7 @@ fn counts_a_folder_as_a_taken_name() {
     let vault = Vault::create();
     fs::create_dir(vault.root.join("Blog/notes.md")).expect("folder");
 
-    let summary = vault.create_article("Notes", &[], &[]).expect("created");
+    let summary = vault.create_article("Notes", None, &[]).expect("created");
 
     assert_eq!(summary.file_name, "notes-2.md");
 }
@@ -239,7 +250,7 @@ fn creates_nothing_for_a_blank_title() {
     let vault = Vault::create();
     vault.file("Blog/zen-of-writing.md", "正文");
 
-    let created = vault.create_article("   ", &["技術筆記"], &[]);
+    let created = vault.create_article("   ", Some(ArticleStatus::Active), &[]);
 
     assert_eq!(
         created,
@@ -259,7 +270,7 @@ fn refuses_a_workspace_that_links_outside_the_vault_and_writes_nothing_there() {
     fs::create_dir_all(&outside).expect("outside folder");
     std::os::unix::fs::symlink(&outside, vault.root.join("Escape")).expect("symlink");
 
-    let created = vault.create_article_at(&vault.root, "Escape", "Zen", &[], &[]);
+    let created = vault.create_article_at(&vault.root, "Escape", "Zen", None, &[]);
 
     assert!(matches!(
         created,
@@ -280,7 +291,7 @@ fn creates_through_a_workspace_link_inside_the_vault() {
         .expect("symlink");
 
     vault
-        .create_article_at(&vault.root, "Mirror", "Zen of Writing", &[], &[])
+        .create_article_at(&vault.root, "Mirror", "Zen of Writing", None, &[])
         .expect("created");
 
     assert!(vault.root.join("Blog/zen-of-writing.md").is_file());
@@ -294,7 +305,7 @@ fn creates_in_a_vault_reached_through_a_symlink() {
     std::os::unix::fs::symlink(&vault.root, &linked_vault).expect("symlink");
 
     vault
-        .create_article_at(&linked_vault, "Blog", "Zen of Writing", &[], &[])
+        .create_article_at(&linked_vault, "Blog", "Zen of Writing", None, &[])
         .expect("created");
 
     assert!(vault.root.join("Blog/zen-of-writing.md").is_file());

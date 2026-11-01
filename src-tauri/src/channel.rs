@@ -31,6 +31,7 @@ macro_rules! channels {
 channels! {
     ListWorkspaces => "listWorkspaces", "list_workspaces";
     ListArticles => "listArticles", "list_articles";
+    ListAllArticles => "listAllArticles", "list_all_articles";
     CreateWorkspace => "createWorkspace", "create_workspace";
     CreateArticle => "createArticle", "create_article";
     ReadBody => "readBody", "read_body";
@@ -43,6 +44,7 @@ channels! {
     SaveClipboardImage => "saveClipboardImage", "save_clipboard_image";
     ReadSettings => "readSettings", "read_settings";
     WriteSettings => "writeSettings", "write_settings";
+    ReadPreferredLocales => "readPreferredLocales", "read_preferred_locales";
     WatchCloseRequests => "watchCloseRequests", "watch_close_requests";
     AnswerCloseRequest => "answerCloseRequest", "answer_close_request";
 }

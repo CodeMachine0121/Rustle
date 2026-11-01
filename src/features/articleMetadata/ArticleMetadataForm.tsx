@@ -1,14 +1,16 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
-import { describeOperationFailure, type Operation } from "../vault/operationFailure";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
+import { STATUS_CHOICES, statusChoiceNamed, statusChoiceOf, statusOf } from "../sidebar/statusChoice";
+import { describeOperationFailure, type FailureReason, type Operation } from "../vault/operationFailure";
 import type { ArticleDraft } from "../vault/VaultSession";
 import type { ArticleVocabulary } from "./articleVocabulary";
 import { ChipInput } from "./ChipInput";
 import { withChip } from "./chipValues";
 
 /** `null` when the article was written; otherwise why it was not. */
-export type ArticleMetadataSubmission = Promise<string | null>;
+export type ArticleMetadataSubmission = Promise<FailureReason | null>;
 
 type ArticleMetadataFormProps = {
   heading: string;
@@ -23,7 +25,7 @@ type ArticleMetadataFormProps = {
 };
 
 /**
- * An article's title, categories and tags in a dialog with no form
+ * An article's title, status and tags in a dialog with no form
  * element, so nothing is ever submitted implicitly: Enter in the title
  * submits, Enter in a chip field adds a chip, Esc closes, and a key the
  * input method owns does none of these. It closes itself once submitted.
@@ -40,18 +42,19 @@ export function ArticleMetadataForm({
   onClose,
 }: ArticleMetadataFormProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const headingId = useId();
   const titleId = useId();
+  const statusId = useId();
   const requirementId = useId();
   const titleRef = useRef<HTMLInputElement>(null);
   const isSubmittingRef = useRef(false);
   const [title, setTitle] = useState(initial.title);
-  const [category, setCategory] = useState(initial.category);
-  const [typedCategory, setTypedCategory] = useState("");
+  const [status, setStatus] = useState(statusChoiceOf(initial.status));
   const [tags, setTags] = useState(initial.tags);
   const [typedTag, setTypedTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<FailureReason | null>(null);
   const isTitleBlank = title.trim() === "";
 
   useEffect(() => {
@@ -67,7 +70,7 @@ export function ArticleMetadataForm({
     setFailure(null);
     const refusal = await onSubmit({
       title: title.trim(),
-      category: withChip(category, typedCategory),
+      status: statusOf(status),
       tags: withChip(tags, typedTag),
     });
     if (refusal === null) {
@@ -106,7 +109,7 @@ export function ArticleMetadataForm({
       >
         <h2 id={headingId}>{heading}</h2>
         <div className="dialog-field">
-          <label htmlFor={titleId}>Title</label>
+          <label htmlFor={titleId}>{messages.titleField}</label>
           <input
             ref={titleRef}
             id={titleId}
@@ -120,16 +123,22 @@ export function ArticleMetadataForm({
             onBlur={() => composition.end()}
           />
         </div>
+        <div className="dialog-field">
+          <label htmlFor={statusId}>{messages.statusField}</label>
+          <select
+            id={statusId}
+            value={status}
+            onChange={(event) => setStatus(statusChoiceNamed(event.target.value))}
+          >
+            {STATUS_CHOICES.map((choice) => (
+              <option key={choice} value={choice}>
+                {messages.statusLabels[choice]}
+              </option>
+            ))}
+          </select>
+        </div>
         <ChipInput
-          label="Category"
-          values={category}
-          typed={typedCategory}
-          vocabulary={vocabulary.category}
-          onValuesChange={setCategory}
-          onTypedChange={setTypedCategory}
-        />
-        <ChipInput
-          label="Tags"
+          label={messages.tagsField}
           values={tags}
           typed={typedTag}
           vocabulary={vocabulary.tags}
@@ -144,12 +153,12 @@ export function ArticleMetadataForm({
         )}
         {failure !== null && (
           <p className="column-message" role="alert">
-            {describeOperationFailure({ operation, message: failure })}
+            {describeOperationFailure({ operation, reason: failure }, messages)}
           </p>
         )}
         <div className="dialog-actions">
           <button type="button" disabled={isSubmitting} onClick={onClose}>
-            取消
+            {messages.cancel}
           </button>
           <button type="button" disabled={isTitleBlank || isSubmitting} onClick={() => void submit()}>
             {submitLabel}

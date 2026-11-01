@@ -2,8 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use rustle_domain::{
-    IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
-    SettingsError, SettingsRepository, VaultScope,
+    IndentationSettings, IndentationStyle, InterfaceLanguage, LastOpenedSettings,
+    PreviewPanelSettings, Settings, SettingsError, SettingsRepository, SidebarSection,
+    SidebarSettings, VaultScope,
 };
 use rustle_infrastructure::{FileSystemSettingsRepository, ResolvedVaultScope};
 use serde_json::{Value, json};
@@ -72,7 +73,8 @@ fn creates_the_settings_file_inside_the_hidden_rustle_folder() {
         json!({
             "indentation": { "style": "spaces", "width": 2 },
             "previewPanel": { "isOpen": true, "widthRatio": 0.5 },
-            "lastOpened": { "workspace": null, "article": null }
+            "lastOpened": { "workspace": null, "article": null },
+            "sidebar": { "collapsedSections": [] }
         })
     );
 }
@@ -123,6 +125,31 @@ fn keeps_an_unusable_toggle_shortcut_when_folding_the_panel() {
         vault.read_settings_file()["previewPanel"]["toggleShortcut"],
         json!(42)
     );
+}
+
+#[test]
+fn reads_a_hand_broken_interface_language_as_never_chosen_and_keeps_the_rest() {
+    let vault = Vault::create();
+    vault.write_settings_file(
+        r#"{ "interfaceLanguage": "klingon", "indentation": { "style": "tab", "width": 4 } }"#,
+    );
+
+    let settings = vault.repository().load().expect("readable");
+
+    assert_eq!(settings.interface_language, None);
+    assert_eq!(settings.indentation.width, 4);
+}
+
+#[test]
+fn replaces_a_hand_broken_interface_language_once_one_is_chosen() {
+    let vault = Vault::create();
+    vault.write_settings_file(r#"{ "interfaceLanguage": "klingon" }"#);
+
+    let mut settings = vault.repository().load().expect("readable");
+    settings.interface_language = Some(InterfaceLanguage::Chinese);
+    vault.repository().save(&settings).expect("saved");
+
+    assert_eq!(vault.read_settings_file()["interfaceLanguage"], json!("zh"));
 }
 
 #[test]
@@ -184,6 +211,10 @@ fn remembered_settings() -> Settings {
         last_opened: LastOpenedSettings {
             workspace: Some("Blog".to_owned()),
             article: Some("zen-of-writing.md".to_owned()),
+        },
+        interface_language: Some(InterfaceLanguage::English),
+        sidebar: SidebarSettings {
+            collapsed_sections: vec![SidebarSection::Tags],
         },
     }
 }

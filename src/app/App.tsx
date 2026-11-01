@@ -8,11 +8,15 @@ import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialo
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { ImagePaste } from "../features/imagePaste/ImagePaste";
+import { InterfaceLanguageProvider } from "../features/interfaceLanguage/InterfaceLanguageContext";
+import { SettingsEntry } from "../features/interfaceLanguage/SettingsEntry";
+import { useInterfaceLanguage } from "../features/interfaceLanguage/useInterfaceLanguage";
 import { PreviewedBody } from "../features/preview/PreviewedBody";
 import { PreviewPanel } from "../features/preview/PreviewPanel";
 import { ScrollSynchronizer } from "../features/preview/ScrollSynchronizer";
 import { usePreviewPanel } from "../features/preview/usePreviewPanel";
 import { SettingsSession } from "../features/settings/SettingsSession";
+import { Sidebar } from "../features/sidebar/Sidebar";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { OperationFailureNotice } from "../features/vault/OperationFailureNotice";
@@ -45,6 +49,7 @@ function VaultView() {
   const [imagePaste] = useState(() => new ImagePaste(composition, channels, autosave));
   const snapshot = useVaultSnapshot(session);
   const previewPanel = usePreviewPanel(settings);
+  const interfaceLanguage = useInterfaceLanguage(settings, channels);
   const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
   const [articleBeingEdited, setArticleBeingEdited] = useState<ArticleSummary | null>(null);
   const [articleToDelete, setArticleToDelete] = useState<ArticleSummary | null>(null);
@@ -73,21 +78,30 @@ function VaultView() {
   useEffect(() => () => imagePaste.dispose(), [imagePaste]);
 
   return (
-    <>
+    <InterfaceLanguageProvider language={interfaceLanguage.language}>
       <AppLayout
-        workspaces={
-          <WorkspaceColumn
+        sidebar={
+          <Sidebar
             snapshot={snapshot}
-            onSelect={(workspace) => void session.selectWorkspace(workspace)}
-            onCreate={(typedName) => session.createWorkspace(typedName)}
-            onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
-            onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
+            settings={settings}
+            onSelectAllNotes={() => void session.selectAllNotes()}
+            onToggleStatus={(choice) => session.toggleStatusFilter(choice)}
+            onToggleTag={(tag) => session.toggleTagFilter(tag)}
+            workspaces={
+              <WorkspaceColumn
+                snapshot={snapshot}
+                onSelect={(workspace) => void session.selectWorkspace(workspace)}
+                onCreate={(typedName) => session.createWorkspace(typedName)}
+                onRename={(workspace, typedName) => session.renameWorkspace(workspace, typedName)}
+                onDelete={(workspace) => void askToDeleteWorkspace(workspace)}
+              />
+            }
           />
         }
         articles={
           <ArticleColumn
             snapshot={snapshot}
-            onSelect={(fileName) => void session.selectArticle(fileName)}
+            onSelect={(article) => void session.selectArticle(article)}
             onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
             onEditMetadata={setArticleBeingEdited}
             onDelete={setArticleToDelete}
@@ -101,6 +115,9 @@ function VaultView() {
             imagePaste={imagePaste}
           />
         }
+        sidebarFooter={
+          <SettingsEntry language={interfaceLanguage.language} onChoose={interfaceLanguage.choose} />
+        }
         preview={{
           isOpen: previewPanel.isOpen,
           content: (
@@ -113,8 +130,9 @@ function VaultView() {
           onResizeEnd: previewPanel.commitWidth,
         }}
       />
-      {articleDialogOpenedAt !== null && (
+      {articleDialogOpenedAt !== null && snapshot.selectedWorkspace !== null && (
         <CreateArticleDialog
+          workspace={snapshot.selectedWorkspace}
           openedAt={articleDialogOpenedAt}
           vocabulary={vocabularyOf(snapshot.articles)}
           onCreate={(draft) => session.createArticle(draft)}
@@ -125,7 +143,7 @@ function VaultView() {
         <EditArticleMetadataDialog
           article={articleBeingEdited}
           vocabulary={vocabularyOf(snapshot.articles)}
-          onSave={(draft) => session.updateMetadata(articleBeingEdited.fileName, draft)}
+          onSave={(draft) => session.updateMetadata(articleBeingEdited, draft)}
           onClose={() => setArticleBeingEdited(null)}
         />
       )}
@@ -133,7 +151,7 @@ function VaultView() {
         <ArticleDeletionDialog
           title={articleToDelete.title}
           onConfirm={async () => {
-            await session.deleteArticle(articleToDelete.fileName);
+            await session.deleteArticle(articleToDelete);
             setArticleToDelete(null);
           }}
           onCancel={() => setArticleToDelete(null)}
@@ -154,7 +172,7 @@ function VaultView() {
         failure={snapshot.operationFailure}
         onDismiss={() => session.dismissOperationFailure()}
       />
-    </>
+    </InterfaceLanguageProvider>
   );
 }
 

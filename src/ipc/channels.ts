@@ -6,6 +6,7 @@ import { callChannel } from "./callChannel";
 import type { CreateArticleRequest } from "./createArticleRequest";
 import type { CreateWorkspaceOutcome } from "./createWorkspaceOutcome";
 import type { MetadataUpdateOutcome, MetadataUpdateRequest } from "./metadataUpdate";
+import type { PreferredLocales } from "./preferredLocales";
 import type { RenameWorkspaceOutcome } from "./renameWorkspaceOutcome";
 import type { SaveBodyRequest, SavedBody } from "./savedBody";
 import type { SavedClipboardImages } from "./savedClipboardImages";
@@ -19,6 +20,8 @@ export const channels = {
   listWorkspaces: () => callChannel<WorkspaceSummary[]>("list_workspaces"),
 
   listArticles: (workspace: string) => callChannel<ArticleSummary[]>("list_articles", { workspace }),
+
+  listAllArticles: () => callChannel<ArticleSummary[]>("list_all_articles"),
 
   createWorkspace: (name: string) => callChannel<CreateWorkspaceOutcome>("create_workspace", { name }),
 
@@ -51,6 +54,8 @@ export const channels = {
   readSettings: () => callChannel<Settings>("read_settings"),
 
   writeSettings: (settings: Settings) => callChannel<null>("write_settings", { settings }),
+
+  readPreferredLocales: () => callChannel<PreferredLocales>("read_preferred_locales"),
 
   watchCloseRequests: (onCloseRequest: () => void) => {
     const closeRequests = new Channel<null>();

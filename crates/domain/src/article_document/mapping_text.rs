@@ -110,7 +110,7 @@ impl<'a> MappingText<'a> {
                     self.line_ending
                 )
             }
-            FieldValue::List([]) => String::new(),
+            FieldValue::List([]) | FieldValue::Removed => String::new(),
             FieldValue::List(items) => {
                 let keeps_key_line =
                     after_colon.trim().is_empty() || after_colon.trim_start().starts_with('#');
@@ -129,7 +129,7 @@ impl<'a> MappingText<'a> {
     fn new_entry(&self, key: &str, value: FieldValue<'_>) -> String {
         match value {
             FieldValue::Text(text) => format!("{key}: {}{}", Self::scalar(text), self.line_ending),
-            FieldValue::List([]) => String::new(),
+            FieldValue::List([]) | FieldValue::Removed => String::new(),
             FieldValue::List(items) => {
                 format!("{key}:{}{}", self.line_ending, self.list_items(&[], items))
             }

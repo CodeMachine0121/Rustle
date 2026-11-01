@@ -20,17 +20,18 @@ function previewSlot(isOpen: boolean, ratio = 0.5): PreviewSlot {
 function renderLayout(preview?: PreviewSlot) {
   render(
     <CompositionProvider>
-      <AppLayout workspaces="w" articles="a" editor="e" preview={preview} />
+      <AppLayout sidebar="s" articles="a" editor="e" preview={preview} />
     </CompositionProvider>,
   );
 }
 
 describe("AppLayout", () => {
-  it("has a titled region for workspaces, articles and the editor", () => {
+  it("puts the sidebar first and has a titled region for articles and the editor", () => {
     renderLayout();
 
+    expect(screen.getByRole("navigation", { name: "側邊欄" })).toHaveTextContent("s");
     const titles = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(titles).toEqual(["WORKSPACES", "ARTICLES", "EDITOR"]);
+    expect(titles).toEqual(["文章", "編輯"]);
   });
 
   it("puts an open preview in the rightmost region with a button that closes it", () => {
@@ -38,8 +39,8 @@ describe("AppLayout", () => {
     renderLayout(preview);
 
     const regions = screen.getAllByRole("region");
-    expect(regions).toHaveLength(4);
-    expect(regions.at(-1)).toHaveAccessibleName("PREVIEW");
+    expect(regions).toHaveLength(3);
+    expect(regions.at(-1)).toHaveAccessibleName("預覽區");
     expect(regions.at(-1)).toHaveTextContent("預覽內容");
 
     fireEvent.click(screen.getByRole("button", { name: "關閉預覽" }));
@@ -50,7 +51,7 @@ describe("AppLayout", () => {
     const preview = previewSlot(false);
     renderLayout(preview);
 
-    expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
     expect(screen.queryByText("預覽內容")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "開啟預覽" }));
@@ -60,14 +61,14 @@ describe("AppLayout", () => {
   it("leaves the preview region out when there is no preview", () => {
     renderLayout();
 
-    expect(screen.queryByRole("region", { name: "PREVIEW" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("region").at(-1)).toHaveAccessibleName("EDITOR");
+    expect(screen.queryByRole("region", { name: "預覽區" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("region").at(-1)).toHaveAccessibleName("編輯區");
   });
 
   it("gives an open preview its share of the writing area beside a divider", () => {
     renderLayout(previewSlot(true, 0.35));
 
-    expect(screen.getByRole("region", { name: "PREVIEW" }).style.flexBasis).toBe("35%");
+    expect(screen.getByRole("region", { name: "預覽區" }).style.flexBasis).toBe("35%");
     expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "35");
   });
 

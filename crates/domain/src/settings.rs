@@ -3,6 +3,7 @@ mod stored_settings;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::interface_language::InterfaceLanguage;
 use crate::vault_name::VaultPathError;
 use stored_settings::StoredSettings;
 
@@ -15,6 +16,10 @@ pub struct Settings {
     pub indentation: IndentationSettings,
     pub preview_panel: PreviewPanelSettings,
     pub last_opened: LastOpenedSettings,
+    /// `None` until the user chooses one; the webview then follows the system.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interface_language: Option<InterfaceLanguage>,
+    pub sidebar: SidebarSettings,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,6 +105,21 @@ impl Default for PreviewPanelSettings {
 pub struct LastOpenedSettings {
     pub workspace: Option<String>,
     pub article: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SidebarSection {
+    Workspaces,
+    Status,
+    Tags,
+}
+
+/// Which sidebar sections the user folded; each named at most once.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SidebarSettings {
+    pub collapsed_sections: Vec<SidebarSection>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]

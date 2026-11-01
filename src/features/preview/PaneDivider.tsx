@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from "react";
 
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import { PreviewWidth } from "./PreviewWidth";
 
 type Drag = { pointerId: number; startX: number; areaWidth: number; startWidth: PreviewWidth };
@@ -19,6 +20,7 @@ const PRIMARY_BUTTON = 0;
 /** The draggable line between the editor and the preview, measured against its parent. */
 export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) {
   const composition = useCompositionState();
+  const messages = useMessages();
   const dragRef = useRef<Drag | null>(null);
   const heldKeyWidthRef = useRef<PreviewWidth | null>(null);
 
@@ -88,7 +90,7 @@ export function PaneDivider({ width, onResize, onResizeEnd }: PaneDividerProps) 
       className="pane-divider"
       role="separator"
       aria-orientation="vertical"
-      aria-label="調整預覽寬度"
+      aria-label={messages.adjustPreviewWidth}
       aria-valuenow={width.percent}
       aria-valuemin={PreviewWidth.of(0).percent}
       aria-valuemax={PreviewWidth.of(1).percent}
