@@ -1,3 +1,5 @@
+import { markdownLanguage } from "@codemirror/lang-markdown";
+
 const FIELD = /\{\{([^{}\n]*)\}\}/g;
 const FIELD_BRACES = /\{\{|\}\}/;
 
@@ -22,10 +24,13 @@ function fieldsOf(value: unknown): Fields | null {
 export class Snippet {
   readonly name: string;
   readonly expansion: SnippetExpansionText;
+  /** Whether the text is a block, such as a heading or a table, that only means what it says at the start of a line. */
+  readonly startsLine: boolean;
 
   private constructor(name: string, expansion: SnippetExpansionText) {
     this.name = name;
     this.expansion = expansion;
+    this.startsLine = markdownLanguage.parser.parse(expansion.text).topNode.firstChild?.name !== "Paragraph";
   }
 
   /** `null` unless the file has a name and a template whose every `{{…}}` names a field on one line. */

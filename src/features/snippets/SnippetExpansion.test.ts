@@ -410,6 +410,47 @@ describe("what lands", () => {
     expect(view.state.doc.toString()).toBe("## ");
   });
 
+  it("starts a heading on a line of its own when text comes before the slash", () => {
+    const { view } = openEditor("foo ‸");
+
+    expand(view, "h2");
+
+    expect(marked(view)).toBe("foo\n## ‸");
+  });
+
+  it("starts a table on a line of its own when text comes before the slash", () => {
+    const { view } = openEditor("foo ‸");
+
+    expand(view, "table");
+
+    expect(marked(view)).toBe("foo\n| ‸ |  |\n| --- | --- |\n|  |  |");
+  });
+
+  it("keeps a link inside the line it was typed in", () => {
+    const { view } = openEditor("參考這裡 ‸");
+
+    expand(view, "link");
+
+    expect(marked(view)).toBe("參考這裡 [‸]()");
+  });
+
+  it("keeps a heading on an indented line, where it is still a heading", () => {
+    const { view } = openEditor("  ‸");
+
+    expand(view, "h2");
+
+    expect(marked(view)).toBe("  ## ‸");
+  });
+
+  it("takes a heading moved to its own line back in one undo step", () => {
+    const { view } = openEditor("foo ‸");
+    expand(view, "h2");
+
+    undo(view);
+
+    expect(view.state.doc.toString()).toBe("foo /h2");
+  });
+
   it("lands an empty link with the cursor between the brackets", () => {
     const { view } = openEditor();
 

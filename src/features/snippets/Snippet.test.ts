@@ -67,4 +67,13 @@ describe("Snippet", () => {
   ])("matches the filter %j as %s by name prefix in any case", (query, matches) => {
     expect(Snippet.parse({ name: "H2", template: "## {{標題文字}}" })?.matches(query)).toBe(matches);
   });
+
+  it.each([
+    ["a heading", "## {{標題文字}}", true],
+    ["a table", "| {{欄位一}} | {{欄位二}} |\n| --- | --- |\n| {{內容}} | {{內容}} |", true],
+    ["a link", "[{{要填的文字}}]({{要填的網址}})", false],
+    ["an image", "![{{要填的文字}}]({{要填的網址}})", false],
+  ])("knows whether %s only works at the start of a line", (_kind, template, startsLine) => {
+    expect(Snippet.parse({ name: "片段", template })?.startsLine).toBe(startsLine);
+  });
 });

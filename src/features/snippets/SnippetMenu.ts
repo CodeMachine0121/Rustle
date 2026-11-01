@@ -98,7 +98,11 @@ export class SnippetMenu {
     }
   }
 
-  /** Replaces the slash and the filter text with the snippet on `row`, the cursor on its first field. */
+  /**
+   * Replaces the slash and the filter text with the snippet on `row`, the
+   * cursor on its first field. A block snippet typed after other text on the
+   * line starts a line of its own, so it still lands as a heading or a table.
+   */
   #expandRow(view: EditorView, row: number): void {
     const menu = this.#currentMenu(view);
     const snippet = menu?.matches[row];
@@ -106,10 +110,14 @@ export class SnippetMenu {
       return;
     }
     const { text, fields } = snippet.expansion;
-    const at = menu.slashAt;
+    const line = view.state.doc.lineAt(menu.slashAt);
+    const textBefore = line.text.slice(0, menu.slashAt - line.from);
+    const breaksLine = snippet.startsLine && textBefore.trim() !== "";
+    const from = breaksLine ? line.from + textBefore.trimEnd().length : menu.slashAt;
+    const at = breaksLine ? from + 1 : from;
     const cursor = at + (fields[0]?.from ?? text.length);
     view.dispatch({
-      changes: { from: at, to: view.state.selection.main.head, insert: text },
+      changes: { from, to: view.state.selection.main.head, insert: breaksLine ? `\n${text}` : text },
       selection: { anchor: cursor },
       effects: [closeMenu.of(null), ...(fields.length > 0 ? [this.#fields.start(at, snippet.expansion)] : [])],
       annotations: isolateHistory.of("full"),
