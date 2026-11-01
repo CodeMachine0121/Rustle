@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-const SECONDS_PER_DAY: u64 = 86_400;
+pub(crate) const SECONDS_PER_DAY: u64 = 86_400;
 
 /// A point in time written as ISO 8601 in UTC with milliseconds, e.g.
 /// `2026-08-20T08:04:11.123Z`. Times before 1970 are written as the epoch.
@@ -19,9 +19,13 @@ impl From<SystemTime> for UtcTimestamp {
 }
 
 impl UtcTimestamp {
+    pub(crate) fn since_epoch(&self) -> Duration {
+        self.since_epoch
+    }
+
     /// Converts days since 1970-01-01 to a proleptic Gregorian date
     /// (Howard Hinnant's `civil_from_days`).
-    fn civil_date(days_since_epoch: u64) -> (u64, u64, u64) {
+    pub(crate) fn civil_date(days_since_epoch: u64) -> (u64, u64, u64) {
         let shifted_days = days_since_epoch + 719_468;
         let era = shifted_days / 146_097;
         let day_of_era = shifted_days % 146_097;
