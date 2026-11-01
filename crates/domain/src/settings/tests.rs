@@ -52,6 +52,7 @@ fn reads_the_stored_values() {
             },
             interface_language: None,
             sidebar: SidebarSettings::default(),
+            font_size: FontSizeSettings::default(),
         }
     );
 }
@@ -291,5 +292,57 @@ fn writes_the_collapsed_sections_by_name() {
     assert_eq!(
         serde_json::to_value(&settings).expect("serializable")["sidebar"],
         json!({ "collapsedSections": ["status"] })
+    );
+}
+
+#[test]
+fn has_no_font_size_opinion_until_one_is_written() {
+    assert_eq!(read(json!({})).font_size, FontSizeSettings::default());
+    assert!(
+        serde_json::to_value(Settings::default())
+            .expect("serializable")
+            .get("fontSize")
+            .is_none()
+    );
+}
+
+#[test]
+fn reads_the_written_font_sizes_as_written() {
+    let settings = read(json!({ "fontSize": { "editor": 17.3, "preview": 999 } }));
+
+    assert_eq!(
+        settings.font_size,
+        FontSizeSettings {
+            editor: Some(17.3),
+            preview: Some(999.0),
+        }
+    );
+}
+
+#[rstest::rstest]
+#[case::text(json!({ "fontSize": { "editor": "huge", "preview": 13 } }), None, Some(13.0))]
+#[case::null(json!({ "fontSize": { "editor": null } }), None, None)]
+#[case::not_an_object(json!({ "fontSize": 16 }), None, None)]
+fn reads_a_font_size_that_is_not_a_number_as_no_opinion(
+    #[case] stored: serde_json::Value,
+    #[case] editor: Option<f64>,
+    #[case] preview: Option<f64>,
+) {
+    assert_eq!(read(stored).font_size, FontSizeSettings { editor, preview });
+}
+
+#[test]
+fn writes_only_the_font_sizes_it_has() {
+    let settings = Settings {
+        font_size: FontSizeSettings {
+            editor: None,
+            preview: Some(13.5),
+        },
+        ..Settings::default()
+    };
+
+    assert_eq!(
+        serde_json::to_value(&settings).expect("serializable")["fontSize"],
+        json!({ "preview": 13.5 })
     );
 }
