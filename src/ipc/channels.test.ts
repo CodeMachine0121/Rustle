@@ -5,13 +5,12 @@ import { channels, type ChannelName } from "./channels";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
-type ArgumentlessChannelName = Exclude<ChannelName, "readBody">;
+type ArgumentlessChannelName = Exclude<ChannelName, "readBody" | "saveBody">;
 
 const COMMAND_NAMES: Record<ArgumentlessChannelName, string> = {
   listWorkspaces: "list_workspaces",
   listArticles: "list_articles",
   createArticle: "create_article",
-  saveBody: "save_body",
   updateMetadata: "update_metadata",
   saveClipboardImage: "save_clipboard_image",
   readSettings: "read_settings",
@@ -45,7 +44,30 @@ describe("channels", () => {
     expect(result).toEqual({ ok: true, payload: articleBody });
   });
 
+  it("saves a body with the modification time it expects and the overwrite choice", async () => {
+    const savedBody = {
+      outcome: "saved",
+      updatedAt: "2026-08-20T08:04:11.123Z",
+      lastKnownModifiedAt: "2026-08-20T08:04:11.456Z",
+    };
+    vi.mocked(invoke).mockResolvedValue(savedBody);
+    const request = {
+      workspace: "Blog",
+      fileName: "zen-of-writing.md",
+      body: "新的正文",
+      lastKnownModifiedAt: "2026-08-20T08:00:00.000Z",
+      overwrite: false,
+    };
+
+    const result = await channels.saveBody(request);
+
+    expect(invoke).toHaveBeenLastCalledWith("save_body", request);
+    expect(result).toEqual({ ok: true, payload: savedBody });
+  });
+
   it("offers exactly the channels listed in this test", () => {
-    expect(Object.keys(channels).sort()).toEqual([...Object.keys(COMMAND_NAMES), "readBody"].sort());
+    expect(Object.keys(channels).sort()).toEqual(
+      [...Object.keys(COMMAND_NAMES), "readBody", "saveBody"].sort(),
+    );
   });
 });

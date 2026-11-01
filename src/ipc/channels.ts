@@ -1,5 +1,6 @@
 import type { ArticleBody } from "./articleBody";
 import { callChannel } from "./callChannel";
+import type { SaveBodyRequest, SavedBody } from "./savedBody";
 
 // The webview's only way to reach the backend. Each slice replaces the
 // placeholder signature of its own channel with the real request/payload.
@@ -13,7 +14,7 @@ export const channels = {
   readBody: (workspace: string, fileName: string) =>
     callChannel<ArticleBody>("read_body", { workspace, fileName }),
 
-  saveBody: () => callChannel<null>("save_body"),
+  saveBody: (request: SaveBodyRequest) => callChannel<SavedBody>("save_body", request),
 
   updateMetadata: () => callChannel<null>("update_metadata"),
 
