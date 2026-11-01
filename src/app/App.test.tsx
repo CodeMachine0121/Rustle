@@ -874,6 +874,40 @@ describe("App", () => {
       });
     });
 
+    it("leaves no Chinese of its own on screen in English, only the writer's words", async () => {
+      answerInLanguage("en", ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+      await waitFor(() => expect(regionTitles()).toContain("ARTICLES"));
+      const writersWords = ["正文的第一行。", "Tauri 與 Electron"];
+
+      const elements = [...document.body.querySelectorAll("*")];
+      const shown = [
+        ...elements.flatMap((element) =>
+          [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent ?? ""),
+        ),
+        ...elements.flatMap((element) =>
+          ["aria-label", "placeholder", "title"].map((attribute) => element.getAttribute(attribute) ?? ""),
+        ),
+      ];
+      const rustlesOwnChinese = shown
+        .map((text) => writersWords.reduce((rest, words) => rest.replaceAll(words, ""), text))
+        .filter((text) => /\p{Script=Han}/u.test(text));
+
+      expect(rustlesOwnChinese).toEqual([]);
+    });
+
+    it("keeps the product name as the page title in both languages", async () => {
+      document.title = "Rustle";
+      answerInLanguage(undefined, ["zh-Hant-TW"]);
+      await renderWithTheArticleOpen();
+
+      fireEvent.click(within(await openSettings()).getByRole("radio", { name: "English" }));
+      expect(document.title).toBe("Rustle");
+      fireEvent.click(within(await openSettings("Settings")).getByRole("radio", { name: "中文" }));
+
+      expect(document.title).toBe("Rustle");
+    });
+
     it("changes nothing on screen when the language in use is chosen", async () => {
       answerInLanguage(undefined, ["zh-Hant-TW"]);
       await renderWithTheArticleOpen();
