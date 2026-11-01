@@ -21,7 +21,8 @@
 | Area | Action | What / Why |
 | :--- | :--- | :--- |
 | `crates/domain` `settings.rs` + `settings/stored_settings.rs` | **Modify** | `PreviewPanelSettings.toggle_shortcut: Option<String>`; a blank string or any non-string reads as `None` ("the file has no opinion"); omitted from the written JSON when `None` |
-| `crates/application`, `crates/infrastructure`, `src-tauri` | **Not touched** | `readSettings` / `writeSettings` already carry the whole `Settings`; the repository already keeps unknown keys. CSP already blocks remote images and only allows `'self'`, `data:` and the vault scheme in `img-src` — it stays the third layer unchanged |
+| `crates/application`, `src-tauri` | **Not touched** | `readSettings` / `writeSettings` already carry the whole `Settings`. CSP already blocks remote images and only allows `'self'`, `data:` and the vault scheme in `img-src` — it stays the third layer unchanged |
+| `crates/infrastructure` (`FileSystemSettingsRepository::save`) | **Modify** | Merges known fields one level deep, so an unusable `previewPanel.toggleShortcut` or an unknown key inside a section survives folding or opening the panel; the rest of the settings are written back unchanged |
 | `src/ipc/settings.ts` | **Modify** | `previewPanel.toggleShortcut?: string` |
 | `src/features/settings/` | **Add** | `SettingsSession` (+ `useSettings`): single webview owner of the settings |
 | `src/features/vault/VaultSession.ts` | **Modify** | reads / remembers through `SettingsSession` instead of its own copy (behaviour unchanged) |
