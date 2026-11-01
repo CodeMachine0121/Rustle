@@ -49,7 +49,7 @@ pub use metadata_update::MetadataUpdate;
 pub use pasted_image::{ImageStorage, PNG_EXTENSION, PastedImage};
 pub use settings::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
-    SettingsError, SettingsRepository,
+    SettingsError, SettingsRepository, SidebarSection, SidebarSettings,
 };
 #[cfg(any(test, feature = "mocks"))]
 pub use trash::MockTrash;

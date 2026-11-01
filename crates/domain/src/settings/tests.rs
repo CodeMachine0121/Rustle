@@ -49,6 +49,7 @@ fn reads_the_stored_values() {
                 workspace: Some("Blog".to_owned()),
                 article: Some("zen-of-writing.md".to_owned()),
             },
+            sidebar: SidebarSettings::default(),
         }
     );
 }
@@ -133,7 +134,8 @@ fn writes_the_fields_the_webview_reads() {
         json!({
             "indentation": { "style": "spaces", "width": 2 },
             "previewPanel": { "isOpen": true, "widthRatio": 0.5 },
-            "lastOpened": { "workspace": null, "article": null }
+            "lastOpened": { "workspace": null, "article": null },
+            "sidebar": { "collapsedSections": [] }
         })
     );
 }
@@ -198,5 +200,48 @@ fn writes_a_toggle_shortcut_only_when_there_is_one() {
     assert_eq!(
         written["previewPanel"]["toggleShortcut"],
         json!("Mod+Alt+K")
+    );
+}
+
+#[test]
+fn starts_with_every_sidebar_section_expanded() {
+    assert!(Settings::default().sidebar.collapsed_sections.is_empty());
+}
+
+#[test]
+fn reads_the_collapsed_sidebar_sections() {
+    let settings = read(json!({ "sidebar": { "collapsedSections": ["tags", "workspaces"] } }));
+
+    assert_eq!(
+        settings.sidebar.collapsed_sections,
+        [SidebarSection::Tags, SidebarSection::Workspaces]
+    );
+}
+
+#[rstest::rstest]
+#[case::unknown_section(json!({ "sidebar": { "collapsedSections": ["trash"] } }), &[])]
+#[case::unknown_among_known(json!({ "sidebar": { "collapsedSections": ["trash", "status", 3] } }), &[SidebarSection::Status])]
+#[case::repeated(json!({ "sidebar": { "collapsedSections": ["tags", "tags"] } }), &[SidebarSection::Tags])]
+#[case::not_a_list(json!({ "sidebar": { "collapsedSections": "tags" } }), &[])]
+#[case::not_an_object(json!({ "sidebar": true }), &[])]
+fn ignores_collapsed_sections_it_does_not_know(
+    #[case] stored: serde_json::Value,
+    #[case] expected: &[SidebarSection],
+) {
+    assert_eq!(read(stored).sidebar.collapsed_sections, expected);
+}
+
+#[test]
+fn writes_the_collapsed_sections_by_name() {
+    let settings = Settings {
+        sidebar: SidebarSettings {
+            collapsed_sections: vec![SidebarSection::Status],
+        },
+        ..Settings::default()
+    };
+
+    assert_eq!(
+        serde_json::to_value(&settings).expect("serializable")["sidebar"],
+        json!({ "collapsedSections": ["status"] })
     );
 }

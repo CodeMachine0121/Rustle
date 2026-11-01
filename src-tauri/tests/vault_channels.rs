@@ -193,7 +193,8 @@ fn writes_settings_that_read_back_and_keeps_keys_it_does_not_know() {
     let settings = json!({
         "indentation": { "style": "tab", "width": 4 },
         "previewPanel": { "isOpen": false, "widthRatio": 0.3 },
-        "lastOpened": { "workspace": "Blog", "article": "zen-of-writing.md" }
+        "lastOpened": { "workspace": "Blog", "article": "zen-of-writing.md" },
+        "sidebar": { "collapsedSections": ["status", "tags"] }
     });
 
     app.call("write_settings", json!({ "settings": settings }))
