@@ -116,3 +116,18 @@ fn leaves_no_temporary_files_behind_after_saving() {
         .collect();
     assert_eq!(entries, vec!["settings.json"]);
 }
+
+#[test]
+fn reports_a_blocked_settings_folder_and_leaves_it_alone() {
+    let vault = Vault::create();
+    fs::create_dir_all(&vault.root).expect("vault root");
+    fs::write(vault.root.join(".rustle"), "not a folder").expect("blocking file");
+
+    let result = vault.repository().save(&Settings::default());
+
+    assert!(result.is_err());
+    assert_eq!(
+        fs::read_to_string(vault.root.join(".rustle")).expect("still there"),
+        "not a folder"
+    );
+}
