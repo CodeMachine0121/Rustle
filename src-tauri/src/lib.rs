@@ -35,7 +35,12 @@ const APP_PAGE: &str = "index.html";
 
 pub fn run() {
     let home = std::env::home_dir().expect("Rustle keeps its vault in the home directory");
-    configure(Builder::default(), VaultScope::at_default_location(&home))
+    let builder = configure(Builder::default(), VaultScope::at_default_location(&home));
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .menu(application_menu::application_menu)
+        .on_menu_event(application_menu::close_window_on_request);
+    builder
         .setup(|app| {
             open_main_window(app)?;
             Ok(())
