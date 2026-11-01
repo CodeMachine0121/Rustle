@@ -2968,6 +2968,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -2987,6 +2988,7 @@ dependencies = [
 name = "rustle-infrastructure"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "rstest",
  "rustle-domain",
  "serde",

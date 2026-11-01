@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import type { ChannelResult } from "../../ipc/channelResult";
+import type { CreateArticleRequest } from "../../ipc/createArticleRequest";
 import type { CreateWorkspaceOutcome } from "../../ipc/createWorkspaceOutcome";
 import type { Settings } from "../../ipc/settings";
 import type { AutosaveSwitchOutcome } from "../autosave/AutosaveSession";
@@ -20,6 +21,7 @@ function article(fileName: string): ArticleSummary {
     fileName,
     title: fileName.replace(/\.md$/, ""),
     createdAt: "",
+    updatedAt: "",
     category: [],
     tags: [],
     hasIncompleteMetadata: true,
@@ -54,6 +56,10 @@ function vaultChannels(settings: Settings = STORED_SETTINGS) {
     createWorkspace: vi.fn(
       (name: string): Promise<ChannelResult<CreateWorkspaceOutcome>> =>
         ok({ outcome: "created", workspace: { name, articleCount: 0 } }),
+    ),
+    createArticle: vi.fn(
+      (request: CreateArticleRequest): Promise<ChannelResult<ArticleSummary>> =>
+        ok({ ...article("new-article.md"), title: request.title }),
     ),
   } satisfies VaultChannels;
 }
@@ -205,7 +211,7 @@ describe("VaultSession", () => {
     expect(session.snapshot.bodyFailure).toBe("not text");
   });
 
-  it("hands the opened article and its title to the article holder", async () => {
+  it("hands the opened article and its title to the article holder without taking the keyboard", async () => {
     const holder = articleHolder();
     const session = new VaultSession(vaultChannels(), holder);
     await session.selectWorkspace("Blog");
@@ -220,6 +226,7 @@ describe("VaultSession", () => {
         lastKnownModifiedAt: "2026-08-20T08:04:11.123Z",
       },
       title: "b",
+      focusEditor: false,
     });
   });
 
@@ -419,5 +426,142 @@ describe("VaultSession", () => {
 
     expect(notified).toBeGreaterThan(0);
     expect(listener).toHaveBeenCalledTimes(notified);
+  });
+
+  describe("creating an article", () => {
+    const DRAFT = { title: "Zen of Writing", category: ["技術筆記"], tags: ["electron"] };
+
+    function blogAfterCreation() {
+      const channels = vaultChannels();
+      let created = false;
+      channels.createArticle.mockImplementation((request: CreateArticleRequest) => {
+        created = true;
+        return ok({ ...article("zen-of-writing-2.md"), title: request.title });
+      });
+      channels.listArticles.mockImplementation((workspace: string) =>
+        ok(
+          created && workspace === "Blog"
+            ? [...(ARTICLES.Blog ?? []), { ...article("zen-of-writing-2.md"), title: "Zen of Writing" }]
+            : (ARTICLES[workspace] ?? []),
+        ),
+      );
+      channels.listWorkspaces.mockImplementation(() =>
+        ok([
+          { name: "Blog", articleCount: created ? 4 : 3 },
+          { name: "Work", articleCount: 0 },
+        ]),
+      );
+      return channels;
+    }
+
+    it("asks for the article in the selected workspace", async () => {
+      const channels = blogAfterCreation();
+      const session = new VaultSession(channels);
+      await session.start();
+
+      const creation = await session.createArticle(DRAFT);
+
+      expect(creation).toEqual({ outcome: "created" });
+      expect(channels.createArticle).toHaveBeenCalledWith({ workspace: "Blog", ...DRAFT });
+    });
+
+    it("asks for nothing while no workspace is selected", async () => {
+      const channels = vaultChannels();
+      const session = new VaultSession(channels);
+
+      const creation = await session.createArticle(DRAFT);
+
+      expect(creation.outcome).toBe("failed");
+      expect(channels.createArticle).not.toHaveBeenCalled();
+    });
+
+    it("lists, selects and opens the new article and counts it in its workspace", async () => {
+      const session = new VaultSession(blogAfterCreation());
+      await session.start();
+
+      await session.createArticle(DRAFT);
+
+      const { articles, selectedArticle, body, workspaces } = session.snapshot;
+      expect(articles.map(({ fileName }) => fileName)).toContain("zen-of-writing-2.md");
+      expect(selectedArticle).toBe("zen-of-writing-2.md");
+      expect(body).toBe("zen-of-writing-2.md 的正文");
+      expect(workspaces.find(({ name }) => name === "Blog")?.articleCount).toBe(4);
+    });
+
+    it("hands the new article to the holder with the keyboard and remembers it", async () => {
+      const channels = blogAfterCreation();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      await session.createArticle(DRAFT);
+
+      expect(holder.openArticle).toHaveBeenLastCalledWith(
+        expect.objectContaining({ title: "Zen of Writing", focusEditor: true }),
+      );
+      expect(channels.writeSettings).toHaveBeenLastCalledWith({
+        ...STORED_SETTINGS,
+        lastOpened: { workspace: "Blog", article: "zen-of-writing-2.md" },
+      });
+    });
+
+    it("still counts as created when the open article cannot be left yet", async () => {
+      const channels = blogAfterCreation();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      holder.openArticle.mockResolvedValue("blockedByUnansweredWarning");
+
+      const creation = await session.createArticle(DRAFT);
+
+      expect(creation).toEqual({ outcome: "created" });
+      expect(session.snapshot.selectedArticle).toBe("zen-of-writing.md");
+      expect(session.snapshot.articles.map(({ fileName }) => fileName)).toContain("zen-of-writing-2.md");
+    });
+
+    it("still opens the new article when the refreshed list cannot be read", async () => {
+      const channels = blogAfterCreation();
+      const session = new VaultSession(channels);
+      await session.start();
+      channels.listArticles.mockImplementation(() => failed("permission denied"));
+
+      await session.createArticle(DRAFT);
+
+      expect(session.snapshot.selectedArticle).toBe("zen-of-writing-2.md");
+      expect(session.snapshot.body).toBe("zen-of-writing-2.md 的正文");
+    });
+
+    it("gives the reason when the article could not be created", async () => {
+      const channels = vaultChannels();
+      channels.createArticle.mockImplementation(() => failed("磁碟已滿"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      const creation = await session.createArticle(DRAFT);
+
+      expect(creation).toEqual({ outcome: "failed", message: "磁碟已滿" });
+      expect(session.snapshot.selectedArticle).toBe("zen-of-writing.md");
+    });
+
+    it("does not open the new article after another workspace was clicked meanwhile", async () => {
+      const channels = blogAfterCreation();
+      const session = new VaultSession(channels);
+      await session.start();
+      let finishCreating: () => void = () => undefined;
+      channels.createArticle.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishCreating = () => resolve({ ok: true, payload: article("zen-of-writing-2.md") });
+          }),
+      );
+
+      const creation = session.createArticle(DRAFT);
+      await session.selectWorkspace("Work");
+      finishCreating();
+
+      expect(await creation).toEqual({ outcome: "created" });
+      expect(session.snapshot.selectedWorkspace).toBe("Work");
+      expect(session.snapshot.selectedArticle).toBeNull();
+    });
   });
 });

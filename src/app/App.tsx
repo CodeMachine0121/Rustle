@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { AutosaveSession } from "../features/autosave/AutosaveSession";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
+import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
+import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
@@ -26,6 +28,7 @@ function VaultView() {
   );
   const [session] = useState(() => new VaultSession(channels, autosave));
   const snapshot = useVaultSnapshot(session);
+  const [articleDialogOpenedAt, setArticleDialogOpenedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     void session.start();
@@ -37,19 +40,33 @@ function VaultView() {
   }, [autosave]);
 
   return (
-    <AppLayout
-      workspaces={
-        <WorkspaceColumn
-          snapshot={snapshot}
-          onSelect={(workspace) => void session.selectWorkspace(workspace)}
-          onCreate={(typedName) => session.createWorkspace(typedName)}
+    <>
+      <AppLayout
+        workspaces={
+          <WorkspaceColumn
+            snapshot={snapshot}
+            onSelect={(workspace) => void session.selectWorkspace(workspace)}
+            onCreate={(typedName) => session.createWorkspace(typedName)}
+          />
+        }
+        articles={
+          <ArticleColumn
+            snapshot={snapshot}
+            onSelect={(fileName) => void session.selectArticle(fileName)}
+            onCreateArticle={() => setArticleDialogOpenedAt(new Date())}
+          />
+        }
+        editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
+      />
+      {articleDialogOpenedAt !== null && (
+        <CreateArticleDialog
+          openedAt={articleDialogOpenedAt}
+          vocabulary={vocabularyOf(snapshot.articles)}
+          onCreate={(draft) => session.createArticle(draft)}
+          onClose={() => setArticleDialogOpenedAt(null)}
         />
-      }
-      articles={
-        <ArticleColumn snapshot={snapshot} onSelect={(fileName) => void session.selectArticle(fileName)} />
-      }
-      editor={<EditorColumn snapshot={snapshot} autosave={autosave} />}
-    />
+      )}
+    </>
   );
 }
 

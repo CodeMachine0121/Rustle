@@ -69,6 +69,19 @@ fn write(
     )
 }
 
+fn create(
+    articles: &FileSystemArticleRepository,
+    workspace: &str,
+    article: &str,
+    text: &str,
+) -> Result<(), ArticleRepositoryError> {
+    articles.create(
+        &WorkspaceName::parse(workspace).expect("valid workspace name"),
+        &ArticleFileName::parse(article).expect("valid article name"),
+        text,
+    )
+}
+
 fn last_modified_at(articles: &FileSystemArticleRepository, article: &str) -> String {
     read(articles, "Blog", article)
         .expect("readable")
@@ -356,4 +369,131 @@ fn refuses_to_write_through_a_link_that_leaves_the_vault() {
         Err(ArticleRepositoryError::OutsideVault(_))
     ));
     assert_eq!(fs::read_to_string(&secret).expect("readable"), "秘密");
+}
+
+#[test]
+fn creates_a_new_article_with_exactly_the_given_text() {
+    let vault = Vault::create();
+
+    let created = create(
+        &vault.articles(),
+        "Blog",
+        "zen-of-writing.md",
+        "---\ntitle: Zen\n---\n",
+    );
+
+    assert_eq!(created, Ok(()));
+    assert_eq!(
+        fs::read_to_string(vault.root.join("Blog/zen-of-writing.md")).expect("readable"),
+        "---\ntitle: Zen\n---\n"
+    );
+    assert_eq!(
+        file_names_in(&vault.root.join("Blog")),
+        vec!["zen-of-writing.md"]
+    );
+}
+
+#[test]
+fn never_creates_over_an_existing_article_and_names_the_one_in_the_way() {
+    let vault = Vault::create();
+    let path = vault.write("Blog/zen-of-writing.md", "別人的文章");
+
+    let created = create(&vault.articles(), "Blog", "zen-of-writing.md", "新的文章");
+
+    let error = created.expect_err("the name is taken");
+    assert_eq!(
+        error,
+        ArticleRepositoryError::AlreadyExists {
+            article: "Blog/zen-of-writing.md".to_owned()
+        }
+    );
+    let message = error.to_string();
+    assert!(message.contains("zen-of-writing.md"), "{message}");
+    assert!(
+        !message.contains(&*vault.root.to_string_lossy()),
+        "{message}"
+    );
+    assert_eq!(fs::read_to_string(&path).expect("readable"), "別人的文章");
+}
+
+#[test]
+fn never_creates_over_a_folder_with_the_same_name() {
+    let vault = Vault::create();
+    fs::create_dir(vault.root.join("Blog/notes.md")).expect("folder named like an article");
+
+    let created = create(&vault.articles(), "Blog", "notes.md", "text");
+
+    assert!(matches!(
+        created,
+        Err(ArticleRepositoryError::AlreadyExists { .. })
+    ));
+    assert!(vault.root.join("Blog/notes.md").is_dir());
+}
+
+#[cfg(unix)]
+#[test]
+fn creates_nothing_when_the_workspace_folder_cannot_be_written() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let vault = Vault::create();
+    let workspace = vault.root.join("Blog");
+    fs::set_permissions(&workspace, fs::Permissions::from_mode(0o555)).expect("read-only folder");
+
+    let created = create(&vault.articles(), "Blog", "zen.md", "text");
+
+    fs::set_permissions(&workspace, fs::Permissions::from_mode(0o755)).expect("writable again");
+    assert!(matches!(
+        created,
+        Err(ArticleRepositoryError::Unwritable { .. })
+    ));
+    assert!(file_names_in(&workspace).is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn refuses_to_create_in_a_workspace_that_links_outside_the_vault() {
+    let vault = Vault::create();
+    let outside = vault.outside();
+    std::os::unix::fs::symlink(&outside, vault.root.join("Escape")).expect("symlink");
+
+    let created = create(&vault.articles(), "Escape", "zen.md", "text");
+
+    assert!(matches!(
+        created,
+        Err(ArticleRepositoryError::OutsideVault(
+            VaultPathError::OutsideVault { .. }
+        ))
+    ));
+    assert!(file_names_in(&outside).is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn creates_through_a_workspace_link_that_stays_inside_the_vault() {
+    let vault = Vault::create();
+    std::os::unix::fs::symlink(vault.root.join("Blog"), vault.root.join("Mirror"))
+        .expect("symlink inside the vault");
+
+    let created = create(&vault.articles(), "Mirror", "zen-of-writing.md", "text");
+
+    assert_eq!(created, Ok(()));
+    assert!(vault.root.join("Blog/zen-of-writing.md").is_file());
+}
+
+#[cfg(unix)]
+#[test]
+fn creates_in_a_vault_that_sits_behind_a_symlink() {
+    let vault = Vault::create();
+    let link_to_vault = vault.directory.path().join("linked-vault");
+    std::os::unix::fs::symlink(&vault.root, &link_to_vault).expect("symlink to the vault");
+
+    let created = create(
+        &Vault::articles_at(&link_to_vault),
+        "Blog",
+        "zen.md",
+        "text",
+    );
+
+    assert_eq!(created, Ok(()));
+    assert!(vault.root.join("Blog/zen.md").is_file());
 }

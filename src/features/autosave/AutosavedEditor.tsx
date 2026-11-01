@@ -20,6 +20,7 @@ export function AutosavedEditor({ session, indentation }: AutosavedEditorProps) 
         documentKey={String(editorDocument.version)}
         body={editorDocument.body ?? ""}
         indentation={indentation}
+        focusOnShow={editorDocument.takesFocus}
         onBodyChange={(body) => session.changeBody(body)}
       />
     </>

@@ -9,6 +9,7 @@ const TAURI: ArticleSummary = {
   fileName: "tauri.md",
   title: "Tauri 與 Electron 的取捨",
   createdAt: "2026-08-20T14:32:05+08:00",
+  updatedAt: "2026-08-20T14:32:05+08:00",
   category: ["技術筆記"],
   tags: ["tauri", "electron"],
   hasIncompleteMetadata: false,
@@ -18,6 +19,7 @@ const NO_TITLE: ArticleSummary = {
   fileName: "no-title.md",
   title: "no-title",
   createdAt: "",
+  updatedAt: "",
   category: [],
   tags: [],
   hasIncompleteMetadata: true,
@@ -30,9 +32,15 @@ const BLOG: VaultSnapshot = {
   articles: [NO_TITLE, TAURI],
 };
 
-function renderColumn(snapshot: VaultSnapshot, onSelect = vi.fn()) {
-  render(<ArticleColumn snapshot={snapshot} onSelect={onSelect} />);
+function renderColumn(snapshot: VaultSnapshot, onSelect = vi.fn(), onCreateArticle = vi.fn()) {
+  render(<ArticleColumn snapshot={snapshot} onSelect={onSelect} onCreateArticle={onCreateArticle} />);
   return onSelect;
+}
+
+function renderColumnForCreating(snapshot: VaultSnapshot) {
+  const onCreateArticle = vi.fn();
+  renderColumn(snapshot, vi.fn(), onCreateArticle);
+  return onCreateArticle;
 }
 
 describe("ArticleColumn", () => {
@@ -75,10 +83,28 @@ describe("ArticleColumn", () => {
     expect(screen.getByRole("button", { name: /no-title/ })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("invites the user to create a first article in an empty workspace", () => {
-    renderColumn({ ...BLOG, articles: [] });
+  it("invites the user to create a first article in an empty workspace and opens the dialog from there", () => {
+    const onCreateArticle = renderColumnForCreating({ ...BLOG, articles: [] });
 
-    expect(screen.getByText("建立第一篇文章")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "建立第一篇文章" }));
+
+    expect(onCreateArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a new article button in a selected workspace", () => {
+    const onCreateArticle = renderColumnForCreating(BLOG);
+    const newArticleButton = screen.getByRole("button", { name: "＋ 新文章" });
+    expect(newArticleButton).toBeVisible();
+
+    fireEvent.click(newArticleButton);
+
+    expect(onCreateArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no new article button without a selected workspace", () => {
+    renderColumn({ ...BLOG, selectedWorkspace: null, articles: [] });
+
+    expect(screen.queryByRole("button", { name: "＋ 新文章" })).not.toBeInTheDocument();
   });
 
   it("asks for a workspace when none is selected", () => {

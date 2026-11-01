@@ -11,17 +11,19 @@ pub struct ArticleSummary {
     pub file_name: String,
     pub title: String,
     pub created_at: String,
+    pub updated_at: String,
     pub category: Vec<String>,
     pub tags: Vec<String>,
     pub has_incomplete_metadata: bool,
 }
 
 impl ArticleSummary {
-    fn new(file_name: &ArticleFileName, metadata: ArticleMetadata) -> Self {
+    pub(crate) fn new(file_name: &ArticleFileName, metadata: ArticleMetadata) -> Self {
         Self {
             file_name: file_name.to_string(),
             title: metadata.title,
             created_at: metadata.created_at,
+            updated_at: metadata.updated_at,
             category: metadata.category,
             tags: metadata.tags,
             has_incomplete_metadata: metadata.has_incomplete_metadata,
