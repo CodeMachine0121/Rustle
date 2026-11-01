@@ -9,6 +9,7 @@ import type { AutosaveSession } from "../autosave/AutosaveSession";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
 import type { StatusChoice } from "../sidebar/statusChoice";
+import { firstArticleIn } from "./articleArrangement";
 import { isSameArticle } from "./articleLocation";
 import {
   reportedFailure,
@@ -44,11 +45,12 @@ export type MetadataEdit = { outcome: "updated" } | { outcome: "failed"; reason:
 export type RenameRejection = { workspace: string; reason: WorkspaceNameRejection };
 
 /** Holds the open article and may refuse to let it go, for example while it cannot be saved. */
-export type ArticleHolder = Pick<AutosaveSession, "openArticle" | "closeArticle">;
+export type ArticleHolder = Pick<AutosaveSession, "openArticle" | "closeArticle" | "placeCursor">;
 
 const LETS_EVERY_ARTICLE_GO: ArticleHolder = {
   openArticle: () => Promise.resolve("switched"),
   closeArticle: () => Promise.resolve("switched"),
+  placeCursor: () => undefined,
 };
 
 export type VaultSnapshot = {
@@ -92,7 +94,8 @@ export const INITIAL_VAULT_SNAPSHOT: VaultSnapshot = {
   operationFailure: null,
 };
 
-type Scope = { kind: "workspace"; workspace: string } | { kind: "allNotes" };
+/** What the sidebar can have selected: one workspace, or All Notes. */
+export type Scope = { kind: "workspace"; workspace: string } | { kind: "allNotes" };
 
 /**
  * The one owner of what is selected in the vault: the scope (one workspace
@@ -164,6 +167,55 @@ export class VaultSession {
       return;
     }
     await this.#openScope({ kind: "allNotes" }, this.#beginSelection());
+  }
+
+  /**
+   * Goes to a workspace or All Notes rather than looking at it: the newest
+   * article (the list's first row) opens without taking the
+   * keyboard. An empty scope, or a newest article that cannot be read,
+   * leaves the editor empty.
+   */
+  async goTo(scope: Scope): Promise<void> {
+    if ((await this.#articleHolder.closeArticle()) !== "switched") {
+      return;
+    }
+    const selection = this.#beginSelection();
+    if (!(await this.#openScope(scope, selection))) {
+      return;
+    }
+    const newest = firstArticleIn(this.#snapshot.articles);
+    if (newest !== null) {
+      const { workspace, fileName } = newest;
+      if (await this.#openArticle({ workspace, fileName }, selection)) {
+        this.#remember(workspace, fileName);
+        return;
+      }
+    }
+    if (selection !== this.#latestSelection) {
+      return;
+    }
+    this.#update({ selectedArticle: null, bodyFailure: null });
+    if (scope.kind === "workspace") {
+      this.#remember(scope.workspace, null);
+    }
+  }
+
+  /**
+   * Opens an article the writer found and hands it the keyboard, with the
+   * cursor on `cursorLine` (a body line from 1) when given. The open article
+   * only moves its cursor, keeping what has not been saved yet.
+   */
+  async openFoundArticle(article: ArticleLocation, cursorLine?: number): Promise<void> {
+    if (this.#snapshot.openedDocument === documentOf(article)) {
+      if (cursorLine !== undefined) {
+        this.#articleHolder.placeCursor(cursorLine);
+      }
+      return;
+    }
+    const selection = this.#beginSelection();
+    if (await this.#openArticle(article, selection, { focusEditor: true, cursorLine })) {
+      this.#remember(article.workspace, article.fileName);
+    }
   }
 
   async selectArticle(article: ArticleLocation): Promise<void> {
@@ -472,7 +524,7 @@ export class VaultSession {
   async #openArticle(
     article: ArticleLocation,
     selection: number,
-    { focusEditor = false } = {},
+    { focusEditor = false, cursorLine }: { focusEditor?: boolean; cursorLine?: number } = {},
   ): Promise<boolean> {
     const previousArticle = this.#snapshot.selectedArticle;
     this.#update({ selectedArticle: article, bodyFailure: null });
@@ -484,7 +536,7 @@ export class VaultSession {
       this.#snapshot.articles.find((summary) => isSameArticle(summary, article))?.title ??
       article.fileName;
     const outcome = result.ok
-      ? await this.#articleHolder.openArticle({ article: result.payload, title, focusEditor })
+      ? await this.#articleHolder.openArticle({ article: result.payload, title, focusEditor, cursorLine })
       : await this.#articleHolder.closeArticle();
     if (selection !== this.#latestSelection) {
       return false;

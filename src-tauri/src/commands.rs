@@ -15,6 +15,7 @@ pub mod read_settings;
 pub mod rename_workspace;
 pub mod save_body;
 pub mod save_clipboard_image;
+pub mod search_bodies;
 pub mod update_metadata;
 pub mod watch_close_requests;
 pub mod write_settings;

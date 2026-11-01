@@ -1,5 +1,5 @@
 import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
-import type { SidebarFilter } from "../sidebar/SidebarFilter";
+import { SidebarFilter } from "../sidebar/SidebarFilter";
 import { isSameArticle } from "./articleLocation";
 
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/;
@@ -58,6 +58,20 @@ export function arrangeArticles(
       first.row.article.fileName.localeCompare(second.row.article.fileName),
   );
   return keyed.map(({ row }) => row);
+}
+
+/** Every article in the list's order, with no filter. */
+export function orderArticles(articles: readonly ArticleSummary[]): ArticleSummary[] {
+  return arrangeArticles(articles, {
+    filterText: "",
+    sidebarFilter: SidebarFilter.NONE,
+    openArticle: null,
+  }).map(({ article }) => article);
+}
+
+/** The article the list shows first with no filter: what "the newest one" means everywhere. */
+export function firstArticleIn(articles: readonly ArticleSummary[]): ArticleSummary | null {
+  return orderArticles(articles)[0] ?? null;
 }
 
 function instantOf(text: string): number | null {

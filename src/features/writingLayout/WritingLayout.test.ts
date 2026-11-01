@@ -21,6 +21,7 @@ function holderAnswering(outcome: Awaited<ReturnType<ArticleHolder["closeArticle
   return {
     openArticle: vi.fn(() => Promise.resolve(outcome)),
     closeArticle: vi.fn(() => Promise.resolve(outcome)),
+    placeCursor: vi.fn(),
   };
 }
 
@@ -200,6 +201,18 @@ describe("WritingLayout", () => {
 
       await holder.openArticle({ ...OPENED, focusEditor: true });
 
+      expect(layout.snapshot.viewMode).toBe("sideBySide");
+      expect(channels.writeSettings).not.toHaveBeenCalled();
+    });
+
+    it("brings the editor back from preview only to place the cursor in the open article", async () => {
+      const { layout, channels } = await layoutWith();
+      layout.choose("previewOnly");
+      const inner = holderAnswering("switched");
+
+      layout.revealEditorWhenNeeded(inner).placeCursor(12);
+
+      expect(inner.placeCursor).toHaveBeenCalledWith(12);
       expect(layout.snapshot.viewMode).toBe("sideBySide");
       expect(channels.writeSettings).not.toHaveBeenCalled();
     });

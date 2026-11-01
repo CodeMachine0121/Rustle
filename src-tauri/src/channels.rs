@@ -32,6 +32,10 @@ pub fn channel_handlers<R: Runtime>() -> Vec<ChannelHandler<R>> {
             tauri::generate_handler![commands::read_body::read_body],
         ),
         ChannelHandler::new(
+            Channel::SearchBodies,
+            tauri::generate_handler![commands::search_bodies::search_bodies],
+        ),
+        ChannelHandler::new(
             Channel::SaveBody,
             tauri::generate_handler![commands::save_body::save_body],
         ),

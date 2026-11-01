@@ -15,6 +15,7 @@ mod interface_language;
 mod local_timestamp;
 mod metadata_update;
 mod pasted_image;
+mod search_text;
 mod settings;
 mod trash;
 mod utc_timestamp;
@@ -51,6 +52,7 @@ pub use interface_language::{InterfaceLanguage, LanguagePreferences};
 pub use local_timestamp::LocalTimestamp;
 pub use metadata_update::MetadataUpdate;
 pub use pasted_image::{ImageStorage, PNG_EXTENSION, PastedImage};
+pub use search_text::{BODY_MATCH_LIMIT, BodyLine, SearchText};
 pub use settings::{
     IndentationSettings, IndentationStyle, LastOpenedSettings, PreviewPanelSettings, Settings,
     SettingsError, SettingsRepository, SidebarSection, SidebarSettings,

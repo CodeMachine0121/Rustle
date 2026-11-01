@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
-import { arrangeArticles } from "./articleArrangement";
+import { arrangeArticles, firstArticleIn } from "./articleArrangement";
 
 function article(fields: Partial<ArticleSummary> & { fileName: string }): ArticleSummary {
   return {
@@ -255,5 +255,15 @@ describe("arrangeArticles with the sidebar filter", () => {
       "Work/a.md",
       "Work/b.md",
     ]);
+  });
+});
+
+describe("firstArticleIn", () => {
+  it("is the article the list shows first", () => {
+    expect(firstArticleIn(FOUR)?.fileName).toBe("b.md");
+  });
+
+  it("is nothing for an empty list", () => {
+    expect(firstArticleIn([])).toBeNull();
   });
 });

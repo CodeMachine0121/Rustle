@@ -35,6 +35,7 @@ channels! {
     CreateWorkspace => "createWorkspace", "create_workspace";
     CreateArticle => "createArticle", "create_article";
     ReadBody => "readBody", "read_body";
+    SearchBodies => "searchBodies", "search_bodies";
     SaveBody => "saveBody", "save_body";
     UpdateMetadata => "updateMetadata", "update_metadata";
     DeleteArticle => "deleteArticle", "delete_article";

@@ -91,7 +91,7 @@ export class WritingLayout {
    * `holder`, except that it also brings the editor back when preview only
    * would hide what the writer needs: the warning or failure that explains
    * a refusal to let the open article go, or the editor an opened article
-   * hands the keyboard to.
+   * or a placed cursor hands the keyboard to.
    */
   revealEditorWhenNeeded(holder: ArticleHolder): ArticleHolder {
     const revealUnless = async (leaving: ReturnType<ArticleHolder["closeArticle"]>, keepsHidden: boolean) => {
@@ -104,6 +104,10 @@ export class WritingLayout {
     return {
       openArticle: (article) => revealUnless(holder.openArticle(article), article.focusEditor !== true),
       closeArticle: () => revealUnless(holder.closeArticle(), true),
+      placeCursor: (line) => {
+        this.revealEditor();
+        holder.placeCursor(line);
+      },
     };
   }
 

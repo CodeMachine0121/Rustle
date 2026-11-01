@@ -14,6 +14,7 @@ mod read_settings;
 mod rename_workspace;
 mod save_article_body;
 mod save_clipboard_images;
+mod search_article_bodies;
 mod update_article_metadata;
 mod write_settings;
 
@@ -32,6 +33,9 @@ pub use rename_workspace::{RenameWorkspace, RenameWorkspaceOutcome};
 pub use save_article_body::{OutsideChanges, SaveArticleBody, SavedBody};
 pub use save_clipboard_images::{
     SaveClipboardImages, SaveClipboardImagesError, SavedClipboardImage, SavedClipboardImages,
+};
+pub use search_article_bodies::{
+    ArticleLocation, BodyMatch, BodySearchResult, SearchArticleBodies,
 };
 pub use update_article_metadata::{
     MetadataUpdateOutcome, UpdateArticleMetadata, UpdateArticleMetadataError,

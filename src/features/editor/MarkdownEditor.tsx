@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
 import { useCompositionState } from "../../shared/composition/CompositionContext";
+import type { CursorPlacement } from "../autosave/AutosaveSession";
 import type { ImagePaste } from "../imagePaste/ImagePaste";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import { cursorLineHighlight } from "./cursorLineHighlight";
@@ -26,6 +27,7 @@ type MarkdownEditorProps = {
   body: string;
   indentation?: IndentationSettings;
   focusOnShow?: boolean;
+  cursorPlacement?: CursorPlacement | null;
   imagePaste?: ImagePaste;
   onBodyChange?: BodyChangeListener;
   scrollSynchronizer?: ScrollSynchronizer;
@@ -41,12 +43,15 @@ type MarkdownEditorProps = {
  * keyboard when the document appears, cursor at its start; otherwise focus
  * stays where it is, so opening an article from the list keeps the list.
  * With a `scrollSynchronizer` the editor is its editor side while mounted.
+ * A new `cursorPlacement` puts the cursor at the start of that line of the
+ * shown document (the last line when it is shorter) and takes the keyboard.
  */
 export function MarkdownEditor({
   documentKey,
   body,
   indentation,
   focusOnShow = false,
+  cursorPlacement = null,
   imagePaste,
   onBodyChange,
   scrollSynchronizer,
@@ -55,6 +60,7 @@ export function MarkdownEditor({
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const shownDocumentRef = useRef<string | null>(null);
+  const appliedPlacementRef = useRef<number | null>(null);
   const onBodyChangeRef = useRef(onBodyChange);
   const [indentationCompartment] = useState(() => new Compartment());
 
@@ -97,9 +103,17 @@ export function MarkdownEditor({
         ? IndentUnit.from()
         : IndentUnit.from({ style: indentationStyle, width: indentationWidth });
     const tabIndentation = new TabIndentation(composition, unit).extension();
+    const placeCursor = () => {
+      if (cursorPlacement === null || appliedPlacementRef.current === cursorPlacement.sequence) {
+        return;
+      }
+      appliedPlacementRef.current = cursorPlacement.sequence;
+      putCursorOnLine(view, cursorPlacement.line);
+    };
     const show = () => {
       if (shownDocumentRef.current === documentKey) {
         view.dispatch({ effects: indentationCompartment.reconfigure(tabIndentation) });
+        placeCursor();
         return;
       }
       shownDocumentRef.current = documentKey;
@@ -117,9 +131,11 @@ export function MarkdownEditor({
           ],
         }),
       );
+      appliedPlacementRef.current = null;
       if (focusOnShow) {
         view.focus();
       }
+      placeCursor();
     };
     if (!composition.isComposing) {
       show();
@@ -137,6 +153,7 @@ export function MarkdownEditor({
     documentKey,
     body,
     focusOnShow,
+    cursorPlacement,
     imagePaste,
     indentationStyle,
     indentationWidth,
@@ -144,6 +161,16 @@ export function MarkdownEditor({
   ]);
 
   return <div className="markdown-editor" ref={hostRef} />;
+}
+
+function putCursorOnLine(view: EditorView, line: number) {
+  const { doc } = view.state;
+  const target = doc.line(Math.min(Math.max(line, 1), doc.lines));
+  view.dispatch({
+    selection: { anchor: target.from },
+    effects: EditorView.scrollIntoView(target.from, { y: "center" }),
+  });
+  view.focus();
 }
 
 function editorExtensions(composition: CompositionState, tabIndentation: Extension) {

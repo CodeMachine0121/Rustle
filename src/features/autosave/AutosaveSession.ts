@@ -11,8 +11,16 @@ export type AutosaveSwitchOutcome =
 
 export type WindowCloseDecision = "close" | "stay";
 
-/** `focusEditor` hands the keyboard to the editor once the article is shown. */
-export type OpenedArticle = { article: ArticleBody; title: string; focusEditor?: boolean };
+/**
+ * `focusEditor` hands the keyboard to the editor once the article is shown;
+ * `cursorLine` (a body line, counted from 1) also puts the cursor there.
+ */
+export type OpenedArticle = {
+  article: ArticleBody;
+  title: string;
+  focusEditor?: boolean;
+  cursorLine?: number;
+};
 
 /**
  * What the save indicator says: the typed text has not landed yet (also
@@ -33,11 +41,20 @@ export type AutosaveStatus =
       failureMessage: string | null;
     };
 
+/** A request to put the cursor on a body line (from 1); a new `sequence` is a new request. */
+export type CursorPlacement = { line: number; sequence: number };
+
 /**
  * The body the editor should show; `version` changes whenever it is
- * replaced, and `takesFocus` says whether showing it moves the keyboard there.
+ * replaced, `takesFocus` says whether showing it moves the keyboard there,
+ * and `cursorPlacement` where the cursor should go in it.
  */
-export type EditorDocument = { version: number; body: string | null; takesFocus: boolean };
+export type EditorDocument = {
+  version: number;
+  body: string | null;
+  takesFocus: boolean;
+  cursorPlacement: CursorPlacement | null;
+};
 
 export type AutosaveBackend = {
   saveBody: (request: SaveBodyRequest) => Promise<ChannelResult<SavedBody>>;
@@ -79,7 +96,8 @@ export class AutosaveSession {
   #closingRefused = false;
   #queue: Promise<unknown> = Promise.resolve();
   #status: AutosaveStatus = { kind: "noArticle" };
-  #document: EditorDocument = { version: 0, body: null, takesFocus: false };
+  #document: EditorDocument = { version: 0, body: null, takesFocus: false, cursorPlacement: null };
+  #cursorPlacements = 0;
 
   constructor(
     composition: CompositionState,
@@ -132,6 +150,7 @@ export class AutosaveSession {
     article,
     title,
     focusEditor = false,
+    cursorLine,
   }: OpenedArticle): Promise<AutosaveSwitchOutcome> {
     const outcome = await this.#leave();
     if (outcome === "switched") {
@@ -144,9 +163,19 @@ export class AutosaveSession {
         },
         article.body,
         focusEditor,
+        cursorLine,
       );
     }
     return outcome;
+  }
+
+  /** Puts the cursor on a body line of the open article, keeping its text and history. */
+  placeCursor(line: number): void {
+    if (this.#article === null) {
+      return;
+    }
+    this.#document = { ...this.#document, cursorPlacement: this.#nextCursorPlacement(line) };
+    this.#publish();
   }
 
   async closeArticle(): Promise<AutosaveSwitchOutcome> {
@@ -280,7 +309,12 @@ export class AutosaveSession {
     this.#publish();
   }
 
-  #show(article: CurrentArticle | null, body: string | null, takesFocus = false): void {
+  #show(
+    article: CurrentArticle | null,
+    body: string | null,
+    takesFocus = false,
+    cursorLine?: number,
+  ): void {
     this.#debouncer.cancel();
     this.#article = article;
     this.#body = body ?? "";
@@ -289,8 +323,18 @@ export class AutosaveSession {
     this.#failureMessage = null;
     this.#leavingRefusedAfterFailure = false;
     this.#closingRefused = false;
-    this.#document = { version: this.#document.version + 1, body, takesFocus };
+    this.#document = {
+      version: this.#document.version + 1,
+      body,
+      takesFocus,
+      cursorPlacement: cursorLine === undefined ? null : this.#nextCursorPlacement(cursorLine),
+    };
     this.#publish();
+  }
+
+  #nextCursorPlacement(line: number): CursorPlacement {
+    this.#cursorPlacements += 1;
+    return { line, sequence: this.#cursorPlacements };
   }
 
   #enqueue(task: () => Promise<void>): Promise<void> {

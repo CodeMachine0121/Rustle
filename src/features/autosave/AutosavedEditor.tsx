@@ -31,6 +31,7 @@ export function AutosavedEditor({
         body={editorDocument.body ?? ""}
         indentation={indentation}
         focusOnShow={editorDocument.takesFocus}
+        cursorPlacement={editorDocument.cursorPlacement}
         imagePaste={imagePaste}
         onBodyChange={(body) => session.changeBody(body)}
         scrollSynchronizer={scrollSynchronizer}
