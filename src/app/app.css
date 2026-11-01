@@ -26,6 +26,7 @@
   --color-editor-code: #c41a16;
   --color-editor-quote: #5d6c79;
   --color-editor-mark: #643820;
+  --color-cursor-line: #f3f3f0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,6 +55,7 @@
     --color-editor-code: #fc6a5d;
     --color-editor-quote: #6c7986;
     --color-editor-mark: #fd8f3f;
+    --color-cursor-line: #262628;
   }
 }
 
@@ -382,6 +384,10 @@ body {
 
 .markdown-editor .cm-editor.cm-focused {
   outline: none;
+}
+
+.markdown-editor .cm-cursorLine {
+  background-color: var(--color-cursor-line);
 }
 
 .preview-scroller {
