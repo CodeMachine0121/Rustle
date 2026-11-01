@@ -117,7 +117,8 @@ impl<'a> MappingText<'a> {
                 let mut text = if keeps_key_line {
                     key_line.to_owned()
                 } else {
-                    format!("{key_text}:{}", self.line_ending)
+                    let comment = Self::trailing_comment(after_colon).unwrap_or_default();
+                    format!("{key_text}:{comment}{}", self.line_ending)
                 };
                 text.push_str(&self.list_items(&self.lines[entry.start + 1..entry.end], items));
                 text

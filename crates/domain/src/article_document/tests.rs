@@ -374,6 +374,17 @@ mod writing_lists {
     }
 
     #[test]
+    fn keeps_the_comment_of_a_single_string_turned_into_a_block_list() {
+        let text = rewritten(
+            "---\ncategory: 舊分類 # 備註\n---\n",
+            &MetadataUpdate::default().category(["技術筆記"]),
+        );
+
+        assert_eq!(text, "---\ncategory: # 備註\n  - 技術筆記\n---\n");
+        assert_eq!(metadata_of(&text).category, ["技術筆記"]);
+    }
+
+    #[test]
     fn removes_the_key_when_the_list_is_empty() {
         let text = rewritten(
             &annotated_article(),
