@@ -20,6 +20,8 @@ export const channels = {
 
   listArticles: (workspace: string) => callChannel<ArticleSummary[]>("list_articles", { workspace }),
 
+  listAllArticles: () => callChannel<ArticleSummary[]>("list_all_articles"),
+
   createWorkspace: (name: string) => callChannel<CreateWorkspaceOutcome>("create_workspace", { name }),
 
   createArticle: (request: CreateArticleRequest) =>

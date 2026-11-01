@@ -107,6 +107,29 @@ fn lists_the_articles_of_a_workspace_with_their_metadata() {
 }
 
 #[test]
+fn lists_the_articles_of_every_workspace() {
+    let app = RunningApp::start();
+    app.write("Work/zen.md", "---\ntitle: Zen\nstatus: active\n---\n");
+    app.write("Blog/zen.md", "---\ntitle: Zen\n---\n");
+
+    let payload = app.call("list_all_articles", json!({})).expect("listed");
+
+    let rows: Vec<(&str, &str)> = payload
+        .as_array()
+        .expect("a list")
+        .iter()
+        .map(|row| {
+            (
+                row["workspace"].as_str().expect("workspace"),
+                row["fileName"].as_str().expect("file name"),
+            )
+        })
+        .collect();
+    assert_eq!(rows, [("Blog", "zen.md"), ("Work", "zen.md")]);
+    assert_eq!(payload[1]["status"], json!("active"));
+}
+
+#[test]
 fn refuses_to_list_a_workspace_that_escapes_the_vault() {
     let app = RunningApp::start();
 
