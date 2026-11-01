@@ -5,6 +5,7 @@ import { SidebarFilter } from "../sidebar/SidebarFilter";
 import {
   arrangeArticles,
   articleOrderNamed,
+  firstArticleIn,
   type ArticleOrder,
 } from "./articleArrangement";
 
@@ -274,5 +275,17 @@ describe("arrangeArticles with the sidebar filter", () => {
       "Work/a.md",
       "Work/b.md",
     ]);
+  });
+});
+
+describe("firstArticleIn", () => {
+  it("is the article the list shows first in each order", () => {
+    expect(firstArticleIn(FOUR, "createdNewestFirst")?.fileName).toBe("b.md");
+    expect(firstArticleIn(FOUR, "updatedNewestFirst")?.fileName).toBe("a.md");
+    expect(firstArticleIn(FOUR, "title")?.fileName).toBe("c.md");
+  });
+
+  it("is nothing for an empty list", () => {
+    expect(firstArticleIn([], "createdNewestFirst")).toBeNull();
   });
 });

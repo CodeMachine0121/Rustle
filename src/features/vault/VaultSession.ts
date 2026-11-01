@@ -9,6 +9,7 @@ import type { AutosaveSession } from "../autosave/AutosaveSession";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import { SidebarFilter } from "../sidebar/SidebarFilter";
 import type { StatusChoice } from "../sidebar/statusChoice";
+import { firstArticleIn, type ArticleOrder } from "./articleArrangement";
 import { isSameArticle } from "./articleLocation";
 import {
   reportedFailure,
@@ -44,11 +45,12 @@ export type MetadataEdit = { outcome: "updated" } | { outcome: "failed"; reason:
 export type RenameRejection = { workspace: string; reason: WorkspaceNameRejection };
 
 /** Holds the open article and may refuse to let it go, for example while it cannot be saved. */
-export type ArticleHolder = Pick<AutosaveSession, "openArticle" | "closeArticle">;
+export type ArticleHolder = Pick<AutosaveSession, "openArticle" | "closeArticle" | "placeCursor">;
 
 const LETS_EVERY_ARTICLE_GO: ArticleHolder = {
   openArticle: () => Promise.resolve("switched"),
   closeArticle: () => Promise.resolve("switched"),
+  placeCursor: () => undefined,
 };
 
 export type VaultSnapshot = {
@@ -164,6 +166,38 @@ export class VaultSession {
       return;
     }
     await this.#openScope({ kind: "allNotes" }, this.#beginSelection());
+  }
+
+  /**
+   * Goes to a workspace rather than looking at it: the newest article (the
+   * list's first row in `order`) opens without taking the keyboard. An empty
+   * workspace, or a newest article that cannot be read, leaves the editor empty.
+   */
+  async goToWorkspace(workspace: string, order: ArticleOrder): Promise<void> {
+    await this.#goTo({ kind: "workspace", workspace }, order);
+  }
+
+  /** Goes to All Notes, opening the newest article of the whole vault; see `goToWorkspace`. */
+  async goToAllNotes(order: ArticleOrder): Promise<void> {
+    await this.#goTo({ kind: "allNotes" }, order);
+  }
+
+  /**
+   * Opens an article the writer found and hands it the keyboard, with the
+   * cursor on `cursorLine` (a body line from 1) when given. The open article
+   * only moves its cursor, keeping what has not been saved yet.
+   */
+  async openFoundArticle(article: ArticleLocation, cursorLine?: number): Promise<void> {
+    if (this.#snapshot.openedDocument === documentOf(article)) {
+      if (cursorLine !== undefined) {
+        this.#articleHolder.placeCursor(cursorLine);
+      }
+      return;
+    }
+    const selection = this.#beginSelection();
+    if (await this.#openArticle(article, selection, { focusEditor: true, cursorLine })) {
+      this.#remember(article.workspace, article.fileName);
+    }
   }
 
   async selectArticle(article: ArticleLocation): Promise<void> {
@@ -370,6 +404,31 @@ export class VaultSession {
     }
   }
 
+  async #goTo(scope: Scope, order: ArticleOrder): Promise<void> {
+    if ((await this.#articleHolder.closeArticle()) !== "switched") {
+      return;
+    }
+    const selection = this.#beginSelection();
+    if (!(await this.#openScope(scope, selection))) {
+      return;
+    }
+    const newest = firstArticleIn(this.#snapshot.articles, order);
+    if (newest !== null) {
+      const { workspace, fileName } = newest;
+      if (await this.#openArticle({ workspace, fileName }, selection)) {
+        this.#remember(workspace, fileName);
+        return;
+      }
+    }
+    if (selection !== this.#latestSelection) {
+      return;
+    }
+    this.#update({ selectedArticle: null, bodyFailure: null });
+    if (scope.kind === "workspace") {
+      this.#remember(scope.workspace, null);
+    }
+  }
+
   async #letGoOfOpenArticle(operation: Operation): Promise<boolean> {
     const outcome = await this.#articleHolder.closeArticle();
     if (outcome !== "switched") {
@@ -472,7 +531,7 @@ export class VaultSession {
   async #openArticle(
     article: ArticleLocation,
     selection: number,
-    { focusEditor = false } = {},
+    { focusEditor = false, cursorLine }: { focusEditor?: boolean; cursorLine?: number } = {},
   ): Promise<boolean> {
     const previousArticle = this.#snapshot.selectedArticle;
     this.#update({ selectedArticle: article, bodyFailure: null });
@@ -484,7 +543,7 @@ export class VaultSession {
       this.#snapshot.articles.find((summary) => isSameArticle(summary, article))?.title ??
       article.fileName;
     const outcome = result.ok
-      ? await this.#articleHolder.openArticle({ article: result.payload, title, focusEditor })
+      ? await this.#articleHolder.openArticle({ article: result.payload, title, focusEditor, cursorLine })
       : await this.#articleHolder.closeArticle();
     if (selection !== this.#latestSelection) {
       return false;

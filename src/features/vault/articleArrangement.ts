@@ -1,5 +1,5 @@
 import type { ArticleLocation, ArticleSummary } from "../../ipc/articleSummary";
-import type { SidebarFilter } from "../sidebar/SidebarFilter";
+import { SidebarFilter } from "../sidebar/SidebarFilter";
 import { isSameArticle } from "./articleLocation";
 
 export type ArticleOrder = "createdNewestFirst" | "title" | "updatedNewestFirst";
@@ -69,6 +69,17 @@ export function arrangeArticles(
       first.row.article.fileName.localeCompare(second.row.article.fileName),
   );
   return keyed.map(({ row }) => row);
+}
+
+/** The article the list shows first with no filter: what "the newest one" means everywhere. */
+export function firstArticleIn(articles: readonly ArticleSummary[], order: ArticleOrder): ArticleSummary | null {
+  const [first] = arrangeArticles(articles, {
+    filterText: "",
+    sidebarFilter: SidebarFilter.NONE,
+    order,
+    openArticle: null,
+  });
+  return first?.article ?? null;
 }
 
 /** The time each order puts newest first. Ordering by title has none, so the title decides. */

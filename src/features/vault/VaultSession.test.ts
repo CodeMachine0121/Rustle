@@ -94,6 +94,7 @@ function articleHolder() {
   return {
     openArticle: vi.fn((): Promise<AutosaveSwitchOutcome> => Promise.resolve("switched")),
     closeArticle: vi.fn((): Promise<AutosaveSwitchOutcome> => Promise.resolve("switched")),
+    placeCursor: vi.fn(),
   } satisfies ArticleHolder;
 }
 
@@ -1307,6 +1308,184 @@ describe("VaultSession", () => {
       await session.renameWorkspace("Blog", "Writing");
 
       expect(session.snapshot.openedDocument).toBe("Work/zen-of-writing.md");
+    });
+  });
+
+  describe("going to a scope from the workspace finder", () => {
+    function dated(fileName: string, workspace: string, createdAt: string): ArticleSummary {
+      return { ...article(fileName, workspace), createdAt };
+    }
+
+    const WORK = [
+      dated("older.md", "Work", "2026-09-01T09:00:00+08:00"),
+      dated("standup.md", "Work", "2026-09-07T22:00:00+08:00"),
+      dated("oldest.md", "Work", "2026-08-01T09:00:00+08:00"),
+    ];
+    const DIARY = [dated("tired.md", "Diary", "2026-09-06T21:00:00+08:00")];
+
+    function goingChannels() {
+      const channels = vaultChannels(settingsWith({ workspace: null, article: null }));
+      const lists: Record<string, ArticleSummary[]> = { Work: WORK, Diary: DIARY, Recipes: [] };
+      channels.listArticles.mockImplementation((workspace: string) => ok(lists[workspace] ?? []));
+      channels.listAllArticles.mockImplementation(() => ok([...DIARY, ...WORK]));
+      return channels;
+    }
+
+    it("selects the workspace and opens its newest article without taking the keyboard", async () => {
+      const channels = goingChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+
+      await session.goToWorkspace("Work", "createdNewestFirst");
+
+      expect(session.snapshot.selectedWorkspace).toBe("Work");
+      expect(session.snapshot.articles).toEqual(WORK);
+      expect(session.snapshot.selectedArticle).toEqual({ workspace: "Work", fileName: "standup.md" });
+      expect(session.snapshot.openedDocument).toBe("Work/standup.md");
+      expect(holder.openArticle).toHaveBeenLastCalledWith(
+        expect.objectContaining({ focusEditor: false }),
+      );
+    });
+
+    it("opens the article the list shows first in the order it is given", async () => {
+      const session = new VaultSession(goingChannels());
+      await session.start();
+
+      await session.goToWorkspace("Work", "title");
+
+      expect(session.snapshot.selectedArticle).toEqual({ workspace: "Work", fileName: "older.md" });
+    });
+
+    it("remembers the workspace and the article it opened", async () => {
+      const channels = goingChannels();
+      const session = new VaultSession(channels);
+      await session.start();
+
+      await session.goToWorkspace("Work", "createdNewestFirst");
+
+      expect(channels.writeSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ lastOpened: { workspace: "Work", article: "standup.md" } }),
+      );
+    });
+
+    it("leaves the editor empty in a workspace without articles", async () => {
+      const session = new VaultSession(goingChannels());
+      await session.start();
+      await session.goToWorkspace("Work", "createdNewestFirst");
+
+      await session.goToWorkspace("Recipes", "createdNewestFirst");
+
+      expect(session.snapshot.selectedWorkspace).toBe("Recipes");
+      expect(session.snapshot.selectedArticle).toBeNull();
+      expect(session.snapshot.openedDocument).toBeNull();
+    });
+
+    it("still selects the workspace and leaves the editor empty when the newest article cannot be read", async () => {
+      const channels = goingChannels();
+      channels.readBody.mockImplementation(() => failed("No such file or directory"));
+      const session = new VaultSession(channels);
+      await session.start();
+
+      await session.goToWorkspace("Work", "createdNewestFirst");
+
+      expect(session.snapshot.selectedWorkspace).toBe("Work");
+      expect(session.snapshot.selectedArticle).toBeNull();
+      expect(session.snapshot.openedDocument).toBeNull();
+      expect(session.snapshot.bodyFailure).toBeNull();
+      expect(channels.writeSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ lastOpened: { workspace: "Work", article: null } }),
+      );
+    });
+
+    it("goes to All Notes and opens the newest article of the whole vault", async () => {
+      const session = new VaultSession(goingChannels());
+      await session.start();
+      await session.goToWorkspace("Diary", "createdNewestFirst");
+
+      await session.goToAllNotes("createdNewestFirst");
+
+      expect(session.snapshot.showsAllNotes).toBe(true);
+      expect(session.snapshot.selectedWorkspace).toBeNull();
+      expect(session.snapshot.articles).toHaveLength(4);
+      expect(session.snapshot.openedDocument).toBe("Work/standup.md");
+    });
+
+    it("stays where it is when the open article may not be left", async () => {
+      const holder = articleHolder();
+      const session = new VaultSession(goingChannels(), holder);
+      await session.start();
+      await session.goToWorkspace("Diary", "createdNewestFirst");
+      holder.closeArticle.mockResolvedValueOnce("blockedByFailedSave");
+
+      await session.goToWorkspace("Work", "createdNewestFirst");
+
+      expect(session.snapshot.selectedWorkspace).toBe("Diary");
+      expect(session.snapshot.openedDocument).toBe("Diary/tired.md");
+    });
+
+    it("leaves a click on the sidebar only looking: the editor stays empty", async () => {
+      const session = new VaultSession(goingChannels());
+      await session.start();
+
+      await session.selectWorkspace("Work");
+
+      expect(session.snapshot.selectedArticle).toBeNull();
+      expect(session.snapshot.openedDocument).toBeNull();
+    });
+  });
+
+  describe("opening a found article", () => {
+    it("opens the article with the keyboard and the cursor on the found line", async () => {
+      const holder = articleHolder();
+      const session = new VaultSession(vaultChannels(), holder);
+      await session.start();
+
+      await session.openFoundArticle(blog("a.md"), 7);
+
+      expect(session.snapshot.openedDocument).toBe("Blog/a.md");
+      expect(holder.openArticle).toHaveBeenLastCalledWith(
+        expect.objectContaining({ focusEditor: true, cursorLine: 7 }),
+      );
+    });
+
+    it("opens an article found by its title with the keyboard and no line", async () => {
+      const holder = articleHolder();
+      const session = new VaultSession(vaultChannels(), holder);
+      await session.start();
+
+      await session.openFoundArticle(blog("b.md"));
+
+      expect(session.snapshot.openedDocument).toBe("Blog/b.md");
+      expect(holder.openArticle).toHaveBeenLastCalledWith(
+        expect.objectContaining({ focusEditor: true, cursorLine: undefined }),
+      );
+    });
+
+    it("only moves the cursor when the found line is in the open article", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      channels.readBody.mockClear();
+
+      await session.openFoundArticle(blog("zen-of-writing.md"), 12);
+
+      expect(holder.placeCursor).toHaveBeenCalledWith(12);
+      expect(channels.readBody).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the found title is the open article", async () => {
+      const channels = vaultChannels();
+      const holder = articleHolder();
+      const session = new VaultSession(channels, holder);
+      await session.start();
+      channels.readBody.mockClear();
+
+      await session.openFoundArticle(blog("zen-of-writing.md"));
+
+      expect(holder.placeCursor).not.toHaveBeenCalled();
+      expect(channels.readBody).not.toHaveBeenCalled();
     });
   });
 });
