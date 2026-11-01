@@ -4,7 +4,6 @@ mod atomic_file;
 mod file_system_article_repository;
 mod file_system_settings_repository;
 mod resolved_vault_scope;
-mod utc_timestamp;
 
 pub use atomic_file::write_atomically;
 pub use file_system_article_repository::FileSystemArticleRepository;
