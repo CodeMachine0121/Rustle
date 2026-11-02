@@ -15,12 +15,14 @@ export class LiveWordCount {
   readonly #listeners = new Set<() => void>();
   readonly #stopFollowing: () => void;
   #documentVersion: number;
+  #countedBody: string | null;
   #count: number | null;
 
   constructor(source: WordCountSource, composition: CompositionState) {
     this.#source = source;
     this.#composition = composition;
     this.#documentVersion = source.document.version;
+    this.#countedBody = source.body;
     this.#count = this.#countNow();
     const stopFollowingSource = source.subscribe(() => this.#follow());
     const stopFollowingComposition = composition.subscribe((isComposing) => {
@@ -59,6 +61,10 @@ export class LiveWordCount {
   }
 
   #recount(): void {
+    if (this.#source.body === this.#countedBody) {
+      return;
+    }
+    this.#countedBody = this.#source.body;
     const count = this.#countNow();
     if (count === this.#count) {
       return;
