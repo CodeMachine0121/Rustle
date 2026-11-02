@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import type { ArticleLocation } from "../../ipc/articleSummary";
 import type { Scope, VaultSnapshot } from "../vault/VaultSession";
@@ -56,15 +56,7 @@ export function Finders({ snapshot, searchBodies, onOpenFoundArticle, onGoTo, re
     }
     setOpen({ kind, opening: (open?.opening ?? 0) + 1 });
   };
-  const answerRef = useRef(answer);
-
-  useEffect(() => {
-    answerRef.current = answer;
-  });
-
-  useEffect(() => requests?.subscribe((kind) => answerRef.current(kind)), [requests]);
-
-  useFindingKeys(answer);
+  useFindingKeys(answer, requests);
 
   if (open === null) {
     return null;
