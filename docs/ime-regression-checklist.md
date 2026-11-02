@@ -16,7 +16,7 @@
 
 - **新增或修改任何接 `/`、片段選單、挖空或 `Esc` 的處理（片段）**：全部 13 項重跑，T-13 逐條跑完。
 
-- **新增或修改 Vim 模式（`@replit/codemirror-vim` 或它在編輯區的按鍵順序）**：在設定裡打開 Vim 模式，全部 13 項在 Insert 模式（按 `i`）重跑，外加：Insert 模式組字中按 `Esc`，只取消組字、狀態列仍是 `INSERT`，再按一次 `Esc` 才變 `NORMAL`；Normal 模式下切到注音打字（避開會進 Insert 的鍵），按空白或 `Enter` 後正文沒有留下組出來的字；Normal 模式下 `Shift+Cmd+K`、`Option+↑`、`Cmd+/`、`Cmd+Enter`、`Ctrl+H`、`Ctrl+D` 正文一字不變；Normal 模式下 `Tab` 縮排、Normal 模式按 `Esc` 再按 `Tab` 仍是縮排且游標留在編輯區、在表格行按 `Enter` 多一列、`Cmd+B` 加粗、`Cmd+W` 選字且狀態列變 `VISUAL`、`Cmd+0` 字體回預設、`Shift+Cmd+P` 開關預覽；專注模式下 Insert 模式打 `/` 開選單後連按三次 `Esc`：關選單、回 `NORMAL`、離開專注模式。升級這個套件前後也要跑這一條。
+- **新增或修改 Vim 模式（`@replit/codemirror-vim` 或它在編輯區的按鍵順序）**：在設定裡打開 Vim 模式，全部 13 項在 Insert 模式（按 `i`）重跑，外加：Insert 模式組字中按 `Esc`，只取消組字、狀態列仍是 `INSERT`，再按一次 `Esc` 才變 `NORMAL`；Insert 模式用注音打一串字、按 `↓` 叫出候選字並用方向鍵換字，選字期間狀態列一直是 `INSERT`，按 `Enter` 後選好的字完整留在正文、前後一個字都沒少；Normal 模式下切到注音打字（避開會進 Insert 的鍵），按空白或 `Enter` 後正文沒有留下組出來的字；Normal 模式下 `Shift+Cmd+K`、`Option+↑`、`Cmd+/`、`Cmd+Enter`、`Ctrl+H`、`Ctrl+D` 正文一字不變；Normal 模式下 `Tab` 縮排、Normal 模式按 `Esc` 再按 `Tab` 仍是縮排且游標留在編輯區、在表格行按 `Enter` 多一列、`Cmd+B` 加粗、`Cmd+W` 選字且狀態列變 `VISUAL`、`Cmd+0` 字體回預設、`Shift+Cmd+P` 開關預覽；專注模式下 Insert 模式打 `/` 開選單後連按三次 `Esc`：關選單、回 `NORMAL`、離開專注模式。升級這個套件前後也要跑這一條。
 
 ## 準備
 

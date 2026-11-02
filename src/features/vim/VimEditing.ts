@@ -28,9 +28,10 @@ type VimModeChange = { mode: string };
  * Esc is Vim's own: back to Normal from Insert or Visual once the snippet
  * menu and fields had their turn, and left to the rest of the app in Normal;
  * it never opens the editor's Esc-then-Tab way out, so Tab always indents.
- * A selection always means Visual, even one made while typing. While an
- * input method composes in Insert mode the key is the input method's: Vim
- * never sees it. Given a `SystemClipboardRegister`, Vim's unnamed register
+ * A selection always means Visual, even one made while typing, except the
+ * one an input method draws over the candidate being chosen. While an input
+ * method composes in Insert mode the key is the input method's: Vim never
+ * sees it. Given a `SystemClipboardRegister`, Vim's unnamed register
  * is the system clipboard while Vim is on.
  *
  * Each `VimNormalCommand` takes its keys in Normal mode only, and never while
@@ -164,7 +165,9 @@ export class VimEditing {
           return {
             update: (update) => {
               const selected = update.transactions.some((transaction) => transaction.isUserEvent("select"));
-              if (editor !== null && isVimEditor(editor) && editor.state.vim.insertMode && selected && !update.state.selection.main.empty) {
+              const isComposing = composition.isComposing || update.view.compositionStarted;
+              const selectsWhileTyping = selected && !isComposing && !update.state.selection.main.empty;
+              if (editor !== null && isVimEditor(editor) && editor.state.vim.insertMode && selectsWhileTyping) {
                 editor.operation(() => {
                   Vim.exitInsertMode(editor, true);
                   editor.onSelectionChange();
