@@ -170,7 +170,8 @@ describe("AppLayout", () => {
           editor={<MarkdownEditor documentKey="Blog/zen.md" body="正文" />}
           preview={previewSlot()}
           writing={layout}
-          toolbar={null}
+          toolbar={<div className="writing-toolbar">工具列</div>}
+          statusLine={<footer>狀態列</footer>}
         />
       </CompositionProvider>
     );
