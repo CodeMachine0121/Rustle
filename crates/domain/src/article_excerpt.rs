@@ -131,8 +131,27 @@ impl ArticleExcerpt {
     fn without_emphasis(text: &str) -> String {
         let unmarked = EMPHASIS_MARKS
             .iter()
-            .fold(text.to_owned(), |text, mark| text.replace(mark, ""));
-        unmarked.replace('*', "")
+            .fold(text.to_owned(), |text, mark| text.replace(mark, ""))
+            .replace('*', "");
+        Self::without_underscore_marks(&unmarked)
+    }
+
+    /// `_italic_` loses its marks; the underscore inside `snake_case` stays.
+    fn without_underscore_marks(text: &str) -> String {
+        let characters: Vec<char> = text.chars().collect();
+        characters
+            .iter()
+            .enumerate()
+            .filter(|&(index, &character)| {
+                let joins_a_word =
+                    |neighbour: Option<&char>| neighbour.is_some_and(|c| c.is_alphanumeric());
+                character != '_'
+                    || (index > 0
+                        && joins_a_word(characters.get(index - 1))
+                        && joins_a_word(characters.get(index + 1)))
+            })
+            .map(|(_, character)| character)
+            .collect()
     }
 }
 
@@ -211,6 +230,8 @@ mod tests {
     #[case::plus_list("+ 項目", "項目")]
     #[case::nested_quote_and_list("> - [ ] 待辦", "待辦")]
     #[case::strikethrough_and_italics("~~刪~~ *斜* __粗__", "刪 斜 粗")]
+    #[case::underscore_italics("_斜體_ 與 _italic_", "斜體 與 italic")]
+    #[case::underscore_inside_a_name("snake_case 名字", "snake_case 名字")]
     #[case::image_inside_a_line("前![圖](a.png)後", "前後")]
     #[case::bracket_that_is_not_a_link("[不是連結] 文字", "[不是連結] 文字")]
     #[case::hashtag_is_not_a_heading("#標籤 文字", "#標籤 文字")]
