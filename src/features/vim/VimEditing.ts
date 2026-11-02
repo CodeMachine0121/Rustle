@@ -1,5 +1,5 @@
 import { Compartment, EditorState, Facet, Prec, type Extension, type StateEffect } from "@codemirror/state";
-import { EditorView, ViewPlugin, keymap, runScopeHandlers, type Command, type KeyBinding } from "@codemirror/view";
+import { EditorView, ViewPlugin, drawSelection, keymap, runScopeHandlers, type Command, type KeyBinding } from "@codemirror/view";
 import { getCM, Vim, vim, type CM5EditorInterface, type CodeMirrorV } from "@replit/codemirror-vim";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
@@ -139,6 +139,8 @@ export class VimEditing {
       // Visual block mode is one selection per line it covers.
       EditorState.allowMultipleSelections.of(true),
       Prec.low(vim()),
+      // Vim hides the native selection and leaves drawing it to the editor.
+      drawSelection(),
       this.#register?.extension() ?? [],
       this.#normalCommands.map(({ keys, run }) =>
         normalCommands.of({

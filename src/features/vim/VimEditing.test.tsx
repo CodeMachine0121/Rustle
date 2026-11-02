@@ -220,6 +220,18 @@ describe("three modes, whatever Vim calls them", () => {
     expect(mode()).toBe("visual");
   });
 
+  it("draws the selection itself, since Vim hides the native one", () => {
+    const { content } = openEditor("hello world");
+
+    expect(content.closest(".cm-editor")?.querySelector(".cm-selectionLayer")).not.toBeNull();
+  });
+
+  it("leaves the native selection alone with Vim off", () => {
+    const { content } = openEditor("hello world", { vimEnabled: false });
+
+    expect(content.closest(".cm-editor")?.querySelector(".cm-selectionLayer")).toBeNull();
+  });
+
   it("shows replacing as Insert", () => {
     const { press, mode } = openEditor("abc");
 
