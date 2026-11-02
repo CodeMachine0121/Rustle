@@ -165,9 +165,9 @@ export class VimEditing {
           return {
             update: (update) => {
               const selected = update.transactions.some((transaction) => transaction.isUserEvent("select"));
-              // An input method marks the candidate being chosen with a selection; that is still typing.
-              const choosesCandidate = composition.isComposing;
-              if (editor !== null && isVimEditor(editor) && editor.state.vim.insertMode && selected && !choosesCandidate && !update.state.selection.main.empty) {
+              const isComposing = composition.isComposing || update.view.compositionStarted;
+              const selectsWhileTyping = selected && !isComposing && !update.state.selection.main.empty;
+              if (editor !== null && isVimEditor(editor) && editor.state.vim.insertMode && selectsWhileTyping) {
                 editor.operation(() => {
                   Vim.exitInsertMode(editor, true);
                   editor.onSelectionChange();

@@ -160,26 +160,24 @@ describe("a selection always means Visual", () => {
     expect(mode()).toBe("insert");
   });
 
-  it("keeps the chosen candidate once the input method commits it", () => {
-    const { press, select, mode, content, editor, text } = openEditor("");
+  it("keeps the chosen candidate and both its neighbours once the input method commits it", () => {
+    const { press, select, mode, content, editor, text } = openEditor("前後");
+    select(1);
     press("i");
     act(() => {
       content.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
-      editor.dispatch({ changes: { from: 0, insert: "ㄗˋ" }, userEvent: "input.type.compose" });
+      editor.dispatch({ changes: { from: 1, insert: "ㄗˋ" }, userEvent: "input.type.compose" });
     });
-    select(0, 2, "select");
+    select(1, 3, "select");
 
     act(() => {
-      editor.dispatch({
-        changes: { from: 0, to: 2, insert: "字" },
-        selection: { anchor: 1 },
-        userEvent: "input.type.compose",
-      });
+      editor.dispatch({ changes: { from: 1, to: 3, insert: "字" }, userEvent: "input.type.compose" });
       content.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "字" }));
     });
+    select(2, 2, "select");
 
     expect(mode()).toBe("insert");
-    expect(text()).toBe("字");
+    expect(text()).toBe("前字後");
   });
 
   it("goes back to Normal when the selection disappears", () => {
