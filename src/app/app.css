@@ -202,12 +202,14 @@ body {
 }
 
 .article-breadcrumb__workspace {
+  flex: 0 100 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .article-breadcrumb__title {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,7 +284,7 @@ body {
   flex: none;
   padding: 2px;
   border-radius: 8px;
-  background: var(--color-cursor-line);
+  background: color-mix(in srgb, var(--color-border) 45%, transparent);
 }
 
 .view-mode-button {
@@ -402,6 +404,7 @@ body {
 }
 
 .article-row[aria-pressed="true"] {
+  background: var(--color-panel);
   border-color: var(--color-border);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--color-shade) 14%, transparent);
 }
@@ -437,6 +440,13 @@ body {
 .row-meta {
   font-size: 12px;
   color: var(--color-muted-text);
+}
+
+.row-meta .row-workspace {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row-meta {

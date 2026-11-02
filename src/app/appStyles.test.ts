@@ -138,7 +138,8 @@ describe("app styles", () => {
     expect(ruleFor(".row-title")).toMatch(/text-overflow: ellipsis;/);
   });
 
-  it("floats the open card with a border and a shadow", () => {
+  it("floats the open card on the panel colour with a border and a shadow", () => {
+    expect(ruleFor('.article-row[aria-pressed="true"]')).toMatch(/background: var\(--color-panel\);/);
     expect(ruleFor('.article-row[aria-pressed="true"]')).toMatch(/border-color: var\(--color-border\);/);
     expect(ruleFor('.article-row[aria-pressed="true"]')).toMatch(/box-shadow: /);
   });
@@ -152,6 +153,21 @@ describe("app styles", () => {
     expect(ruleFor(".article-breadcrumb__workspace")).toMatch(/text-overflow: ellipsis;/);
     expect(ruleFor(".article-breadcrumb__title")).toMatch(/text-overflow: ellipsis;/);
     expect(ruleFor(".status-pill")).toMatch(/flex-shrink: 0;/);
+    const shrinkOf = (selector: string) => Number(/flex: 0 (\d+) auto;/.exec(ruleFor(selector))?.[1]);
+    expect(shrinkOf(".article-breadcrumb__workspace")).toBeGreaterThan(shrinkOf(".article-breadcrumb__title"));
+  });
+
+  it("keeps a card's title and its workspace on one line each", () => {
+    expect(ruleFor(".row-title")).toMatch(/white-space: nowrap;/);
+    expect(ruleFor(".row-meta .row-workspace")).toMatch(/text-overflow: ellipsis;/);
+    expect(ruleFor(".row-meta .row-workspace")).toMatch(/white-space: nowrap;/);
+  });
+
+  it("insets the sheet from the window and rounds every row in the lists", () => {
+    expect(ruleFor(".writing-area")).toMatch(/padding: \d+px;/);
+    expect(ruleFor(".writing-sheet")).toMatch(/border: 1px solid var\(--color-border\);/);
+    expect(ruleFor(".column-row")).toMatch(/border-radius: \d+px;/);
+    expect(ruleFor(".row-title")).toMatch(/flex: 1;/);
   });
 
   it("marks an empty snippet field with a thin line in the theme's accent", () => {
