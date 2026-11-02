@@ -5,13 +5,13 @@ import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguag
 import { FinderRequests } from "./FinderRequests";
 import { SearchButton } from "./SearchButton";
 
-function renderButton(language: "zh" | "en") {
+function renderButton(language: "zh" | "en", isAvailable = true) {
   const requests = new FinderRequests();
   const requested = vi.fn();
   requests.subscribe(requested);
   render(
     <InterfaceLanguageProvider language={language}>
-      <SearchButton requests={requests} />
+      <SearchButton requests={requests} isAvailable={isAvailable} />
     </InterfaceLanguageProvider>,
   );
   return requested;
@@ -30,6 +30,16 @@ describe("SearchButton", () => {
     renderButton("en");
 
     expect(screen.getByRole("button", { name: /Search/ })).toBeInTheDocument();
+  });
+
+  it("cannot be pressed while there is nothing to search in", () => {
+    const requested = renderButton("zh", false);
+
+    const button = screen.getByRole("button", { name: /搜尋/ });
+    fireEvent.click(button);
+
+    expect(button).toBeDisabled();
+    expect(requested).not.toHaveBeenCalled();
   });
 
   it("asks for the title finder when pressed", () => {

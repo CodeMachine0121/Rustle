@@ -131,7 +131,12 @@ function VaultView() {
           <Sidebar
             snapshot={snapshot}
             settings={settings}
-            searchButton={<SearchButton requests={finderRequests} />}
+            searchButton={
+              <SearchButton
+                requests={finderRequests}
+                isAvailable={snapshot.selectedWorkspace !== null || snapshot.showsAllNotes}
+              />
+            }
             onSelectAllNotes={() => void session.selectAllNotes()}
             onToggleStatus={(choice) => session.toggleStatusFilter(choice)}
             onToggleTag={(tag) => session.toggleTagFilter(tag)}

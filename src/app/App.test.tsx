@@ -265,6 +265,13 @@ describe("App", () => {
     expect(screen.getByRole("textbox", { name: "用標題找文章" })).toBeInTheDocument();
   });
 
+  it("greys out the search button until there is a workspace or All Notes to search in", async () => {
+    answerFromAVault({ workspace: null, article: null });
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: /^搜尋/ })).toBeDisabled();
+  });
+
   it("orders what Tab reaches column by column", async () => {
     answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
     render(<App />);
