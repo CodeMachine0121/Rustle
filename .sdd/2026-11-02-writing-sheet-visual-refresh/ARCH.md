@@ -33,7 +33,7 @@
 | `src/features/wordCount/` | **Add** | `WordCount`（算法＋顯示）、`LiveWordCount`（跟著正文、選字中不動）、`WordCountLabel` |
 | `src/features/autosave/AutosavedEditor.tsx` | **Modify** | 不再自己畫 `SaveStatusLine`；狀態列搬到紙的底部，由 `App` 組裝 |
 | `src/features/autosave/SaveStatusLine.tsx` | **Modify** | 多一個 `wordCount` slot，順序：模式標籤、位置、字數、提示、記號 |
-| `src/features/finding/FinderRequests.ts` | **Add** | 讓畫面上的按鈕也能「按下 ⌘P」 |
+| `src/features/finding/FinderRequests.ts` | **Add** | 讓畫面上的按鈕也能「按下 ⌘T」 |
 | `src/features/finding/Finders.tsx` | **Modify** | 同時聽按鍵與 `FinderRequests` |
 | `src/features/finding/SearchButton.tsx` | **Add** | 側欄頂端的搜尋按鈕 |
 | `src/features/sidebar/Sidebar.tsx` | **Modify** | 頂端放 `searchButton` slot |
@@ -59,7 +59,7 @@
 | `ArticleBreadcrumb` | Component | `workspace / 標題` ＋ 狀態膠囊；沒打開文章時空白 | `VaultSnapshot`、`StatusDot` | 麵包屑、膠囊 |
 | `StatusDot` | Component | `StatusChoice` → `status-dot status-dot--{choice}`；`noStatus` 不畫 | — | 色點類 |
 | `FinderRequests` | Event source | `request(kind)`／`subscribe(listener)`，與按鍵走同一條開面板的路 | `Finders` | US-07 搜尋 |
-| `SearchButton` | Component | 「搜尋 ⌘P」按鈕，按下 `requests.request("title")` | `FinderRequests` | US-07 搜尋 |
+| `SearchButton` | Component | 「搜尋 ⌘T」按鈕，按下 `requests.request("title")` | `FinderRequests` | US-07 搜尋 |
 
 ---
 
@@ -164,8 +164,8 @@ flowchart TD
 | 打字時即時更新 | `LiveWordCount`（訂閱 `AutosaveSession`，無延遲） |
 | 狀態列由左到右的內容 | `SaveStatusLine` 排序、`App` 組裝 |
 | 沒有打開文章時沒有狀態列 | `SaveStatusLine`（`noArticle` 回傳 `null`，不變） |
-| 按搜尋按鈕等於按 ⌘P | `SearchButton` → `FinderRequests` → `Finders` |
-| 側欄不在時看不到搜尋按鈕但 ⌘P 照樣可用 | 按鈕在側欄內隨側欄隱藏；`useFindingKeys` 不變 |
+| 按搜尋按鈕等於按 ⌘T | `SearchButton` → `FinderRequests` → `Finders` |
+| 側欄不在時看不到搜尋按鈕但 ⌘T 照樣可用 | 按鈕在側欄內隨側欄隱藏；`useFindingKeys` 不變 |
 | 側欄的狀態各有色點 | `StatusSection` + `StatusDot` |
 | 被選中的列有圓角底色 | `app.css` `.column-row[aria-pressed="true"]` |
 | 預覽用襯線字 | `app.css` `.preview-content` font-family |
