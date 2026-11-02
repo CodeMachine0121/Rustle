@@ -63,10 +63,10 @@ impl<'a, Articles: ArticleRepository, UpdateClock: Clock>
                 .write(workspace, article, &text, &stored.last_modified_at)?
             {
                 ArticleWrite::Written { .. } => MetadataUpdateOutcome::Updated {
-                    article: ArticleSummary::new(
+                    article: ArticleSummary::from_document(
                         workspace,
                         article,
-                        ArticleDocument::parse(&text).metadata(article),
+                        &ArticleDocument::parse(&text),
                     ),
                 },
                 ArticleWrite::ModifiedElsewhere => MetadataUpdateOutcome::ModifiedElsewhere,

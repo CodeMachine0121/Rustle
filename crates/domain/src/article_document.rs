@@ -5,6 +5,7 @@ mod tests;
 
 use thiserror::Error;
 
+use crate::article_excerpt::ArticleExcerpt;
 use crate::article_metadata::ArticleMetadata;
 use crate::article_status::ArticleStatus;
 use crate::metadata_update::MetadataUpdate;
@@ -56,6 +57,10 @@ impl ArticleDocument {
     pub fn metadata(&self, file_name: &ArticleFileName) -> ArticleMetadata {
         let mapping = self.front_matter.as_ref().and_then(FrontMatter::mapping);
         ArticleMetadata::read(mapping.as_ref(), file_name)
+    }
+
+    pub fn excerpt(&self) -> Option<ArticleExcerpt> {
+        ArticleExcerpt::from_body(&self.body)
     }
 
     /// The status the front matter names, if it is one of the four.

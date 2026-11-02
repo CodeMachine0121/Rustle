@@ -16,6 +16,7 @@ const TAURI: ArticleSummary = {
   status: "active",
   tags: ["electron"],
   hasIncompleteMetadata: false,
+  excerpt: null,
 };
 
 function renderDialog({

@@ -20,6 +20,7 @@ function article(status: ArticleSummary["status"], tags: string[] = []): Article
     status,
     tags,
     hasIncompleteMetadata: false,
+    excerpt: null,
   };
 }
 
@@ -66,6 +67,25 @@ function rowsOf(name: string): HTMLElement[] {
 }
 
 describe("Sidebar", () => {
+  it("puts the search button above All Notes", async () => {
+    const { session } = await settingsSession();
+    render(
+      <Sidebar
+        snapshot={BLOG}
+        settings={session}
+        workspaces={<p>workspace 清單</p>}
+        searchButton={<button type="button">搜尋</button>}
+        onSelectAllNotes={vi.fn()}
+        onToggleStatus={vi.fn()}
+        onToggleTag={vi.fn()}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons[0]).toHaveTextContent("搜尋");
+    expect(buttons[1]).toHaveTextContent("所有文章");
+  });
+
   it("puts All Notes above the workspace, status and tag sections, in that order", async () => {
     const { session } = await settingsSession();
     renderSidebar(BLOG, session);
@@ -117,6 +137,30 @@ describe("Sidebar", () => {
       "已完成0",
       "已放棄0",
       "未標記1",
+    ]);
+  });
+
+  it("puts each status's own dot before it, and none before No Status", async () => {
+    const { session } = await settingsSession();
+    renderSidebar(BLOG, session);
+
+    expect(rowsOf("狀態").map((row) => row.querySelector(".status-dot")?.className ?? null)).toEqual([
+      "status-dot status-dot--active",
+      "status-dot status-dot--onHold",
+      "status-dot status-dot--completed",
+      "status-dot status-dot--dropped",
+      null,
+    ]);
+    expect(rowsOf("狀態").at(0)?.querySelector(".status-dot")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("marks each tag row with a hash that is not read out", async () => {
+    const { session } = await settingsSession();
+    renderSidebar(BLOG, session);
+
+    expect(rowsOf("標籤").map((row) => row.querySelector(".row-hash")?.getAttribute("aria-hidden"))).toEqual([
+      "true",
+      "true",
     ]);
   });
 

@@ -13,6 +13,7 @@ function article(fields: Partial<ArticleSummary> & { fileName: string }): Articl
     status: null,
     tags: [],
     hasIncompleteMetadata: false,
+    excerpt: null,
     ...fields,
   };
 }

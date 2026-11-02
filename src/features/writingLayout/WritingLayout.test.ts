@@ -37,7 +37,7 @@ describe("WritingLayout", () => {
   ])("starts from the remembered preview (open: %s) as %s, never in Zen Mode", async (isOpen, viewMode) => {
     const { layout } = await layoutWith(isOpen);
 
-    expect(layout.snapshot).toEqual({ viewMode, isZen: false, controlsLiveIn: "editor" });
+    expect(layout.snapshot).toEqual({ viewMode, isZen: false });
   });
 
   it.each<[ViewMode, boolean]>([
@@ -69,31 +69,6 @@ describe("WritingLayout", () => {
     expect(new WritingLayout(settings).snapshot.viewMode).toBe("sideBySide");
   });
 
-  it("moves the controls to the preview's header in preview only and back", async () => {
-    const { layout } = await layoutWith();
-
-    layout.choose("previewOnly");
-    expect(layout.snapshot.controlsLiveIn).toBe("preview");
-
-    layout.choose("sideBySide");
-    expect(layout.snapshot.controlsLiveIn).toBe("editor");
-  });
-
-  it("hands the keyboard to the moved buttons once, only when a choice moved them", async () => {
-    const { layout } = await layoutWith();
-
-    layout.choose("editorOnly");
-    expect(layout.takeControlsFocus()).toBe(false);
-
-    layout.choose("previewOnly");
-    expect(layout.takeControlsFocus()).toBe(true);
-    expect(layout.takeControlsFocus()).toBe(false);
-
-    layout.toggleZen();
-    layout.togglePreviewFromShortcut();
-    expect(layout.takeControlsFocus()).toBe(false);
-  });
-
   it.each<[ViewMode, ViewMode]>([
     ["sideBySide", "editorOnly"],
     ["editorOnly", "sideBySide"],
@@ -112,7 +87,7 @@ describe("WritingLayout", () => {
     layout.choose("previewOnly");
 
     layout.toggleZen();
-    expect(layout.snapshot).toEqual({ viewMode: "previewOnly", isZen: true, controlsLiveIn: "preview" });
+    expect(layout.snapshot).toEqual({ viewMode: "previewOnly", isZen: true });
 
     layout.choose("editorOnly");
     expect(layout.snapshot.isZen).toBe(true);

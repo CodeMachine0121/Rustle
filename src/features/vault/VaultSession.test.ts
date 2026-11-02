@@ -34,6 +34,7 @@ function article(fileName: string, workspace = "Blog"): ArticleSummary {
     status: null,
     tags: [],
     hasIncompleteMetadata: true,
+    excerpt: null,
   };
 }
 

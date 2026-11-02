@@ -13,12 +13,6 @@ export type PreviewSlot = {
   onResizeEnd: (width: PreviewWidth) => void;
 };
 
-/** What the header of the region carrying the controls shows on its left and right. */
-export type WritingControls = {
-  zenButton: ReactNode;
-  viewModeButtons: ReactNode;
-};
-
 /** Whether the sidebar is folded away, and the button that folds it, shown at the head of the articles. */
 export type SidebarFoldSlot = {
   isFolded: boolean;
@@ -31,19 +25,22 @@ type AppLayoutProps = {
   editor: ReactNode;
   preview: PreviewSlot;
   writing: WritingLayoutSnapshot;
-  controls: WritingControls;
+  /** Across the top of the writing sheet, whatever the view mode. */
+  toolbar: ReactNode;
+  /** Across the bottom of the writing sheet, whatever the view mode. */
+  statusLine?: ReactNode;
   sidebarFooter?: ReactNode;
   sidebarFold?: SidebarFoldSlot;
 };
 
 /**
- * The four columns, left to right: the sidebar (its sections carry their
- * own titles) with the settings entry at its foot, the articles, the editor and
- * the preview. The view mode decides which of the editor and the preview
- * share the writing area; Zen Mode hides the first two columns, and a folded
- * sidebar hides only the first, without Zen Mode ever changing the fold. Hidden
- * columns stay mounted, so the editor keeps its text, cursor, undo history
- * and composition through every change.
+ * The four columns, left to right: the sidebar with the settings entry at
+ * its foot, the articles, then the editor and the preview on one writing
+ * sheet between its toolbar and its status line. The view mode decides which
+ * of the editor and the preview share the sheet; Zen Mode hides the first two
+ * columns, and a folded sidebar hides only the first, without Zen Mode ever
+ * changing the fold. Hidden columns stay mounted, so the editor keeps its
+ * text, cursor, undo history and composition through every change.
  */
 export function AppLayout({
   sidebar,
@@ -51,14 +48,13 @@ export function AppLayout({
   editor,
   preview,
   writing,
-  controls,
+  toolbar,
+  statusLine,
   sidebarFooter,
   sidebarFold,
 }: AppLayoutProps) {
   const messages = useMessages();
-  const { viewMode, isZen, controlsLiveIn } = writing;
-  const controlsFor = (region: WritingLayoutSnapshot["controlsLiveIn"]) =>
-    region === controlsLiveIn ? controls : undefined;
+  const { viewMode, isZen } = writing;
   return (
     <main className="app-layout">
       <nav
@@ -70,68 +66,57 @@ export function AppLayout({
         {sidebarFooter !== undefined && <div className="region-footer">{sidebarFooter}</div>}
       </nav>
       <LayoutRegion
-        title={messages.articlesTitle}
         label={messages.articlesRegion}
         className="articles-region"
         hidden={isZen}
-        leadingControl={sidebarFold?.button}
+        header={sidebarFold?.button}
       >
         {articles}
       </LayoutRegion>
       <div className="writing-area">
-        <LayoutRegion
-          title={messages.editorTitle}
-          label={messages.editorRegion}
-          className="editor-region"
-          hidden={viewMode === "previewOnly"}
-          controls={controlsFor("editor")}
-          fontSizeSurface="editor"
-        >
-          {editor}
-        </LayoutRegion>
-        {viewMode === "sideBySide" && (
-          <PaneDivider width={preview.width} onResize={preview.onResize} onResizeEnd={preview.onResizeEnd} />
-        )}
-        {viewMode !== "editorOnly" && (
-          <LayoutRegion
-            title={messages.previewTitle}
-            label={messages.previewRegion}
-            className="preview-region"
-            flexBasis={viewMode === "sideBySide" ? `${preview.width.ratio * 100}%` : "100%"}
-            controls={controlsFor("preview")}
-            fontSizeSurface="preview"
-          >
-            {preview.content}
-          </LayoutRegion>
-        )}
+        <div className="writing-sheet">
+          {toolbar}
+          <div className="writing-panes">
+            <LayoutRegion
+              label={messages.editorRegion}
+              className="editor-region"
+              hidden={viewMode === "previewOnly"}
+              fontSizeSurface="editor"
+            >
+              {editor}
+            </LayoutRegion>
+            {viewMode === "sideBySide" && (
+              <PaneDivider width={preview.width} onResize={preview.onResize} onResizeEnd={preview.onResizeEnd} />
+            )}
+            {viewMode !== "editorOnly" && (
+              <LayoutRegion
+                label={messages.previewRegion}
+                className="preview-region"
+                flexBasis={viewMode === "sideBySide" ? `${preview.width.ratio * 100}%` : "100%"}
+                fontSizeSurface="preview"
+              >
+                {preview.content}
+              </LayoutRegion>
+            )}
+          </div>
+          {statusLine}
+        </div>
       </div>
     </main>
   );
 }
 
 type LayoutRegionProps = {
-  title: string;
   label: string;
   className: string;
   hidden?: boolean;
-  controls?: WritingControls;
-  leadingControl?: ReactNode;
+  header?: ReactNode;
   flexBasis?: string;
   fontSizeSurface?: FontSizeSurface;
   children: ReactNode;
 };
 
-function LayoutRegion({
-  title,
-  label,
-  className,
-  hidden = false,
-  controls,
-  leadingControl,
-  flexBasis,
-  fontSizeSurface,
-  children,
-}: LayoutRegionProps) {
+function LayoutRegion({ label, className, hidden = false, header, flexBasis, fontSizeSurface, children }: LayoutRegionProps) {
   return (
     <section
       {...{ [FONT_SIZE_SURFACE_ATTRIBUTE]: fontSizeSurface }}
@@ -140,12 +125,7 @@ function LayoutRegion({
       hidden={hidden}
       style={flexBasis === undefined ? undefined : { flexBasis }}
     >
-      <div className="region-header">
-        {leadingControl}
-        {controls?.zenButton}
-        <h2 className="region-title">{title}</h2>
-        {controls?.viewModeButtons}
-      </div>
+      {header !== undefined && <div className="region-header">{header}</div>}
       <div className="region-body">{children}</div>
     </section>
   );

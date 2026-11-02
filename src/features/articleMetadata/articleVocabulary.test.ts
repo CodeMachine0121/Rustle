@@ -13,6 +13,7 @@ function article(workspace: string, tags: string[]): ArticleSummary {
     status: null,
     tags,
     hasIncompleteMetadata: false,
+    excerpt: null,
   };
 }
 

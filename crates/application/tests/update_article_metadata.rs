@@ -255,6 +255,7 @@ fn answers_with_the_row_read_back_from_what_was_written() {
                 status: Some(ArticleStatus::Dropped),
                 tags: vec!["electron".to_owned(), "tauri".to_owned()],
                 has_incomplete_metadata: false,
+                excerpt: Some("正文第一行。".to_owned()),
             }
         }
     );

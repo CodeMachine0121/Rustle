@@ -14,6 +14,8 @@ type SidebarProps = {
   snapshot: VaultSnapshot;
   settings: SettingsSession;
   workspaces: ReactNode;
+  /** Above everything else: what opens a finder. */
+  searchButton?: ReactNode;
   /** Beside the WORKSPACES title: what creates a workspace. */
   workspacesAction?: ReactNode;
   onSelectAllNotes: () => void;
@@ -29,6 +31,7 @@ export function Sidebar({
   snapshot,
   settings,
   workspaces,
+  searchButton,
   workspacesAction,
   onSelectAllNotes,
   onToggleStatus,
@@ -40,6 +43,7 @@ export function Sidebar({
   const { sidebarFilter } = snapshot;
   return (
     <>
+      {searchButton}
       <button
         type="button"
         className="column-row all-notes-row"

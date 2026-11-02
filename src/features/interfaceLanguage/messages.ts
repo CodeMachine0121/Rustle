@@ -10,6 +10,7 @@ type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
 /** Every sentence Rustle itself says. Values in a sentence are arguments and are never rewritten. */
 export const CHINESE_MESSAGES = {
   sidebar: "側邊欄",
+  search: "搜尋",
   allNotes: "所有文章",
   workspacesTitle: "WORKSPACES",
   statusTitle: "狀態",
@@ -22,11 +23,8 @@ export const CHINESE_MESSAGES = {
     dropped: "已放棄",
     noStatus: "未標記",
   } satisfies Record<StatusChoice, string> as Record<StatusChoice, string>,
-  articlesTitle: "文章",
   articlesRegion: "文章",
-  editorTitle: "編輯",
   editorRegion: "編輯區",
-  previewTitle: "預覽",
   previewRegion: "預覽區",
   zenMode: "Zen Mode",
   hideSidebar: "收起側邊欄",
@@ -36,6 +34,11 @@ export const CHINESE_MESSAGES = {
     editorOnly: "只有編輯",
     sideBySide: "編輯與預覽並排",
     previewOnly: "只有預覽",
+  } satisfies Record<ViewMode, string> as Record<ViewMode, string>,
+  viewModeNames: {
+    editorOnly: "編輯",
+    sideBySide: "並排",
+    previewOnly: "預覽",
   } satisfies Record<ViewMode, string> as Record<ViewMode, string>,
   previewContent: "預覽內容",
   adjustPreviewWidth: "調整預覽寬度",
@@ -112,6 +115,7 @@ export const CHINESE_MESSAGES = {
   noArticleOpen: "還沒有選取文章",
   articleUnreadable: (reason: string) => `讀不到這篇文章：${reason}`,
 
+  articleBreadcrumb: "目前的文章",
   saveStatusLine: "儲存狀態列",
   articlePath: (workspace: string, fileName: string) => `${workspace} 裡的 ${fileName}`,
   saveIndicators: {
@@ -120,6 +124,7 @@ export const CHINESE_MESSAGES = {
     failed: "存不進檔案",
   } satisfies Record<SaveIndicator, string> as Record<SaveIndicator, string>,
   saveFailed: (reason: string) => `儲存失敗：${reason}`,
+  wordCount: (count: number) => `${count.toLocaleString("en-US")} 字`,
   changedOutsideRustle: "這個檔案在 Rustle 之外被改動過",
   overwrite: "覆寫",
   reload: "重新載入",
@@ -179,6 +184,7 @@ export type Messages = typeof CHINESE_MESSAGES;
 
 export const ENGLISH_MESSAGES: Partial<Messages> = {
   sidebar: "Sidebar",
+  search: "Search",
   allNotes: "All Notes",
   workspacesTitle: "WORKSPACES",
   statusTitle: "STATUS",
@@ -191,11 +197,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
     dropped: "Dropped",
     noStatus: "No Status",
   },
-  articlesTitle: "ARTICLES",
   articlesRegion: "Articles",
-  editorTitle: "EDITOR",
   editorRegion: "Editor",
-  previewTitle: "PREVIEW",
   previewRegion: "Preview",
   zenMode: "Zen Mode",
   hideSidebar: "Hide sidebar",
@@ -205,6 +208,11 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
     editorOnly: "Editor only",
     sideBySide: "Editor and preview side by side",
     previewOnly: "Preview only",
+  },
+  viewModeNames: {
+    editorOnly: "Editor",
+    sideBySide: "Side by side",
+    previewOnly: "Preview",
   },
   previewContent: "Preview content",
   adjustPreviewWidth: "Adjust preview width",
@@ -281,6 +289,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noArticleOpen: "No article open",
   articleUnreadable: (reason) => `Cannot read this article: ${reason}`,
 
+  articleBreadcrumb: "Current article",
   saveStatusLine: "Save status",
   articlePath: (workspace, fileName) => `${fileName} in ${workspace}`,
   saveIndicators: {
@@ -289,6 +298,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
     failed: "Cannot be written to the file",
   },
   saveFailed: (reason) => `Save failed: ${reason}`,
+  wordCount: (count) => (count === 1 ? "1 word" : `${count.toLocaleString("en-US")} words`),
   changedOutsideRustle: "This file was changed outside Rustle",
   overwrite: "Overwrite",
   reload: "Reload",

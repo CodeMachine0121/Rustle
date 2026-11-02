@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
@@ -18,6 +18,7 @@ const TAURI: ArticleSummary = {
   status: "active",
   tags: ["tauri", "electron", "技術筆記"],
   hasIncompleteMetadata: false,
+  excerpt: null,
 };
 
 const NO_TITLE: ArticleSummary = {
@@ -29,6 +30,7 @@ const NO_TITLE: ArticleSummary = {
   status: null,
   tags: [],
   hasIncompleteMetadata: true,
+  excerpt: null,
 };
 
 const BLOG: VaultSnapshot = {
@@ -70,7 +72,7 @@ describe("ArticleColumn", () => {
 
     const row = screen.getByRole("button", { name: /^Tauri 與 Electron 的取捨/ });
     expect(row).toHaveTextContent("2026-08-20");
-    expect(row).toHaveTextContent("進行中");
+    expect(within(row).getByRole("img", { name: "進行中" })).toBeInTheDocument();
     expect(row).not.toHaveTextContent("Blog");
     expect(row).toHaveTextContent("tauri");
     expect(row).toHaveTextContent("electron");
@@ -186,19 +188,48 @@ describe("ArticleColumn", () => {
     ]);
   });
 
-  it("starts the card's detail line with the status, then the date, then the tags", () => {
+  it("starts the card's detail line with the date, then the tags", () => {
     renderColumn(BLOG);
 
-    expect(metaOf(/^Tauri/)).toEqual(["進行中", "2026-08-20", "tauri", "electron", "技術筆記"]);
+    expect(metaOf(/^Tauri/)).toEqual(["2026-08-20", "tauri", "electron", "技術筆記"]);
   });
 
-  it("says No Status for an article without one", () => {
+  it.each([
+    ["active", "進行中"],
+    ["onHold", "暫停"],
+    ["completed", "已完成"],
+    ["dropped", "已放棄"],
+  ] as const)("marks a %s article with its own dot, named for whoever cannot see it", (status, label) => {
+    renderColumn({ ...BLOG, articles: [{ ...TAURI, status }] });
+
+    const dot = within(screen.getByRole("button", { name: /^Tauri/ })).getByRole("img", { name: label });
+    expect(dot).toHaveClass(`status-dot--${status}`);
+  });
+
+  it("draws no dot for an article without a status", () => {
     renderColumn({ ...BLOG, articles: [{ ...TAURI, status: null }] });
 
-    expect(metaOf(/^Tauri/)[0]).toBe("未標記");
+    const row = screen.getByRole("button", { name: /^Tauri/ });
+    expect(row.querySelector(".status-dot")).toBeNull();
+    expect(row).not.toHaveTextContent("未標記");
   });
 
-  it("lines up Active, 2026-08-21, #go and #api from the left, in that order", () => {
+  it("puts the dot beside the title, above the excerpt and the detail line", () => {
+    renderColumn({ ...BLOG, articles: [{ ...TAURI, excerpt: "娜妲莉說，先寫再說。" }] });
+
+    const row = screen.getByRole("button", { name: /^Tauri/ });
+    expect(Array.from(row.children).map((part) => part.className)).toEqual(["row-heading", "row-excerpt", "row-meta"]);
+    expect(row.querySelector(".row-heading .status-dot")).not.toBeNull();
+    expect(row.querySelector(".row-excerpt")).toHaveTextContent("娜妲莉說，先寫再說。");
+  });
+
+  it("has no excerpt line for an article with nothing to quote", () => {
+    renderColumn(BLOG);
+
+    expect(screen.getByRole("button", { name: /^Tauri/ }).querySelector(".row-excerpt")).toBeNull();
+  });
+
+  it("lines up 2026-08-21, #go and #api from the left and names the dot in English", () => {
     renderInEnglish({
       ...TAURI,
       status: "active",
@@ -206,23 +237,18 @@ describe("ArticleColumn", () => {
       tags: ["go", "api"],
     });
 
-    expect(metaOf(/^Tauri/)).toEqual(["Active", "2026-08-21", "go", "api"]);
+    expect(metaOf(/^Tauri/)).toEqual(["2026-08-21", "go", "api"]);
     expect(screen.getByRole("button", { name: /^Tauri/ }).querySelectorAll(".row-meta .row-tag")).toHaveLength(2);
+    expect(screen.getByRole("img", { name: "Active" })).toBeInTheDocument();
   });
 
-  it("says No Status in English, as the sidebar does", () => {
-    renderInEnglish({ ...TAURI, status: null });
-
-    expect(metaOf(/^Tauri/)).toEqual(["No Status", "2026-08-20", "tauri", "electron", "技術筆記"]);
-  });
-
-  it("shows only the status for an article with no date and no tags", () => {
+  it("leaves the detail line empty for an article with no date and no tags", () => {
     renderColumn({ ...BLOG, articles: [{ ...NO_TITLE, hasIncompleteMetadata: false }] });
 
-    expect(metaOf(/^no-title/)).toEqual(["未標記"]);
+    expect(metaOf(/^no-title/)).toEqual([]);
   });
 
-  it("keeps the status first and the incomplete and open markers last", () => {
+  it("keeps the incomplete and open markers last", () => {
     renderColumn({
       ...BLOG,
       articles: [{ ...TAURI, hasIncompleteMetadata: true }, NO_TITLE],
@@ -231,7 +257,6 @@ describe("ArticleColumn", () => {
     });
 
     expect(metaOf(/^Tauri/)).toEqual([
-      "進行中",
       "2026-08-20",
       "tauri",
       "electron",
@@ -282,6 +307,7 @@ const ZEN: ArticleSummary = {
   status: null,
   tags: [],
   hasIncompleteMetadata: false,
+  excerpt: null,
 };
 
 const DAILY: ArticleSummary = {
@@ -293,6 +319,7 @@ const DAILY: ArticleSummary = {
   status: null,
   tags: [],
   hasIncompleteMetadata: false,
+  excerpt: null,
 };
 
 const THREE: VaultSnapshot = { ...BLOG, articles: [TAURI, ZEN, DAILY] };
@@ -517,7 +544,7 @@ describe("ArticleColumn with the sidebar and All Notes", () => {
 
     const rows = screen.getAllByRole("button", { name: /^Tauri/ });
     expect(rows).toHaveLength(2);
-    expect(rows.map((row) => row.querySelector(".row-workspace")?.textContent).sort()).toEqual(["Blog", "Work"]);
+    expect(rows.map((row) => row.querySelector(".row-meta .row-workspace")?.textContent).sort()).toEqual(["Blog", "Work"]);
 
     const workRow = rows.find((row) => row.textContent?.includes("Work"));
     if (workRow === undefined) {

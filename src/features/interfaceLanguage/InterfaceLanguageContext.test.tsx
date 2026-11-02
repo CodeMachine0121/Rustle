@@ -20,6 +20,7 @@ const MY_TRIP: ArticleSummary = {
   status: null,
   tags: ["旅行"],
   hasIncompleteMetadata: true,
+  excerpt: null,
 };
 
 const TRAVEL: VaultSnapshot = {

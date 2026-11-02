@@ -7,22 +7,18 @@ describe("messages", () => {
     expect(Object.keys(ENGLISH_MESSAGES).sort()).toEqual(Object.keys(CHINESE_MESSAGES).sort());
   });
 
-  it("says the region titles in the interface language, except WORKSPACES", () => {
+  it("names the sidebar sections in the interface language, except WORKSPACES", () => {
     const chinese = messagesFor("zh");
     const english = messagesFor("en");
 
-    expect([chinese.workspacesTitle, chinese.articlesTitle, chinese.editorTitle, chinese.previewTitle]).toEqual([
-      "WORKSPACES",
-      "文章",
-      "編輯",
-      "預覽",
-    ]);
-    expect([english.workspacesTitle, english.articlesTitle, english.editorTitle, english.previewTitle]).toEqual([
-      "WORKSPACES",
-      "ARTICLES",
-      "EDITOR",
-      "PREVIEW",
-    ]);
+    expect([chinese.workspacesTitle, chinese.statusTitle, chinese.tagsTitle]).toEqual(["WORKSPACES", "狀態", "標籤"]);
+    expect([english.workspacesTitle, english.statusTitle, english.tagsTitle]).toEqual(["WORKSPACES", "STATUS", "TAGS"]);
+  });
+
+  it("counts words in Chinese with 字 and in English with word or words", () => {
+    expect(messagesFor("zh").wordCount(1284)).toBe("1,284 字");
+    expect(messagesFor("en").wordCount(1)).toBe("1 word");
+    expect(messagesFor("en").wordCount(0)).toBe("0 words");
   });
 
   it("keeps vault, workspace and metadata untranslated in Chinese sentences", () => {

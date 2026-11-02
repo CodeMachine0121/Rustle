@@ -259,6 +259,7 @@ fn each_row_carries_what_the_article_says_about_itself() {
             status: None,
             tags: vec!["tauri".to_owned(), "electron".to_owned()],
             has_incomplete_metadata: false,
+            excerpt: Some("正文".to_owned()),
         }]
     );
 }
@@ -282,6 +283,21 @@ fn an_article_without_a_title_is_titled_by_its_file_name_and_marked(
     assert!(articles[0].has_incomplete_metadata);
     assert!(articles[0].created_at.is_empty());
     assert!(articles[0].status.is_none() && articles[0].tags.is_empty());
+    assert!(articles[0].excerpt.is_none());
+}
+
+#[test]
+fn each_row_quotes_the_opening_words_of_its_body() {
+    let vault = Vault::create();
+    vault.folder("Blog").file(
+        "Blog/zen.md",
+        "---\ntitle: 寫作是修行\n---\n# 寫作是修行\n娜妲莉說，**先寫**再說。\n",
+    );
+
+    assert_eq!(
+        vault.list_articles("Blog")[0].excerpt.as_deref(),
+        Some("娜妲莉說，先寫再說。")
+    );
 }
 
 #[cfg(unix)]

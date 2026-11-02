@@ -5,11 +5,9 @@ import { ImagePasteStatusLine } from "../imagePaste/ImagePasteStatusLine";
 import type { ScrollSynchronizer } from "../preview/ScrollSynchronizer";
 import type { SystemClipboardRegister } from "../vim/SystemClipboardRegister";
 import { useVimEnabled } from "../vim/useVimModeSession";
-import { VimModeLabel } from "../vim/VimModeLabel";
 import type { VimModeSession } from "../vim/VimModeSession";
 import type { VimNormalCommand } from "../vim/VimNormalCommand";
 import type { AutosaveSession } from "./AutosaveSession";
-import { SaveStatusLine } from "./SaveStatusLine";
 import { useEditorDocument } from "./useAutosaveSession";
 
 type AutosavedEditorProps = {
@@ -24,10 +22,9 @@ type AutosavedEditorProps = {
 };
 
 /**
- * The image paste line, the editor and the save status line under it, with
- * every edit going to the session. The editor follows Vim mode being turned
- * on or off; the mode itself goes straight to the status line, so a mode
- * change never re-renders the editor.
+ * The image paste line above the editor, with every edit going to the
+ * session. The editor follows Vim mode being turned on or off and reports
+ * the mode it is in, which never re-renders the editor.
  */
 export function AutosavedEditor({
   session,
@@ -60,7 +57,6 @@ export function AutosavedEditor({
         vimNormalCommands={vimNormalCommands}
         onVimModeChange={vimModes.report}
       />
-      <SaveStatusLine session={session} modeLabel={<VimModeLabel session={vimModes} />} />
     </>
   );
 }

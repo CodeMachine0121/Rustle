@@ -84,7 +84,7 @@ fn lists_the_articles_of_a_workspace_with_their_metadata() {
     let app = RunningApp::start();
     app.write(
         "Blog/tauri.md",
-        "---\ntitle: Tauri 與 Electron 的取捨\ncreated_at: 2026-08-20T14:32:05+08:00\ncategory: 技術筆記\nstatus: On Hold\ntags:\n  - tauri\n---\n",
+        "---\ntitle: Tauri 與 Electron 的取捨\ncreated_at: 2026-08-20T14:32:05+08:00\ncategory: 技術筆記\nstatus: On Hold\ntags:\n  - tauri\n---\n正文開頭\n",
     );
 
     let payload = app
@@ -101,7 +101,8 @@ fn lists_the_articles_of_a_workspace_with_their_metadata() {
             "updatedAt": "",
             "status": "onHold",
             "tags": ["tauri"],
-            "hasIncompleteMetadata": false
+            "hasIncompleteMetadata": false,
+            "excerpt": "正文開頭"
         }])
     );
 }

@@ -22,7 +22,7 @@ Upgrading Tauri, CodeMirror or `@replit/codemirror-vim` requires re-running `doc
 
 ```
 Cargo.toml                    workspace + [workspace.dependencies] (versions pinned with =)
-crates/domain/                rustle-domain: names, SearchText (+ BODY_MATCH_LIMIT), VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleStatus, ArticleDraft, ArticleFileNameSlug, UtcTimestamp, LocalTimestamp, PastedImage, repository traits, Clock, Clipboard, ImageConverter, IdentifierGenerator, Trash, InterfaceLanguage, LanguagePreferences. No I/O
+crates/domain/                rustle-domain: names, SearchText (+ BODY_MATCH_LIMIT), ArticleExcerpt (a row's opening words), VaultScope, VaultEntry, WorkspaceNameRequest, Settings, ArticleDocument, ArticleStatus, ArticleDraft, ArticleFileNameSlug, UtcTimestamp, LocalTimestamp, PastedImage, repository traits, Clock, Clipboard, ImageConverter, IdentifierGenerator, Trash, InterfaceLanguage, LanguagePreferences. No I/O
 crates/application/           rustle-application: use cases (one struct per use case): ReadArticleBody, SaveArticleBody, ListWorkspaces, ListArticles, ListAllArticles, CreateWorkspace, CreateArticle, UpdateArticleMetadata, DeleteArticle, RenameWorkspace, CountWorkspaceContents, DeleteWorkspace, ReadSettings, WriteSettings, SaveClipboardImages, ReadClipboardText, WriteClipboardText, ReadPreferredLocales, SearchArticleBodies
 crates/infrastructure/        rustle-infrastructure: ResolvedVaultScope, FileSystemSettingsRepository, FileSystemArticleRepository, FileSystemWorkspaceRepository, FileSystemImageAssetRepository, SystemClipboard, RasterImageConverter, UuidGenerator, SystemClock, SystemTrash, SystemLanguagePreferences, write_atomically
 src-tauri/                    assembly root: channels, commands, CSP, navigation guard, custom schemes, window, macOS app menu
@@ -33,11 +33,11 @@ src-tauri/                    assembly root: channels, commands, CSP, navigation
   tauri.conf.json             CSP (pinned by a test), no windows (created in code)
   capabilities/main-window.json  no permissions at all
 src/                          webview (React + CodeMirror)
-  app/                        App shell (AppLayout: four columns) and global CSS (no palette: every colour is a theme token)
+  app/                        App shell (AppLayout: sidebar, articles, then the writing sheet: toolbar, editor + preview, status line) and global CSS (no palette: every colour is a theme token)
   ipc/                        callChannel (the only invoke), channels (typed wrappers), ChannelResult
   shared/composition/         CompositionState, CompositionProvider/useCompositionState, CompositionAwareDebouncer
   shared/icons/               IconButton (the only icon-only button)
-  features/<feature>/         one folder per feature (editor/, vault/, finding/, sidebar/, autosave/, settings/, preview/, keymap/, articleMetadata/, createArticle/, editArticleMetadata/, deletion/, imagePaste/, interfaceLanguage/, writingLayout/, fontSize/, theme/, snippets/, vim/)
+  features/<feature>/         one folder per feature (editor/, vault/, finding/, sidebar/, autosave/, settings/, preview/, keymap/, articleMetadata/, createArticle/, editArticleMetadata/, deletion/, imagePaste/, interfaceLanguage/, writingLayout/, fontSize/, theme/, snippets/, vim/, wordCount/)
 docs/ime-regression-checklist.md  manual IME runbook + release checklist
 ```
 

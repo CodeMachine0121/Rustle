@@ -9,6 +9,7 @@ import { CompositionState } from "../../shared/composition/CompositionState";
 import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import { INITIAL_VAULT_SNAPSHOT, type VaultSnapshot } from "../vault/VaultSession";
 import { BODY_SEARCH_DELAY_MILLISECONDS } from "./BodySearch";
+import { FinderRequests } from "./FinderRequests";
 import { Finders } from "./Finders";
 
 function article(workspace: string, fileName: string, title: string, createdAt: string, tags: string[] = []): ArticleSummary {
@@ -21,6 +22,7 @@ function article(workspace: string, fileName: string, title: string, createdAt: 
     status: null,
     tags,
     hasIncompleteMetadata: false,
+    excerpt: null,
   };
 }
 
@@ -58,6 +60,7 @@ type Rendered = {
   searchBodies: ReturnType<typeof vi.fn>;
   composition: CompositionState;
   editorKeys: ReturnType<typeof vi.fn>;
+  requests: FinderRequests;
 };
 
 function renderFinders(
@@ -72,6 +75,7 @@ function renderFinders(
   const onGoTo = vi.fn();
   const editorKeys = vi.fn();
   const searchBodies = vi.fn(() => Promise.resolve<ChannelResult<BodySearchResult>>({ ok: true, payload: bodyResult }));
+  const requests = new FinderRequests();
   render(
     <InterfaceLanguageProvider language={language}>
       <CompositionProvider state={composition}>
@@ -81,11 +85,12 @@ function renderFinders(
           searchBodies={searchBodies}
           onOpenFoundArticle={onOpenFoundArticle}
           onGoTo={onGoTo}
+          requests={requests}
         />
       </CompositionProvider>
     </InterfaceLanguageProvider>,
   );
-  return { onOpenFoundArticle, onGoTo, searchBodies, composition, editorKeys };
+  return { onOpenFoundArticle, onGoTo, searchBodies, composition, editorKeys, requests };
 }
 
 function editor(): HTMLElement {
@@ -144,6 +149,33 @@ afterEach(() => {
 });
 
 describe("Finders", () => {
+  describe("opening a finder from something on screen", () => {
+    it("opens the title finder as its key would", () => {
+      const { requests } = renderFinders(DIARY);
+
+      act(() => requests.request("title"));
+
+      expect(field()).toHaveAccessibleName(/用標題找文章/);
+    });
+
+    it("keeps the title finder closed without a scope, as its key would", () => {
+      const { requests } = renderFinders(NO_SCOPE);
+
+      act(() => requests.request("title"));
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("closes the finder it opened when asked again", () => {
+      const { requests } = renderFinders(DIARY);
+      act(() => requests.request("title"));
+
+      act(() => requests.request("title"));
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
   describe("finding articles by title", () => {
     it("keeps only the articles whose title holds the typed text", () => {
       renderFinders(DIARY);
