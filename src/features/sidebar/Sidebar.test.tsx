@@ -66,6 +66,25 @@ function rowsOf(name: string): HTMLElement[] {
 }
 
 describe("Sidebar", () => {
+  it("puts the search button above All Notes", async () => {
+    const { session } = await settingsSession();
+    render(
+      <Sidebar
+        snapshot={BLOG}
+        settings={session}
+        workspaces={<p>workspace 清單</p>}
+        searchButton={<button type="button">搜尋</button>}
+        onSelectAllNotes={vi.fn()}
+        onToggleStatus={vi.fn()}
+        onToggleTag={vi.fn()}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons[0]).toHaveTextContent("搜尋");
+    expect(buttons[1]).toHaveTextContent("所有文章");
+  });
+
   it("puts All Notes above the workspace, status and tag sections, in that order", async () => {
     const { session } = await settingsSession();
     renderSidebar(BLOG, session);

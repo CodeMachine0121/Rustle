@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ArticleLocation } from "../../ipc/articleSummary";
 import type { Scope, VaultSnapshot } from "../vault/VaultSession";
 import type { SearchBodies } from "./BodySearch";
 import { BodyFinder } from "./BodyFinder";
+import type { FinderRequests } from "./FinderRequests";
 import type { FinderKind } from "./FindingKeys";
 import { TitleFinder } from "./TitleFinder";
 import { useFindingKeys } from "./useFindingKeys";
@@ -14,6 +15,8 @@ type FindersProps = {
   searchBodies: SearchBodies;
   onOpenFoundArticle: (article: ArticleLocation, cursorLine?: number) => void;
   onGoTo: (scope: Scope) => void;
+  /** Opens a finder from something on screen, as its key would. */
+  requests?: FinderRequests;
 };
 
 type OpenFinder = { kind: FinderKind; opening: number };
@@ -24,7 +27,7 @@ type OpenFinder = { kind: FinderKind; opening: number };
  * without one the title and body finders stay closed. Dismissing gives the
  * keyboard back to where it was.
  */
-export function Finders({ snapshot, searchBodies, onOpenFoundArticle, onGoTo }: FindersProps) {
+export function Finders({ snapshot, searchBodies, onOpenFoundArticle, onGoTo, requests }: FindersProps) {
   const [open, setOpen] = useState<OpenFinder | null>(null);
   const focusBeforeOpening = useRef<HTMLElement | null>(null);
   const hasScope = snapshot.selectedWorkspace !== null || snapshot.showsAllNotes;
@@ -40,7 +43,7 @@ export function Finders({ snapshot, searchBodies, onOpenFoundArticle, onGoTo }: 
     focusBeforeOpening.current = null;
   };
 
-  useFindingKeys((kind) => {
+  const answer = (kind: FinderKind) => {
     if (open?.kind === kind) {
       dismiss();
       return;
@@ -52,7 +55,16 @@ export function Finders({ snapshot, searchBodies, onOpenFoundArticle, onGoTo }: 
       focusBeforeOpening.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     }
     setOpen({ kind, opening: (open?.opening ?? 0) + 1 });
+  };
+  const answerRef = useRef(answer);
+
+  useEffect(() => {
+    answerRef.current = answer;
   });
+
+  useEffect(() => requests?.subscribe((kind) => answerRef.current(kind)), [requests]);
+
+  useFindingKeys(answer);
 
   if (open === null) {
     return null;

@@ -10,6 +10,7 @@ type LeavingRefusal = Exclude<AutosaveSwitchOutcome, "switched">;
 /** Every sentence Rustle itself says. Values in a sentence are arguments and are never rewritten. */
 export const CHINESE_MESSAGES = {
   sidebar: "側邊欄",
+  search: "搜尋",
   allNotes: "所有文章",
   workspacesTitle: "WORKSPACES",
   statusTitle: "狀態",
@@ -180,6 +181,7 @@ export type Messages = typeof CHINESE_MESSAGES;
 
 export const ENGLISH_MESSAGES: Partial<Messages> = {
   sidebar: "Sidebar",
+  search: "Search",
   allNotes: "All Notes",
   workspacesTitle: "WORKSPACES",
   statusTitle: "STATUS",
