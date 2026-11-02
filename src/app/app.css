@@ -1,5 +1,6 @@
 /* Every colour is a theme token (src/features/theme/): none is written here. */
 :root {
+  --font-monospace: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light dark;
   font-family:
     -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
@@ -71,7 +72,7 @@ body {
   flex: none;
   padding: 1px 6px;
   border-radius: 4px;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-monospace);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -372,7 +373,7 @@ body {
 .row-hash {
   width: 16px;
   text-align: center;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-monospace);
   font-size: 13px;
 }
 
@@ -486,7 +487,7 @@ body {
 }
 
 .search-button__key {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-monospace);
   font-size: 11px;
 }
 
@@ -648,7 +649,7 @@ body {
 }
 
 .preview-content code {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-monospace);
   font-size: 0.9em;
   padding: 0.1em 0.3em;
   border-radius: 4px;
@@ -1166,7 +1167,7 @@ body {
 }
 
 .keymap-overview__row kbd {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-monospace);
   font-size: 13px;
   color: var(--color-muted-text);
 }
