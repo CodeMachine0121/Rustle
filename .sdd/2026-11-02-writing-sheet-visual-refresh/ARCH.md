@@ -122,7 +122,7 @@ flowchart TD
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| 淡色主題下紙是白的、紙外是側欄的底色 | `app.css`（`.writing-area` 用 `--color-sidebar`、`.writing-sheet` 用 `--color-editor-background`）＋ `AppLayout` |
+| 淡色主題下紙是白的、紙外是側欄的底色 | `app.css`（`.writing-area` 用 `--color-sidebar`、`.writing-sheet` 用 `--color-background`（既有規則：編輯器專用色只用在編輯器內））＋ `AppLayout` |
 | 深色主題下紙與紙外各用主題的深色 | 同上（token 隨主題變） |
 | 只填了基本色的自訂主題也完整 | 只用既有 token（`Theme.ts` 由基本色推出全部 token），`appStyles.test.ts` 擋寫死顏色 |
 | 欄位頂端不再有大寫小標 | `AppLayout`（拿掉 `region-title`，保留 `aria-label`）、`CollapsibleSection` 不動 |
