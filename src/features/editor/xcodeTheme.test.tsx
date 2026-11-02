@@ -59,6 +59,20 @@ describe("the writing area's Xcode theme", () => {
     expect(prose?.textContent).toBe("慢慢寫，一天一段。");
   });
 
+  it("paints the native selection and Vim's drawn one in the theme's selected colour", () => {
+    renderLines("選取");
+    const rules = [
+      ...Array.from(document.querySelectorAll("style"), (style) => style.textContent ?? ""),
+      ...document.adoptedStyleSheets.flatMap((sheet) => Array.from(sheet.cssRules, (rule) => rule.cssText)),
+    ]
+      .join("\n")
+      .split("}")
+      .filter((rule) => rule.includes("--color-selected"));
+
+    expect(rules.some((rule) => rule.includes("::selection"))).toBe(true);
+    expect(rules.some((rule) => rule.includes(".vim-selection"))).toBe(true);
+  });
+
   it("takes every colour it uses from the theme", () => {
     const source = readFileSync(join(process.cwd(), "src/features/editor/xcodeTheme.ts"), "utf8");
     const used = [...source.matchAll(/var\(--color-([a-z-]+)\)/g)].map((match) => match[1] as ThemeToken);

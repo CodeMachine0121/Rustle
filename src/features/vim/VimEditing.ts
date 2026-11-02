@@ -1,5 +1,14 @@
 import { Compartment, EditorState, Facet, Prec, type Extension, type StateEffect } from "@codemirror/state";
-import { EditorView, ViewPlugin, keymap, runScopeHandlers, type Command, type KeyBinding } from "@codemirror/view";
+import {
+  EditorView,
+  RectangleMarker,
+  ViewPlugin,
+  keymap,
+  layer,
+  runScopeHandlers,
+  type Command,
+  type KeyBinding,
+} from "@codemirror/view";
 import { getCM, Vim, vim, type CM5EditorInterface, type CodeMirrorV } from "@replit/codemirror-vim";
 
 import type { CompositionState } from "../../shared/composition/CompositionState";
@@ -16,6 +25,17 @@ const normalCommands = Facet.define<VimNormalCommand>();
 const keysMappedInTheEngine = new Set<string>();
 
 type VimModeChange = { mode: string };
+
+/** Vim hides the native selection; this draws it back, and only it: the caret stays the native one. */
+const visualSelection = layer({
+  above: false,
+  class: "vim-selection-layer",
+  markers: (view) =>
+    view.state.selection.ranges
+      .filter((range) => !range.empty)
+      .flatMap((range) => RectangleMarker.forRange(view, "vim-selection", range)),
+  update: (update) => update.docChanged || update.selectionSet || update.viewportChanged || update.geometryChanged,
+});
 
 /**
  * Vim in one editor, in three bands. Every key the app owns runs first,
@@ -139,6 +159,7 @@ export class VimEditing {
       // Visual block mode is one selection per line it covers.
       EditorState.allowMultipleSelections.of(true),
       Prec.low(vim()),
+      visualSelection,
       this.#register?.extension() ?? [],
       this.#normalCommands.map(({ keys, run }) =>
         normalCommands.of({

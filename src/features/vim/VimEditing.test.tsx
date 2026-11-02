@@ -220,6 +220,25 @@ describe("three modes, whatever Vim calls them", () => {
     expect(mode()).toBe("visual");
   });
 
+  // Drawing the rectangles needs layout, which the test DOM lacks; the IME checklist covers what is seen.
+  it("mounts a layer that draws the selection, since Vim hides the native one", () => {
+    const { content } = openEditor("hello world");
+
+    expect(content.closest(".cm-editor")?.querySelector(".vim-selection-layer")).not.toBeNull();
+  });
+
+  it("keeps the native caret, drawing no cursor of its own", () => {
+    const { content } = openEditor("hello world");
+
+    expect(content.closest(".cm-editor")?.querySelector(".cm-cursorLayer:not(.cm-vimCursorLayer)")).toBeNull();
+  });
+
+  it("leaves the native selection alone with Vim off", () => {
+    const { content } = openEditor("hello world", { vimEnabled: false });
+
+    expect(content.closest(".cm-editor")?.querySelector(".vim-selection-layer")).toBeNull();
+  });
+
   it("shows replacing as Insert", () => {
     const { press, mode } = openEditor("abc");
 

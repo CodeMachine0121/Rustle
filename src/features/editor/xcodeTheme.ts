@@ -35,6 +35,9 @@ const xcodeEditorTheme = EditorView.theme({
   ".cm-cursor, .cm-dropCursor": {
     borderLeftColor: "var(--color-editor-text)",
   },
+  ".cm-line ::selection, .cm-line::selection, .vim-selection": {
+    backgroundColor: "var(--color-selected)",
+  },
 });
 
 /** The writing area's monospaced Xcode look; nothing outside the editor changes. */
