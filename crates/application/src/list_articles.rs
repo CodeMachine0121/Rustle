@@ -1,6 +1,6 @@
 use rustle_domain::{
-    ArticleDocument, ArticleFileName, ArticleMetadata, ArticleRepository, ArticleStatus,
-    VaultEntry, WorkspaceName, WorkspaceRepository, WorkspaceRepositoryError,
+    ArticleDocument, ArticleExcerpt, ArticleFileName, ArticleMetadata, ArticleRepository,
+    ArticleStatus, VaultEntry, WorkspaceName, WorkspaceRepository, WorkspaceRepositoryError,
 };
 use serde::Serialize;
 
@@ -17,13 +17,38 @@ pub struct ArticleSummary {
     pub status: Option<ArticleStatus>,
     pub tags: Vec<String>,
     pub has_incomplete_metadata: bool,
+    pub excerpt: Option<String>,
 }
 
 impl ArticleSummary {
-    pub(crate) fn new(
+    pub(crate) fn from_document(
+        workspace: &WorkspaceName,
+        file_name: &ArticleFileName,
+        document: &ArticleDocument,
+    ) -> Self {
+        Self::new(
+            workspace,
+            file_name,
+            document.metadata(file_name),
+            document.excerpt().map(ArticleExcerpt::into_string),
+        )
+    }
+
+    /// The row of a file that could not be read: titled by its file name, with nothing to quote.
+    pub(crate) fn unreadable(workspace: &WorkspaceName, file_name: &ArticleFileName) -> Self {
+        Self::new(
+            workspace,
+            file_name,
+            ArticleMetadata::from_file_name(file_name),
+            None,
+        )
+    }
+
+    fn new(
         workspace: &WorkspaceName,
         file_name: &ArticleFileName,
         metadata: ArticleMetadata,
+        excerpt: Option<String>,
     ) -> Self {
         Self {
             workspace: workspace.to_string(),
@@ -34,6 +59,7 @@ impl ArticleSummary {
             status: metadata.status,
             tags: metadata.tags,
             has_incomplete_metadata: metadata.has_incomplete_metadata,
+            excerpt,
         }
     }
 }
@@ -67,13 +93,16 @@ where
         Ok(entries
             .iter()
             .filter_map(VaultEntry::as_article)
-            .map(|file_name| {
-                let metadata = match self.articles.read(workspace, &file_name) {
-                    Ok(stored) => ArticleDocument::parse(&stored.text).metadata(&file_name),
-                    Err(_) => ArticleMetadata::from_file_name(&file_name),
-                };
-                ArticleSummary::new(workspace, &file_name, metadata)
-            })
+            .map(
+                |file_name| match self.articles.read(workspace, &file_name) {
+                    Ok(stored) => ArticleSummary::from_document(
+                        workspace,
+                        &file_name,
+                        &ArticleDocument::parse(&stored.text),
+                    ),
+                    Err(_) => ArticleSummary::unreadable(workspace, &file_name),
+                },
+            )
             .collect())
     }
 }

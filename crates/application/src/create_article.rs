@@ -59,10 +59,10 @@ where
             self.clock.local_offset_seconds(now),
         ));
         self.articles.create(workspace, &file_name, &text)?;
-        Ok(ArticleSummary::new(
+        Ok(ArticleSummary::from_document(
             workspace,
             &file_name,
-            ArticleDocument::parse(&text).metadata(&file_name),
+            &ArticleDocument::parse(&text),
         ))
     }
 }

@@ -212,6 +212,7 @@ fn answers_with_the_row_the_file_itself_describes() {
             "status": "completed",
             "tags": ["electron"],
             "hasIncompleteMetadata": false,
+            "excerpt": null,
         })
     );
     let workspaces = FileSystemWorkspaceRepository::in_vault(Vault::scope_at(&vault.root));
