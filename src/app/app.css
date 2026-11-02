@@ -487,8 +487,13 @@ body {
   cursor: pointer;
 }
 
-.search-button:hover {
+.search-button:hover:enabled {
   color: var(--color-text);
+}
+
+.search-button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .search-button__label {
