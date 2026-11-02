@@ -35,10 +35,7 @@ const xcodeEditorTheme = EditorView.theme({
   ".cm-cursor, .cm-dropCursor": {
     borderLeftColor: "var(--color-editor-text)",
   },
-  ".cm-selectionLayer .cm-selectionBackground": {
-    backgroundColor: "var(--color-selected)",
-  },
-  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+  ".cm-line ::selection, .cm-line::selection, .vim-selection": {
     backgroundColor: "var(--color-selected)",
   },
 });

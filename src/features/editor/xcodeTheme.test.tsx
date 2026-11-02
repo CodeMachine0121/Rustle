@@ -59,7 +59,7 @@ describe("the writing area's Xcode theme", () => {
     expect(prose?.textContent).toBe("慢慢寫，一天一段。");
   });
 
-  it("paints a selection in the theme's selected colour, focused or not", () => {
+  it("paints the native selection and Vim's drawn one in the theme's selected colour", () => {
     renderLines("選取");
     const rules = [
       ...Array.from(document.querySelectorAll("style"), (style) => style.textContent ?? ""),
@@ -67,10 +67,10 @@ describe("the writing area's Xcode theme", () => {
     ]
       .join("\n")
       .split("}")
-      .filter((rule) => rule.includes(".cm-selectionBackground") && rule.includes("--color-selected"));
+      .filter((rule) => rule.includes("--color-selected"));
 
-    expect(rules.some((rule) => rule.includes(".cm-focused"))).toBe(true);
-    expect(rules.some((rule) => !rule.includes(".cm-focused"))).toBe(true);
+    expect(rules.some((rule) => rule.includes("::selection"))).toBe(true);
+    expect(rules.some((rule) => rule.includes(".vim-selection"))).toBe(true);
   });
 
   it("takes every colour it uses from the theme", () => {
