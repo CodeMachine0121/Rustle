@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 
 import type { ArticleSummary } from "../../ipc/articleSummary";
 import { statusChoiceOf } from "../sidebar/statusChoice";
+import { StatusDot } from "../sidebar/StatusDot";
 import { arrangeArticles } from "./articleArrangement";
 import { ArticleFilterField } from "./ArticleFilterField";
 import { isSameArticle } from "./articleLocation";
@@ -129,6 +130,7 @@ type ArticleRowProps = {
 function ArticleRow({ article, isSelected, isOutsideFilter, showsWorkspace, onSelect }: ArticleRowProps) {
   const messages = useMessages();
   const createdDate = LEADING_DATE.exec(article.createdAt)?.[0] ?? article.createdAt;
+  const choice = statusChoiceOf(article.status);
   return (
     <button
       type="button"
@@ -136,11 +138,14 @@ function ArticleRow({ article, isSelected, isOutsideFilter, showsWorkspace, onSe
       aria-pressed={isSelected}
       onClick={() => onSelect(article)}
     >
-      <span className="row-title">{article.title}</span>
-      {showsWorkspace && <span className="row-workspace">{article.workspace}</span>}
+      <span className="row-heading">
+        <span className="row-title">{article.title}</span>
+        <StatusDot choice={choice} label={messages.statusLabels[choice]} />
+      </span>
+      {article.excerpt !== null && <span className="row-excerpt">{article.excerpt}</span>}
       <span className="row-meta">
-        <span className="row-status">{messages.statusLabels[statusChoiceOf(article.status)]}</span>
         {createdDate !== "" && <span className="row-date">{createdDate}</span>}
+        {showsWorkspace && <span className="row-workspace">{article.workspace}</span>}
         {article.tags.map((tag) => (
           <span key={tag} className="row-tag">
             {tag}

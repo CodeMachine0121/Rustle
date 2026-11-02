@@ -9,6 +9,8 @@ export type ArticleSummary = {
   status: ArticleStatus | null;
   tags: string[];
   hasIncompleteMetadata: boolean;
+  /** The opening words of the body; `null` when it has none to read. */
+  excerpt: string | null;
 };
 
 /** Which article, wherever it is listed: the same file name may live in two workspaces. */

@@ -22,6 +22,7 @@ function article(workspace: string, fileName: string, title: string, createdAt: 
     status: null,
     tags,
     hasIncompleteMetadata: false,
+    excerpt: null,
   };
 }
 

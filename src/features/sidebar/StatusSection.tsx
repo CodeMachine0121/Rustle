@@ -1,6 +1,7 @@
 import { useMessages } from "../interfaceLanguage/InterfaceLanguageContext";
 import type { StatusCount } from "./sidebarCounts";
 import { SidebarRow } from "./SidebarRow";
+import { StatusDot } from "./StatusDot";
 import type { StatusChoice } from "./statusChoice";
 
 type StatusSectionProps = {
@@ -17,7 +18,11 @@ export function StatusSection({ statuses, chosen, onToggle }: StatusSectionProps
         <li key={choice} className="column-item">
           <SidebarRow
             label={messages.statusLabels[choice]}
-            count={count} isChosen={choice === chosen} onClick={() => onToggle(choice)} />
+            leading={<StatusDot choice={choice} />}
+            count={count}
+            isChosen={choice === chosen}
+            onClick={() => onToggle(choice)}
+          />
         </li>
       ))}
     </ul>

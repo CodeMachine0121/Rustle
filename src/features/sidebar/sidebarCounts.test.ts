@@ -13,6 +13,7 @@ function article(status: ArticleSummary["status"], tags: string[] = [], workspac
     status,
     tags,
     hasIncompleteMetadata: false,
+    excerpt: null,
   };
 }
 

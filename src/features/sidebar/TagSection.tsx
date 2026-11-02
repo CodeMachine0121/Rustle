@@ -17,7 +17,13 @@ export function TagSection({ tags, chosen, onToggle }: TagSectionProps) {
     <ul className="column-list">
       {tags.map(({ tag, count }) => (
         <li key={tag} className="column-item">
-          <SidebarRow label={tag} count={count} isChosen={chosen.includes(tag)} onClick={() => onToggle(tag)} />
+          <SidebarRow
+            label={tag}
+            leading={<span className="row-hash" aria-hidden="true" />}
+            count={count}
+            isChosen={chosen.includes(tag)}
+            onClick={() => onToggle(tag)}
+          />
         </li>
       ))}
     </ul>

@@ -75,6 +75,14 @@ describe("WorkspaceColumn", () => {
     expect(screen.getByLabelText("2 篇文章")).toBeInTheDocument();
   });
 
+  it("marks each workspace with a folder before its name", () => {
+    renderColumn(TWO_WORKSPACES);
+
+    const row = screen.getByRole("button", { name: /^Blog/ });
+    expect(row.firstElementChild).toHaveClass("lucide-folder");
+    expect(row.firstElementChild).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("still lists a workspace whose articles could not be counted", () => {
     renderColumn({ ...EMPTY, workspaces: [{ name: "Locked", articleCount: null }] });
 

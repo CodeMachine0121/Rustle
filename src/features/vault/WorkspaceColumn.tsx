@@ -1,3 +1,4 @@
+import { Folder } from "lucide-react";
 import { useState } from "react";
 
 import type { WorkspaceSummary } from "../../ipc/workspaceSummary";
@@ -88,6 +89,7 @@ function WorkspaceRow({ workspace, isSelected, onSelect }: WorkspaceRowProps) {
       aria-pressed={isSelected}
       onClick={() => onSelect(workspace.name)}
     >
+      <Folder className="icon" aria-hidden="true" />
       <span className="row-title">{workspace.name}</span>
       {workspace.articleCount === null ? (
         <span className="row-count" aria-label={messages.unknownArticleCount}>
