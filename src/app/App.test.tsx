@@ -240,6 +240,31 @@ describe("App", () => {
     );
   });
 
+  it("puts the open article on the toolbar and counts its words on the status line as the writer types", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+    expect(screen.getByRole("group", { name: "目前的文章" })).toHaveTextContent("Blog/Zen of Writing");
+    expect(saveStatusLine()).toHaveTextContent("6 字");
+
+    const editor = document.querySelector<HTMLElement>(".cm-editor");
+    const view = editor === null ? null : EditorView.findFromDOM(editor);
+    act(() => view?.dispatch({ changes: { from: 0, insert: "好" }, userEvent: "input.type" }));
+
+    expect(saveStatusLine()).toHaveTextContent("7 字");
+  });
+
+  it("opens the title finder from the search button at the top of the sidebar", async () => {
+    answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
+    render(<App />);
+    await waitFor(() => expect(editorContent()).toHaveTextContent("正文的第一行。"));
+
+    fireEvent.click(screen.getByRole("button", { name: /^搜尋/ }));
+
+    expect(screen.getByRole("textbox", { name: "用標題找文章" })).toBeInTheDocument();
+  });
+
   it("orders what Tab reaches column by column", async () => {
     answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
     render(<App />);
@@ -261,7 +286,7 @@ describe("App", () => {
 
     expect(focusable.slice(0, -1).every((count) => count > 0)).toBe(true);
     expect(order).toEqual([...order].sort((left, right) => left - right));
-    expect(document.querySelector("button")).toHaveAccessibleName("所有文章");
+    expect(document.querySelector("button")).toHaveAccessibleName(/^搜尋/);
     expect(columns.at(-1)).toHaveAccessibleName("預覽區");
   });
 
@@ -1980,12 +2005,12 @@ describe("App", () => {
       expect(isZen()).toBe(false);
     });
 
-    it("is off for a vault that never mentioned it, with nothing between the path and the indicator", async () => {
+    it("is off for a vault that never mentioned it, leaving the path and the word count before the indicator", async () => {
       answerWithVimMode(undefined);
       await startEditing();
 
       expect(modeLabel()).toBeNull();
-      expect(saveStatusLine()).toHaveTextContent(/^Blog❯zen-of-writing\.md$/u);
+      expect(saveStatusLine()).toHaveTextContent(/^Blog❯zen-of-writing\.md6 字$/u);
     });
 
     it("is off, without any error, when the settings hold something that is not on or off", async () => {

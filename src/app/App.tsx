@@ -7,7 +7,9 @@ import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
 import { ArticleDeletionDialog } from "../features/deletion/ArticleDeletionDialog";
 import { WorkspaceDeletionDialog } from "../features/deletion/WorkspaceDeletionDialog";
+import { FinderRequests } from "../features/finding/FinderRequests";
 import { Finders } from "../features/finding/Finders";
+import { SearchButton } from "../features/finding/SearchButton";
 import { EditArticleMetadataDialog } from "../features/editArticleMetadata/EditArticleMetadataDialog";
 import { EditingSurfaceFontSizes } from "../features/fontSize/EditingSurfaceFontSizes";
 import { useEditingSurfaceFontSizes } from "../features/fontSize/useEditingSurfaceFontSizes";
@@ -27,6 +29,7 @@ import { useSidebarFold } from "../features/sidebar/useSidebarFold";
 import { browserThemeEnvironment } from "../features/theme/browserThemeEnvironment";
 import { ThemeSession } from "../features/theme/ThemeSession";
 import { useTheme } from "../features/theme/useTheme";
+import { ArticleBreadcrumb } from "../features/vault/ArticleBreadcrumb";
 import { ArticleColumn } from "../features/vault/ArticleColumn";
 import { EditorColumn } from "../features/vault/EditorColumn";
 import { NewWorkspaceEntry } from "../features/vault/NewWorkspaceEntry";
@@ -38,6 +41,8 @@ import { SystemClipboardRegister } from "../features/vim/SystemClipboardRegister
 import { VimModeLabel } from "../features/vim/VimModeLabel";
 import { VimModeSession } from "../features/vim/VimModeSession";
 import type { VimNormalCommand } from "../features/vim/VimNormalCommand";
+import { LiveWordCount } from "../features/wordCount/LiveWordCount";
+import { WordCountLabel } from "../features/wordCount/WordCountLabel";
 import { useWritingLayout } from "../features/writingLayout/useWritingLayout";
 import { ViewModeButtons, ZenButton } from "../features/writingLayout/WritingControls";
 import { WritingLayout } from "../features/writingLayout/WritingLayout";
@@ -73,6 +78,8 @@ function VaultView() {
   const [themes] = useState(() => new ThemeSession(settings, browserThemeEnvironment()));
   const [vimModes] = useState(() => new VimModeSession(settings));
   const [vimRegister] = useState(() => new SystemClipboardRegister(channels));
+  const [wordCount] = useState(() => new LiveWordCount(autosave, composition));
+  const [finderRequests] = useState(() => new FinderRequests());
   const [vimNormalCommands] = useState<readonly VimNormalCommand[]>(() => [
     { keys: "zz", run: () => layout.toggleZen() },
   ]);
@@ -115,6 +122,8 @@ function VaultView() {
 
   useEffect(() => () => themes.dispose(), [themes]);
 
+  useEffect(() => () => wordCount.dispose(), [wordCount]);
+
   return (
     <InterfaceLanguageProvider language={interfaceLanguage.language}>
       <AppLayout
@@ -122,6 +131,7 @@ function VaultView() {
           <Sidebar
             snapshot={snapshot}
             settings={settings}
+            searchButton={<SearchButton requests={finderRequests} />}
             onSelectAllNotes={() => void session.selectAllNotes()}
             onToggleStatus={(choice) => session.toggleStatusFilter(choice)}
             onToggleTag={(tag) => session.toggleTagFilter(tag)}
@@ -176,11 +186,18 @@ function VaultView() {
         writing={writing}
         toolbar={
           <WritingToolbar
+            breadcrumb={<ArticleBreadcrumb snapshot={snapshot} />}
             viewModeButtons={<ViewModeButtons layout={layout} viewMode={writing.viewMode} />}
             zenButton={<ZenButton layout={layout} isZen={writing.isZen} />}
           />
         }
-        statusLine={<SaveStatusLine session={autosave} modeLabel={<VimModeLabel session={vimModes} />} />}
+        statusLine={
+          <SaveStatusLine
+            session={autosave}
+            modeLabel={<VimModeLabel session={vimModes} />}
+            wordCount={<WordCountLabel wordCount={wordCount} />}
+          />
+        }
         preview={{
           content: (
             <PreviewPanel
@@ -237,6 +254,7 @@ function VaultView() {
         searchBodies={channels.searchBodies}
         onOpenFoundArticle={(article, cursorLine) => void session.openFoundArticle(article, cursorLine)}
         onGoTo={(scope) => void session.goTo(scope)}
+        requests={finderRequests}
       />
       <OperationFailureNotice
         failure={snapshot.operationFailure}

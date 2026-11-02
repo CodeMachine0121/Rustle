@@ -37,7 +37,7 @@ describe("ArticleBreadcrumb", () => {
   it("names the workspace and the title of the open article, then its status", () => {
     renderBreadcrumb(OPEN);
 
-    const breadcrumb = screen.getByRole("navigation", { name: "目前的文章" });
+    const breadcrumb = screen.getByRole("group", { name: "目前的文章" });
     expect(breadcrumb).toHaveTextContent("讀書筆記/寫作是修行進行中");
     expect(breadcrumb.querySelector(".status-pill .status-dot--active")).not.toBeNull();
   });
@@ -45,13 +45,13 @@ describe("ArticleBreadcrumb", () => {
   it("speaks the interface language in the pill", () => {
     renderBreadcrumb({ ...OPEN, articles: [{ ...ZEN, status: "onHold" }] }, "en");
 
-    expect(screen.getByRole("navigation", { name: "Current article" })).toHaveTextContent("On Hold");
+    expect(screen.getByRole("group", { name: "Current article" })).toHaveTextContent("On Hold");
   });
 
   it("has no pill for an article without a status", () => {
     renderBreadcrumb({ ...OPEN, articles: [{ ...ZEN, status: null }] });
 
-    const breadcrumb = screen.getByRole("navigation", { name: "目前的文章" });
+    const breadcrumb = screen.getByRole("group", { name: "目前的文章" });
     expect(breadcrumb.querySelector(".status-pill")).toBeNull();
     expect(breadcrumb).not.toHaveTextContent("未標記");
   });
@@ -65,7 +65,7 @@ describe("ArticleBreadcrumb", () => {
   it("follows the title the list now gives the open article", () => {
     renderBreadcrumb({ ...OPEN, articles: [{ ...ZEN, title: "新標題" }] });
 
-    expect(screen.getByRole("navigation", { name: "目前的文章" })).toHaveTextContent("新標題");
+    expect(screen.getByRole("group", { name: "目前的文章" })).toHaveTextContent("新標題");
   });
 
   it("finds the open article in its own workspace when two share a file name", () => {
@@ -74,6 +74,6 @@ describe("ArticleBreadcrumb", () => {
       articles: [{ ...ZEN, workspace: "日記", title: "日記那篇" }, ZEN],
     });
 
-    expect(screen.getByRole("navigation", { name: "目前的文章" })).toHaveTextContent("讀書筆記/寫作是修行");
+    expect(screen.getByRole("group", { name: "目前的文章" })).toHaveTextContent("讀書筆記/寫作是修行");
   });
 });

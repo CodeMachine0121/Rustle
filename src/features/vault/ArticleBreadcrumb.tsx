@@ -17,7 +17,7 @@ export function ArticleBreadcrumb({ snapshot }: ArticleBreadcrumbProps) {
   }
   const choice = statusChoiceOf(article.status);
   return (
-    <nav className="article-breadcrumb" aria-label={messages.articleBreadcrumb}>
+    <div className="article-breadcrumb" role="group" aria-label={messages.articleBreadcrumb}>
       <span className="article-breadcrumb__workspace">{article.workspace}</span>
       <span className="article-breadcrumb__separator" aria-hidden="true">
         /
@@ -29,6 +29,6 @@ export function ArticleBreadcrumb({ snapshot }: ArticleBreadcrumbProps) {
           {messages.statusLabels[choice]}
         </span>
       )}
-    </nav>
+    </div>
   );
 }
