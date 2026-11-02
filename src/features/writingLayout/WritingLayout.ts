@@ -5,13 +5,9 @@ export type ViewMode = "editorOnly" | "sideBySide" | "previewOnly";
 
 export const VIEW_MODES: readonly ViewMode[] = ["editorOnly", "sideBySide", "previewOnly"];
 
-/** The region whose header carries the Zen button and the view mode buttons. */
-export type ControlsRegion = "editor" | "preview";
-
 export type WritingLayoutSnapshot = {
   viewMode: ViewMode;
   isZen: boolean;
-  controlsLiveIn: ControlsRegion;
 };
 
 /**
@@ -25,7 +21,6 @@ export class WritingLayout {
   readonly #listeners = new Set<() => void>();
   #showsOnlyPreview = false;
   #isZen = false;
-  #controlsFocusPending = false;
   #snapshot: WritingLayoutSnapshot | null = null;
 
   constructor(settings: SettingsSession) {
@@ -43,11 +38,7 @@ export class WritingLayout {
     if (current !== null && current.viewMode === viewMode && current.isZen === this.#isZen) {
       return current;
     }
-    this.#snapshot = {
-      viewMode,
-      isZen: this.#isZen,
-      controlsLiveIn: viewMode === "previewOnly" ? "preview" : "editor",
-    };
+    this.#snapshot = { viewMode, isZen: this.#isZen };
     return this.#snapshot;
   }
 
@@ -60,11 +51,8 @@ export class WritingLayout {
     };
   };
 
-  /** A choice from the view mode buttons; when they move to the other header, the chosen one takes the keyboard there. */
   choose(viewMode: ViewMode): void {
-    const controlsWereIn = this.snapshot.controlsLiveIn;
     this.#arrange(viewMode);
-    this.#controlsFocusPending = this.snapshot.controlsLiveIn !== controlsWereIn;
     this.#publish();
   }
 
@@ -109,13 +97,6 @@ export class WritingLayout {
         holder.placeCursor(line);
       },
     };
-  }
-
-  /** `true` once after a view mode choice moved the buttons to the other header. */
-  takeControlsFocus(): boolean {
-    const pending = this.#controlsFocusPending;
-    this.#controlsFocusPending = false;
-    return pending;
   }
 
   #viewMode(): ViewMode {

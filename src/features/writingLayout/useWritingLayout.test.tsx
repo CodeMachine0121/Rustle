@@ -58,7 +58,7 @@ describe("useWritingLayout", () => {
 
     pressShortcut(MOD_SHIFT_P);
 
-    expect(result.current).toMatchObject({ viewMode: "sideBySide", controlsLiveIn: "editor" });
+    expect(result.current).toMatchObject({ viewMode: "sideBySide" });
   });
 
   it("toggles with Ctrl as well as Cmd", async () => {
@@ -107,7 +107,7 @@ describe("useWritingLayout", () => {
 
     pressShortcut(keys);
 
-    expect(result.current).toEqual({ viewMode: "sideBySide", isZen: false, controlsLiveIn: "editor" });
+    expect(result.current).toEqual({ viewMode: "sideBySide", isZen: false });
   });
 
   it("follows Zen Mode", async () => {

@@ -19,7 +19,7 @@ function previewSlot(ratio = 0.5): PreviewSlot {
 }
 
 function writing(viewMode: ViewMode, isZen = false): WritingLayoutSnapshot {
-  return { viewMode, isZen, controlsLiveIn: viewMode === "previewOnly" ? "preview" : "editor" };
+  return { viewMode, isZen };
 }
 
 function renderLayout(layout = writing("sideBySide"), preview = previewSlot(), isFolded = false) {
@@ -31,10 +31,8 @@ function renderLayout(layout = writing("sideBySide"), preview = previewSlot(), i
         editor={<p>編輯內容</p>}
         preview={preview}
         writing={layout}
-        controls={{
-          zenButton: <button type="button">zen</button>,
-          viewModeButtons: <button type="button">modes</button>,
-        }}
+        toolbar={<div className="toolbar-stub">工具列</div>}
+        statusLine={<footer>狀態列</footer>}
         sidebarFold={{ isFolded, button: <button type="button">fold</button> }}
       />
     </CompositionProvider>,
@@ -66,11 +64,34 @@ describe("AppLayout", () => {
     ]);
   });
 
-  it("puts Zen on the left and the view modes on the right of the editor's header side by side", () => {
-    renderLayout(writing("sideBySide"));
+  it.each<ViewMode>(["sideBySide", "editorOnly", "previewOnly"])(
+    "puts the toolbar on top of the writing sheet and the status line at its foot in %s",
+    (viewMode) => {
+      renderLayout(writing(viewMode));
 
-    expect(headerOf("編輯區")).toEqual(["zen", "編輯", "modes"]);
-    expect(headerOf("預覽區")).toEqual(["預覽"]);
+      const sheet = document.querySelector(".writing-sheet");
+      expect(sheet?.firstElementChild).toHaveTextContent("工具列");
+      expect(sheet?.lastElementChild).toHaveTextContent("狀態列");
+      expect(region("編輯區").contains(screen.getByText("工具列"))).toBe(false);
+    },
+  );
+
+  it("keeps the toolbar on the sheet in Zen Mode", () => {
+    renderLayout(writing("sideBySide", true));
+
+    expect(screen.getByText("工具列")).toBeVisible();
+    expect(screen.getByText("狀態列")).toBeVisible();
+  });
+
+  it("titles no column on screen, while every column keeps its name for screen readers", () => {
+    renderLayout();
+
+    expect(screen.queryAllByRole("heading")).toEqual([]);
+    expect(region("編輯區").querySelector(".region-header")).toBeNull();
+    expect(region("預覽區").querySelector(".region-header")).toBeNull();
+    expect(region("文章")).toBeInTheDocument();
+    expect(region("編輯區")).toBeInTheDocument();
+    expect(region("預覽區")).toBeInTheDocument();
   });
 
   it("gives the preview its share of the writing area beside a divider side by side", () => {
@@ -80,15 +101,15 @@ describe("AppLayout", () => {
     expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "35");
   });
 
-  it("leaves only the editor, with its controls, in editor only", () => {
+  it("leaves only the editor in editor only", () => {
     renderLayout(writing("editorOnly"));
 
     expect(document.querySelector('section[aria-label="預覽區"]')).toBeNull();
     expect(screen.queryByRole("separator")).not.toBeInTheDocument();
-    expect(headerOf("編輯區")).toEqual(["zen", "編輯", "modes"]);
+    expect(region("編輯區")).toBeVisible();
   });
 
-  it("hides the editor without removing it and moves the controls to the preview in preview only", () => {
+  it("hides the editor without removing it in preview only", () => {
     renderLayout(writing("previewOnly"));
 
     expect(region("編輯區")).not.toBeVisible();
@@ -96,8 +117,6 @@ describe("AppLayout", () => {
     expect(region("預覽區")).toBeVisible();
     expect(region("預覽區").style.flexBasis).toBe("100%");
     expect(screen.queryByRole("separator")).not.toBeInTheDocument();
-    expect(headerOf("預覽區")).toEqual(["zen", "預覽", "modes"]);
-    expect(headerOf("編輯區")).toEqual(["編輯"]);
   });
 
   it("has no preview handle and no close button on the preview", () => {
@@ -119,7 +138,7 @@ describe("AppLayout", () => {
   it("puts the fold button first in the articles' header, where it stays while the sidebar is folded", () => {
     renderLayout(writing("sideBySide"), previewSlot(), true);
 
-    expect(headerOf("文章")).toEqual(["fold", "文章"]);
+    expect(headerOf("文章")).toEqual(["fold"]);
     expect(within(region("文章")).getByRole("button", { name: "fold" })).toBeVisible();
   });
 
@@ -138,7 +157,7 @@ describe("AppLayout", () => {
     expect(region("文章")).not.toBeVisible();
     expect(region("文章")).toHaveTextContent("文章按鈕");
     expect(screen.queryByRole("button", { name: "側欄按鈕" })).not.toBeInTheDocument();
-    expect(within(region("編輯區")).getByRole("button", { name: "zen" })).toBeVisible();
+    expect(region("編輯區")).toBeVisible();
   });
 
   it("leaves a composition running in the editor alone through every view mode and Zen Mode", () => {
@@ -151,7 +170,7 @@ describe("AppLayout", () => {
           editor={<MarkdownEditor documentKey="Blog/zen.md" body="正文" />}
           preview={previewSlot()}
           writing={layout}
-          controls={{ zenButton: null, viewModeButtons: null }}
+          toolbar={null}
         />
       </CompositionProvider>
     );

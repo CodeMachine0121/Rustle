@@ -245,8 +245,13 @@ describe("App", () => {
     render(<App />);
     await waitFor(() => expect(editorContent()).not.toBeNull());
 
-    const sidebar = screen.getByRole("navigation");
-    const columns = [sidebar, ...screen.getAllByRole("region").filter((region) => !sidebar.contains(region))];
+    const sidebar = screen.getByRole("navigation", { name: "側邊欄" });
+    const [articles, editor, preview] = screen.getAllByRole("region").filter((region) => !sidebar.contains(region));
+    const toolbar = document.querySelector<HTMLElement>(".writing-toolbar");
+    if (articles === undefined || editor === undefined || preview === undefined || toolbar === null) {
+      throw new Error("a column is missing");
+    }
+    const columns = [sidebar, articles, toolbar, editor, preview];
     const focusable = columns.map(
       (column) => within(column).queryAllByRole("textbox").length + within(column).queryAllByRole("button").length,
     );
@@ -595,13 +600,13 @@ describe("App", () => {
       return found;
     }
 
-    function headerButtons(region: string): string[] {
-      return Array.from(section(region).querySelectorAll(".region-header button")).map(
+    function toolbarButtons(): string[] {
+      return Array.from(document.querySelectorAll(".writing-toolbar button")).map(
         (button) => button.getAttribute("aria-label") ?? "",
       );
     }
 
-    const CONTROLS = ["Zen Mode", "只有編輯", "編輯與預覽並排", "只有預覽"];
+    const CONTROLS = ["只有編輯", "編輯與預覽並排", "只有預覽", "Zen Mode"];
 
     async function startWithZenOpen() {
       answerFromAVault({ workspace: "Blog", article: "zen-of-writing.md" });
@@ -638,33 +643,33 @@ describe("App", () => {
 
       expect(document.querySelector('section[aria-label="預覽區"]')).toBeNull();
       expect(screen.queryByRole("separator")).not.toBeInTheDocument();
-      expect(headerButtons("編輯區")).toEqual(CONTROLS);
+      expect(toolbarButtons()).toEqual(CONTROLS);
       expect(screen.getByRole("button", { name: "只有編輯" })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "false");
     });
 
-    it("puts Zen and the three view modes in the editor's header side by side, the current one pressed", async () => {
+    it("puts the three view modes and Zen on the sheet's toolbar, outside both panes, the current one pressed", async () => {
       await startWithZenOpen();
 
-      expect(headerButtons("編輯區")).toEqual(CONTROLS);
-      expect(headerButtons("預覽區")).toEqual([]);
+      expect(toolbarButtons()).toEqual(CONTROLS);
+      expect(section("編輯區").querySelector(".writing-toolbar")).toBeNull();
+      expect(section("預覽區").querySelector(".writing-toolbar")).toBeNull();
       expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("moves to preview only with the controls, the keyboard and no save status line, and back", async () => {
+    it("keeps the controls and the save status line on the sheet in preview only, and back", async () => {
       await startWithZenOpen();
 
       fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
 
       expect(section("編輯區")).not.toBeVisible();
-      expect(headerButtons("預覽區")).toEqual(CONTROLS);
-      expect(screen.getByRole("button", { name: "只有預覽" })).toHaveFocus();
-      expect(screen.queryByRole("contentinfo", { name: "儲存狀態列" })).not.toBeInTheDocument();
+      expect(toolbarButtons()).toEqual(CONTROLS);
+      expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
 
       fireEvent.click(screen.getByRole("button", { name: "編輯與預覽並排" }));
 
       expect(section("編輯區")).toBeVisible();
-      expect(headerButtons("編輯區")).toEqual(CONTROLS);
+      expect(toolbarButtons()).toEqual(CONTROLS);
       expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
     });
 
@@ -722,7 +727,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "false");
     });
 
-    it("leaves only the header buttons and the writing area for the keyboard in Zen Mode", async () => {
+    it("leaves only the toolbar and the writing area for the keyboard in Zen Mode", async () => {
       await startWithZenOpen();
 
       fireEvent.click(screen.getByRole("button", { name: "Zen Mode" }));
@@ -731,7 +736,7 @@ describe("App", () => {
         (element) => element.closest("[hidden]") === null && !element.closest(".dialog-backdrop"),
       );
       expect(reachable.every((element) => element.closest(".writing-area") !== null)).toBe(true);
-      expect(reachable.filter((element) => element.closest(".region-header") !== null).map((button) => button.getAttribute("aria-label"))).toEqual(CONTROLS);
+      expect(reachable.filter((element) => element.closest(".writing-toolbar") !== null).map((button) => button.getAttribute("aria-label"))).toEqual(CONTROLS);
     });
 
     it("starts with the columns shown even after the app was left in Zen Mode", async () => {
@@ -752,7 +757,7 @@ describe("App", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
 
-      expect(headerButtons("預覽區")).toEqual(CONTROLS);
+      expect(toolbarButtons()).toEqual(CONTROLS);
       expect(section("文章")).not.toBeVisible();
       expect(screen.getByRole("button", { name: "Zen Mode" })).toHaveAttribute("aria-pressed", "true");
     });
@@ -830,7 +835,7 @@ describe("App", () => {
 
       await waitFor(() => expect(section("編輯區")).toBeVisible());
       expect(screen.getByRole("button", { name: "編輯與預覽並排" })).toHaveAttribute("aria-pressed", "true");
-      expect(within(section("編輯區")).getByText("儲存失敗：No space left on device")).toBeVisible();
+      expect(within(saveStatusLine()).getByText("儲存失敗：No space left on device")).toBeVisible();
       expect(screen.getByRole("button", { name: /^Zen of Writing/ })).toHaveAttribute("aria-pressed", "true");
     });
 
@@ -1346,11 +1351,8 @@ describe("App", () => {
       });
     }
 
-    function regionTitles() {
-      return screen
-        .getAllByRole("heading", { level: 2 })
-        .filter((heading) => heading.closest("nav") === null)
-        .map((heading) => heading.textContent);
+    function viewModeNames() {
+      return Array.from(document.querySelectorAll(".view-mode-button")).map((button) => button.textContent);
     }
 
     async function openSettings(name = "設定") {
@@ -1377,7 +1379,7 @@ describe("App", () => {
       answerInLanguage(undefined, ["zh-Hant-TW"]);
       await renderWithTheArticleOpen();
 
-      expect(regionTitles()).toEqual(["文章", "編輯", "預覽"]);
+      expect(viewModeNames()).toEqual(["編輯", "並排", "預覽"]);
       expect(document.documentElement.lang).toBe("zh-Hant");
     });
 
@@ -1385,7 +1387,7 @@ describe("App", () => {
       answerInLanguage(undefined, ["ja-JP"]);
       render(<App />);
 
-      await waitFor(() => expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]));
+      await waitFor(() => expect(viewModeNames()).toEqual(["Editor", "Side by side", "Preview"]));
       expect(document.documentElement.lang).toBe("en");
     });
 
@@ -1393,7 +1395,7 @@ describe("App", () => {
       answerInLanguage("en", ["zh-Hant-TW"]);
       render(<App />);
 
-      await waitFor(() => expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]));
+      await waitFor(() => expect(viewModeNames()).toEqual(["Editor", "Side by side", "Preview"]));
       expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     });
 
@@ -1406,7 +1408,7 @@ describe("App", () => {
       fireEvent.click(within(dialog).getByRole("radio", { name: "English" }));
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      expect(regionTitles()).toEqual(["ARTICLES", "EDITOR", "PREVIEW"]);
+      expect(viewModeNames()).toEqual(["Editor", "Side by side", "Preview"]);
       expect(screen.getByRole("button", { name: "New workspace" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: 'Delete "Zen of Writing"' })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
@@ -1424,7 +1426,7 @@ describe("App", () => {
     it("leaves no Chinese of its own on screen in English, only the writer's words", async () => {
       answerInLanguage("en", ["zh-Hant-TW"]);
       await renderWithTheArticleOpen();
-      await waitFor(() => expect(regionTitles()).toContain("ARTICLES"));
+      await waitFor(() => expect(viewModeNames()).toContain("Editor"));
       const writersWords = ["正文的第一行。", "Tauri 與 Electron"];
 
       const elements = [...document.body.querySelectorAll("*")];
@@ -1480,7 +1482,7 @@ describe("App", () => {
         }
 
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-        expect(regionTitles()).toEqual(["文章", "編輯", "預覽"]);
+        expect(viewModeNames()).toEqual(["編輯", "並排", "預覽"]);
         expect(screen.getByRole("button", { name: "設定" })).toHaveFocus();
         expect(invoke).not.toHaveBeenCalledWith("write_settings", expect.anything());
       },
@@ -2033,14 +2035,14 @@ describe("App", () => {
       expect(modeLabel()).toBeNull();
     });
 
-    it("shows the path, then the mode, then the save indicator", async () => {
+    it("shows the mode, then the path, then the save indicator", async () => {
       answerWithVimMode(true);
       const { content } = await startEditing();
 
       press(content, "i");
 
       const parts = [...saveStatusLine().children].map((child) => child.textContent);
-      expect(parts.slice(0, 2)).toEqual(["Blog❯zen-of-writing.md", "INSERT"]);
+      expect(parts.slice(0, 2)).toEqual(["INSERT", "Blog❯zen-of-writing.md"]);
       expect(saveStatusLine().lastElementChild).toHaveClass("save-indicator");
     });
 
@@ -2204,14 +2206,14 @@ describe("App", () => {
       expect(view.state.doc.toString()).toBe("正文的第一行。");
     });
 
-    it("shows neither the status line nor the mode in preview only", async () => {
+    it("keeps the status line and the mode on the sheet in preview only", async () => {
       answerWithVimMode(true);
       await startEditing();
 
       fireEvent.click(screen.getByRole("button", { name: "只有預覽" }));
 
-      expect(screen.queryByRole("contentinfo", { name: "儲存狀態列" })).not.toBeInTheDocument();
-      expect(document.querySelector(".vim-mode-label")).not.toBeVisible();
+      expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toBeVisible();
+      expect(document.querySelector(".vim-mode-label")).toBeVisible();
     });
   });
 });

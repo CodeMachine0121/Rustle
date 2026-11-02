@@ -23,11 +23,8 @@ export const CHINESE_MESSAGES = {
     dropped: "已放棄",
     noStatus: "未標記",
   } satisfies Record<StatusChoice, string> as Record<StatusChoice, string>,
-  articlesTitle: "文章",
   articlesRegion: "文章",
-  editorTitle: "編輯",
   editorRegion: "編輯區",
-  previewTitle: "預覽",
   previewRegion: "預覽區",
   zenMode: "Zen Mode",
   hideSidebar: "收起側邊欄",
@@ -37,6 +34,11 @@ export const CHINESE_MESSAGES = {
     editorOnly: "只有編輯",
     sideBySide: "編輯與預覽並排",
     previewOnly: "只有預覽",
+  } satisfies Record<ViewMode, string> as Record<ViewMode, string>,
+  viewModeNames: {
+    editorOnly: "編輯",
+    sideBySide: "並排",
+    previewOnly: "預覽",
   } satisfies Record<ViewMode, string> as Record<ViewMode, string>,
   previewContent: "預覽內容",
   adjustPreviewWidth: "調整預覽寬度",
@@ -113,6 +115,7 @@ export const CHINESE_MESSAGES = {
   noArticleOpen: "還沒有選取文章",
   articleUnreadable: (reason: string) => `讀不到這篇文章：${reason}`,
 
+  articleBreadcrumb: "目前的文章",
   saveStatusLine: "儲存狀態列",
   articlePath: (workspace: string, fileName: string) => `${workspace} 裡的 ${fileName}`,
   saveIndicators: {
@@ -194,11 +197,8 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
     dropped: "Dropped",
     noStatus: "No Status",
   },
-  articlesTitle: "ARTICLES",
   articlesRegion: "Articles",
-  editorTitle: "EDITOR",
   editorRegion: "Editor",
-  previewTitle: "PREVIEW",
   previewRegion: "Preview",
   zenMode: "Zen Mode",
   hideSidebar: "Hide sidebar",
@@ -208,6 +208,11 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
     editorOnly: "Editor only",
     sideBySide: "Editor and preview side by side",
     previewOnly: "Preview only",
+  },
+  viewModeNames: {
+    editorOnly: "Editor",
+    sideBySide: "Side by side",
+    previewOnly: "Preview",
   },
   previewContent: "Preview content",
   adjustPreviewWidth: "Adjust preview width",
@@ -284,6 +289,7 @@ export const ENGLISH_MESSAGES: Partial<Messages> = {
   noArticleOpen: "No article open",
   articleUnreadable: (reason) => `Cannot read this article: ${reason}`,
 
+  articleBreadcrumb: "Current article",
   saveStatusLine: "Save status",
   articlePath: (workspace, fileName) => `${fileName} in ${workspace}`,
   saveIndicators: {

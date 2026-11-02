@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ChannelResult } from "../../ipc/channelResult";
 import type { Settings } from "../../ipc/settings";
+import { InterfaceLanguageProvider } from "../interfaceLanguage/InterfaceLanguageContext";
 import { DEFAULT_SETTINGS, SettingsSession } from "../settings/SettingsSession";
 import { ViewModeButtons, ZenButton } from "./WritingControls";
 import { WritingLayout } from "./WritingLayout";
@@ -44,12 +45,23 @@ describe("ZenButton", () => {
 });
 
 describe("ViewModeButtons", () => {
-  it("offers editor only, side by side and preview only as icons, the current one pressed", async () => {
+  it("offers editor only, side by side and preview only, each with a mark and a short name, the current one pressed", async () => {
     render(<ViewModeButtons layout={await layout()} viewMode="sideBySide" />);
 
     expect(viewModeNames()).toEqual(["只有編輯", "編輯與預覽並排", "只有預覽"]);
+    expect(viewModeButtons().map((button) => button.textContent)).toEqual(["編輯", "並排", "預覽"]);
     expect(viewModeButtons().map((button) => button.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
-    expect(viewModeButtons().every((button) => button.textContent === "" && button.querySelector("svg") !== null)).toBe(true);
+    expect(viewModeButtons().every((button) => button.querySelector("svg") !== null)).toBe(true);
+  });
+
+  it("writes the short names in English", async () => {
+    render(
+      <InterfaceLanguageProvider language="en">
+        <ViewModeButtons layout={await layout()} viewMode="sideBySide" />
+      </InterfaceLanguageProvider>,
+    );
+
+    expect(screen.getByRole("group", { name: "View mode" }).textContent).toBe("EditorSide by sidePreview");
   });
 
   it("chooses the view mode that is pressed", async () => {
@@ -61,16 +73,7 @@ describe("ViewModeButtons", () => {
     expect(writingLayout.snapshot.viewMode).toBe("editorOnly");
   });
 
-  it("puts the keyboard on the current button when a choice moved the buttons here", async () => {
-    const writingLayout = await layout();
-    act(() => writingLayout.choose("previewOnly"));
-
-    render(<ViewModeButtons layout={writingLayout} viewMode="previewOnly" />);
-
-    expect(screen.getByRole("button", { name: "只有預覽" })).toHaveFocus();
-  });
-
-  it("leaves the keyboard where it is when it appears for another reason", async () => {
+  it("leaves the keyboard where it is when it appears", async () => {
     render(<ViewModeButtons layout={await layout()} viewMode="sideBySide" />);
 
     expect(document.body).toHaveFocus();

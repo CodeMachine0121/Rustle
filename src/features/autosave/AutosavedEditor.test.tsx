@@ -48,13 +48,12 @@ const ARTICLE = {
 };
 
 describe("AutosavedEditor", () => {
-  it("puts the save status line under the editor and nothing above it", async () => {
-    const { session, content } = renderEditor();
+  it("draws no status line of its own and nothing above the editor", async () => {
+    const { session } = renderEditor();
 
     await act(() => session.openArticle({ article: ARTICLE, title: "寫作的禪" }));
 
-    const statusLine = screen.getByRole("contentinfo", { name: "儲存狀態列" });
-    expect(content().compareDocumentPosition(statusLine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
     expect(screen.queryByRole("banner")).not.toBeInTheDocument();
   });
 
@@ -64,7 +63,7 @@ describe("AutosavedEditor", () => {
     await act(() => session.openArticle({ article: ARTICLE, title: "寫作的禪" }));
 
     expect(content()).toHaveTextContent("# 寫作的禪");
-    expect(screen.getByRole("img", { name: "已存進檔案" })).toBeInTheDocument();
+    expect(session.status).toMatchObject({ hasUnsavedChanges: false });
   });
 
   it("turns typing in the editor into unsaved changes of the open article", async () => {
@@ -75,7 +74,6 @@ describe("AutosavedEditor", () => {
       fireEvent.keyDown(content(), { key: "Tab" });
     });
 
-    expect(screen.getByRole("img", { name: "還沒存進檔案" })).toBeInTheDocument();
     expect(session.status).toMatchObject({ hasUnsavedChanges: true });
     await act(() => vi.waitFor(() => expect(saveBody).toHaveBeenCalled()));
     expect(saveBody).toHaveBeenCalledWith(expect.objectContaining({ body: "  # 寫作的禪" }));

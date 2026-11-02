@@ -8,15 +8,16 @@ import { useAutosaveStatus } from "./useAutosaveSession";
 type SaveStatusLineProps = {
   session: AutosaveSession;
   modeLabel?: ReactNode;
+  wordCount?: ReactNode;
 };
 
 /**
- * The line under the editor: `workspace ❯ file name` on the left, a save
- * indicator with no words on the right, and between them the `modeLabel`
- * (when given) and a failed save or an outside change spelled out. Nothing
- * while no article is open.
+ * The line along the bottom of the writing sheet, left to right: the
+ * `modeLabel` (when given), `workspace ❯ file name`, the `wordCount` (when
+ * given), a failed save or an outside change spelled out, and a save
+ * indicator with no words at the far right. Nothing while no article is open.
  */
-export function SaveStatusLine({ session, modeLabel }: SaveStatusLineProps) {
+export function SaveStatusLine({ session, modeLabel, wordCount }: SaveStatusLineProps) {
   const status = useAutosaveStatus(session);
   const messages = useMessages();
 
@@ -26,6 +27,7 @@ export function SaveStatusLine({ session, modeLabel }: SaveStatusLineProps) {
 
   return (
     <footer className="save-status-line" aria-label={messages.saveStatusLine}>
+      {modeLabel}
       <span className="article-path" aria-label={messages.articlePath(status.workspace, status.fileName)}>
         <span className="article-path__workspace">{status.workspace}</span>
         <span className="article-path__separator" aria-hidden="true">
@@ -33,7 +35,7 @@ export function SaveStatusLine({ session, modeLabel }: SaveStatusLineProps) {
         </span>
         <span className="article-path__file">{status.fileName}</span>
       </span>
-      {modeLabel}
+      {wordCount}
       {status.failureMessage !== null && (
         <span className="save-status-line__failure" role="alert">
           {messages.saveFailed(status.failureMessage)}

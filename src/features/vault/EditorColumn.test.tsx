@@ -33,7 +33,7 @@ describe("EditorColumn", () => {
     expect(container.querySelector("[contenteditable], textarea, input")).toBeNull();
   });
 
-  it("shows the open article's body in an editable editor with its file name below", async () => {
+  it("shows the open article's body in an editable editor", async () => {
     const autosave = autosaveSession();
     await act(() =>
       autosave.session.openArticle({
@@ -51,7 +51,6 @@ describe("EditorColumn", () => {
     expect(content).toHaveAttribute("contenteditable", "true");
     expect(content).toHaveTextContent("正文的第一行。");
     expect(content).not.toHaveTextContent("---");
-    expect(screen.getByRole("contentinfo", { name: "儲存狀態列" })).toHaveTextContent("Blog❯zen.md");
   });
 
   it("says in one line that the article could not be read", () => {

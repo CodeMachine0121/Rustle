@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { AutosaveSession } from "../features/autosave/AutosaveSession";
+import { SaveStatusLine } from "../features/autosave/SaveStatusLine";
 import { watchWindowCloseRequests } from "../features/autosave/watchWindowCloseRequests";
 import { vocabularyOf } from "../features/articleMetadata/articleVocabulary";
 import { CreateArticleDialog } from "../features/createArticle/CreateArticleDialog";
@@ -34,11 +35,13 @@ import { useVaultSnapshot } from "../features/vault/useVaultSnapshot";
 import { VaultSession } from "../features/vault/VaultSession";
 import { WorkspaceColumn } from "../features/vault/WorkspaceColumn";
 import { SystemClipboardRegister } from "../features/vim/SystemClipboardRegister";
+import { VimModeLabel } from "../features/vim/VimModeLabel";
 import { VimModeSession } from "../features/vim/VimModeSession";
 import type { VimNormalCommand } from "../features/vim/VimNormalCommand";
 import { useWritingLayout } from "../features/writingLayout/useWritingLayout";
 import { ViewModeButtons, ZenButton } from "../features/writingLayout/WritingControls";
 import { WritingLayout } from "../features/writingLayout/WritingLayout";
+import { WritingToolbar } from "../features/writingLayout/WritingToolbar";
 import type { ArticleSummary } from "../ipc/articleSummary";
 import { channels } from "../ipc/channels";
 import type { WorkspaceContents } from "../ipc/workspaceContents";
@@ -171,10 +174,13 @@ function VaultView() {
         }
         sidebarFold={{ isFolded: sidebarFold.isFolded, button: <SidebarFoldButton fold={sidebarFold} /> }}
         writing={writing}
-        controls={{
-          zenButton: <ZenButton layout={layout} isZen={writing.isZen} />,
-          viewModeButtons: <ViewModeButtons layout={layout} viewMode={writing.viewMode} />,
-        }}
+        toolbar={
+          <WritingToolbar
+            viewModeButtons={<ViewModeButtons layout={layout} viewMode={writing.viewMode} />}
+            zenButton={<ZenButton layout={layout} isZen={writing.isZen} />}
+          />
+        }
+        statusLine={<SaveStatusLine session={autosave} modeLabel={<VimModeLabel session={vimModes} />} />}
         preview={{
           content: (
             <PreviewPanel
