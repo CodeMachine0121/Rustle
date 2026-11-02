@@ -117,6 +117,43 @@ describe("app styles", () => {
     expect(ruleFor(".column-row[aria-pressed=\"true\"]")).toMatch(/background: var\(--color-selected\);/);
   });
 
+  it("lays the writing sheet in the page's colour on the sidebar's colour", () => {
+    expect(ruleFor(".writing-area")).toMatch(/background: var\(--color-sidebar\);/);
+    expect(ruleFor(".writing-sheet")).toMatch(/background: var\(--color-background\);/);
+    expect(ruleFor(".writing-sheet")).toMatch(/border-radius: \d+px;/);
+  });
+
+  it.each([
+    ["active", "link"],
+    ["onHold", "warning"],
+    ["completed", "success"],
+    ["dropped", "muted-text"],
+  ])("paints the %s dot in the theme's %s colour", (status, token) => {
+    expect(ruleFor(`.status-dot--${status}`)).toMatch(new RegExp(`background: var\\(--color-${token}\\);`));
+  });
+
+  it("puts the dot before the title on a card and shows at most two lines of excerpt", () => {
+    expect(ruleFor(".row-heading .status-dot")).toMatch(/order: -1;/);
+    expect(ruleFor(".row-excerpt")).toMatch(/-webkit-line-clamp: 2;/);
+    expect(ruleFor(".row-title")).toMatch(/text-overflow: ellipsis;/);
+  });
+
+  it("floats the open card with a border and a shadow", () => {
+    expect(ruleFor('.article-row[aria-pressed="true"]')).toMatch(/border-color: var\(--color-border\);/);
+    expect(ruleFor('.article-row[aria-pressed="true"]')).toMatch(/box-shadow: /);
+  });
+
+  it("sets the preview in a serif face and loads no font from anywhere", () => {
+    expect(ruleFor(".preview-content")).toMatch(/font-family: [^;]*serif;/);
+    expect(CSS).not.toMatch(/@import|@font-face|url\(/);
+  });
+
+  it("shortens the breadcrumb's workspace and title with an ellipsis and never its status", () => {
+    expect(ruleFor(".article-breadcrumb__workspace")).toMatch(/text-overflow: ellipsis;/);
+    expect(ruleFor(".article-breadcrumb__title")).toMatch(/text-overflow: ellipsis;/);
+    expect(ruleFor(".status-pill")).toMatch(/flex-shrink: 0;/);
+  });
+
   it("marks an empty snippet field with a thin line in the theme's accent", () => {
     expect(ruleFor(".snippet-field-marker")).toMatch(/border-left: 1px solid var\(--color-link\);/);
   });
