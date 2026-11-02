@@ -1,6 +1,8 @@
 const CHARACTER_LIMIT: usize = 120;
 const ELLIPSIS: char = '…';
-const EMPHASIS_MARKS: [&str; 4] = ["**", "__", "~~", "`"];
+const PAIRED_MARKS: [&str; 2] = ["~~", "`"];
+const EDGE_MARKS: [char; 2] = ['*', '_'];
+const CODE_FENCES: [&str; 2] = ["```", "~~~"];
 const TASK_BOXES: [&str; 3] = ["[ ] ", "[x] ", "[X] "];
 
 /// The opening words of an article's body as a reader sees them: headings,
@@ -12,15 +14,29 @@ pub struct ArticleExcerpt(String);
 impl ArticleExcerpt {
     /// `None` when the body holds no readable text.
     pub fn from_body(body: &str) -> Option<Self> {
+        let lines: Vec<&str> = body.lines().map(str::trim).collect();
         let mut words = String::new();
-        let mut inside_code_block = false;
-        for line in body.lines() {
-            let line = line.trim();
-            if line.starts_with("```") || line.starts_with("~~~") {
-                inside_code_block = !inside_code_block;
+        let mut open_fence: Option<&str> = None;
+        let mut index = 0;
+        while index < lines.len() {
+            let line = lines[index];
+            index += 1;
+            if let Some(fence) = CODE_FENCES.iter().find(|fence| line.starts_with(**fence)) {
+                open_fence = match open_fence {
+                    None => Some(fence),
+                    Some(open) if open == *fence => None,
+                    still_open => still_open,
+                };
                 continue;
             }
-            if inside_code_block || Self::is_heading(line) || Self::is_thematic_break(line) {
+            if open_fence.is_some() || Self::is_heading(line) || Self::is_thematic_break(line) {
+                continue;
+            }
+            if lines
+                .get(index)
+                .is_some_and(|next| Self::is_setext_underline(next))
+            {
+                index += 1;
                 continue;
             }
             for word in Self::readable_text(Self::without_block_marks(line)).split_whitespace() {
@@ -53,6 +69,11 @@ impl ArticleExcerpt {
         let after_hashes = line.trim_start_matches('#');
         line.starts_with('#')
             && (after_hashes.is_empty() || after_hashes.starts_with(char::is_whitespace))
+    }
+
+    /// The `===` or `---` line that turns the line above it into a heading.
+    fn is_setext_underline(line: &str) -> bool {
+        !line.is_empty() && (line.chars().all(|c| c == '=') || line.chars().all(|c| c == '-'))
     }
 
     fn is_thematic_break(line: &str) -> bool {
@@ -92,63 +113,66 @@ impl ArticleExcerpt {
             .or_else(|| after_digits.strip_prefix(") "))
     }
 
-    /// Links keep their text, images disappear, emphasis and code marks go.
+    /// Images disappear, links keep their text, emphasis and code marks go.
     fn readable_text(line: &str) -> String {
+        let without_images = Self::replaced_brackets(line, "![", false);
+        let with_link_labels = Self::replaced_brackets(&without_images, "[", true);
+        Self::without_emphasis(&with_link_labels)
+    }
+
+    /// Every `opener label](target)` in `line`, replaced by its label or by nothing.
+    fn replaced_brackets(line: &str, opener: &str, keeps_label: bool) -> String {
         let mut text = String::new();
         let mut rest = line;
-        while let Some(open) = rest.find('[') {
-            let is_image = rest[..open].ends_with('!');
-            let before = if is_image {
-                &rest[..open - 1]
-            } else {
-                &rest[..open]
-            };
-            text.push_str(before);
-            match Self::link_parts(&rest[open..]) {
+        while let Some(open) = rest.find(opener) {
+            text.push_str(&rest[..open]);
+            let bracket = open + opener.len() - 1;
+            match Self::link_parts(&rest[bracket..]) {
                 Some((label, after)) => {
-                    if !is_image {
+                    if keeps_label {
                         text.push_str(label);
                     }
                     rest = after;
                 }
                 None => {
-                    text.push_str(&rest[before.len()..=open]);
-                    rest = &rest[open + 1..];
+                    text.push_str(&rest[open..=bracket]);
+                    rest = &rest[bracket + 1..];
                 }
             }
         }
         text.push_str(rest);
-        Self::without_emphasis(&text)
+        text
     }
 
-    /// `[label](target)rest` → `(label, rest)`.
+    /// `[label](target)rest` → `(label, rest)`; a `]` not followed by `(` is no link.
     fn link_parts(text: &str) -> Option<(&str, &str)> {
-        let close = text.find("](")?;
-        let after_target = text[close + 2..].find(')')?;
-        Some((&text[1..close], &text[close + 2 + after_target + 1..]))
+        let close = text.find(']')?;
+        let target = text[close + 1..].strip_prefix('(')?;
+        let target_end = target.find(')')?;
+        Some((&text[1..close], &target[target_end + 1..]))
     }
 
     fn without_emphasis(text: &str) -> String {
-        let unmarked = EMPHASIS_MARKS
+        let unpaired = PAIRED_MARKS
             .iter()
-            .fold(text.to_owned(), |text, mark| text.replace(mark, ""))
-            .replace('*', "");
-        Self::without_underscore_marks(&unmarked)
+            .fold(text.to_owned(), |text, mark| text.replace(mark, ""));
+        Self::without_edge_marks(&unpaired)
     }
 
-    /// `_italic_` loses its marks; the underscore inside `snake_case` stays.
-    fn without_underscore_marks(text: &str) -> String {
+    /// `*斜*`, `**粗**` and `_italic_` lose their marks; `2*3` and `snake_case` keep theirs.
+    fn without_edge_marks(text: &str) -> String {
         let characters: Vec<char> = text.chars().collect();
+        let is_letter_at = |index: Option<usize>| {
+            index
+                .and_then(|index| characters.get(index))
+                .is_some_and(|c| c.is_alphanumeric())
+        };
         characters
             .iter()
             .enumerate()
-            .filter(|&(index, &character)| {
-                let joins_a_word =
-                    |neighbour: Option<&char>| neighbour.is_some_and(|c| c.is_alphanumeric());
-                character != '_'
-                    || (index > 0
-                        && joins_a_word(characters.get(index - 1))
-                        && joins_a_word(characters.get(index + 1)))
+            .filter(|&(index, character)| {
+                !EDGE_MARKS.contains(character)
+                    || (is_letter_at(index.checked_sub(1)) && is_letter_at(Some(index + 1)))
             })
             .map(|(_, character)| character)
             .collect()
@@ -221,6 +245,21 @@ mod tests {
     }
 
     #[test]
+    fn keeps_a_code_block_open_until_its_own_fence_closes_it() {
+        assert_eq!(
+            excerpt("```\n~~~\n程式\n```\n文字"),
+            Some("文字".to_owned())
+        );
+    }
+
+    #[rstest]
+    #[case::equals_underline("標題\n===\n正文")]
+    #[case::dash_underline("標題\n---\n正文")]
+    fn skips_a_heading_underlined_below_it(#[case] body: &str) {
+        assert_eq!(excerpt(body), Some("正文".to_owned()));
+    }
+
+    #[test]
     fn skips_a_tilde_code_block_too() {
         assert_eq!(excerpt("~~~\ncode\n~~~\n文字"), Some("文字".to_owned()));
     }
@@ -232,6 +271,9 @@ mod tests {
     #[case::strikethrough_and_italics("~~刪~~ *斜* __粗__", "刪 斜 粗")]
     #[case::underscore_italics("_斜體_ 與 _italic_", "斜體 與 italic")]
     #[case::underscore_inside_a_name("snake_case 名字", "snake_case 名字")]
+    #[case::multiplication("2*3=6", "2*3=6")]
+    #[case::image_inside_a_link("[![徽章](a.png)](b) 文字", "文字")]
+    #[case::reference_link_before_an_inline_link("[a][1] 與 [b](c)", "[a][1] 與 b")]
     #[case::image_inside_a_line("前![圖](a.png)後", "前後")]
     #[case::bracket_that_is_not_a_link("[不是連結] 文字", "[不是連結] 文字")]
     #[case::hashtag_is_not_a_heading("#標籤 文字", "#標籤 文字")]
