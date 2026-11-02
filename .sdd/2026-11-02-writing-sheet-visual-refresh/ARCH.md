@@ -170,3 +170,14 @@ flowchart TD
 | 被選中的列有圓角底色 | `app.css` `.column-row[aria-pressed="true"]` |
 | 預覽用襯線字 | `app.css` `.preview-content` font-family |
 | 不從網路載入字型 | `app.css` 只用系統字型；CSP 不變 |
+
+---
+
+## 8. Improve-codebase 決定
+
+| 建議 | 決定 | 理由 |
+| :--- | :--- | :--- |
+| `Finders` 自己保存最新 handler 去接 `FinderRequests`，與 `useFindingKeys` 內部的 ref 重複 | **做了** | 按鍵與畫面上的請求是同一件事（「有人要開某個面板」），收進 `useFindingKeys(onFinderKey, requests?)`，`Finders` 少一層 ref |
+| `app.css` 等寬字型堆疊寫了五次 | **做了** | 改成 `:root` 上的 `--font-monospace`，不是顏色，不違反「顏色只來自主題」 |
+| `LiveWordCount` 與 `PreviewedBody` 都在跟隨打開的正文、都看文件版本與選字狀態，抽成共同基底 | **不做** | 兩者節奏不同（字數即時、預覽延遲 150ms 且可取消），共同的部分只有三行；抽出來會多一個要同時滿足兩種節奏的抽象，比重複更難讀 |
+| 讓 `StatusDot` 直接吃 `ArticleStatus \| null`，省掉呼叫端的 `statusChoiceOf` | **不做** | 側欄的「未標記」列本來就是 `StatusChoice`；兩種輸入都收會讓元件多一個分支。呼叫端的轉換只有一行且語意清楚 |
